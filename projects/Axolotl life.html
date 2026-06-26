@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AXOLOTL · Vita Voxel — Ciccarese AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg:#070b11; --panel:rgba(9,14,21,.86); --line:#1a2a36; --faint:#33444d;
+    --amber:#ffb000; --teal:#19e6d2; --pink:#ff7eb6; --violet:#b18cff; --good:#3ee6a0; --blue:#6aa9ff;
+    --txt:#d3e6ea; --dim:#5f7782;
+    --mono:'SFMono-Regular',Consolas,'Roboto Mono','JetBrains Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--mono);-webkit-font-smoothing:antialiased}
+  #scene{position:fixed;inset:0;z-index:0;touch-action:none}
+  .scan{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.07) 3px);mix-blend-mode:overlay;opacity:.5}
+  .vig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 54%,rgba(0,0,0,.5) 100%)}
+
+  /* ============ CREATOR ============ */
+  #creator{position:fixed;inset:0;z-index:20;display:flex;justify-content:flex-end;align-items:stretch;
+    background:linear-gradient(90deg,rgba(7,11,17,0) 0%,rgba(7,11,17,.35) 45%,rgba(7,11,17,.9) 70%);pointer-events:none}
+  #creator.gone{display:none}
+  .ccard{pointer-events:auto;width:430px;max-width:92vw;height:100%;overflow:auto;background:var(--panel);
+    border-left:1px solid var(--line);backdrop-filter:blur(8px);padding:22px 22px 30px}
+  .ccard h1{font-size:18px;letter-spacing:4px;font-weight:600;color:#fff}
+  .ccard h1 b{color:var(--teal)}
+  .ccard .sub{font-size:9.5px;letter-spacing:2px;color:var(--dim);margin:6px 0 20px}
+  .grp{margin-bottom:18px}
+  .grp .lab{font-size:9px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+  .grp .lab::before{content:'';width:5px;height:5px;background:var(--teal);box-shadow:0 0 6px var(--teal);transform:rotate(45deg)}
+  .opts{display:flex;flex-wrap:wrap;gap:7px}
+  .opt{flex:1 1 auto;min-width:0;background:#0c151d;border:1px solid var(--line);color:var(--txt);font-family:var(--mono);
+    font-size:10.5px;letter-spacing:1px;padding:9px 11px;border-radius:4px;cursor:pointer;transition:.13s;text-transform:uppercase;white-space:nowrap}
+  .opt:hover{border-color:var(--teal);background:#102029}
+  .opt.sel{border-color:var(--teal);color:var(--teal);box-shadow:inset 0 0 12px rgba(25,230,210,.14)}
+  .opt .d{display:block;font-size:8px;color:var(--dim);letter-spacing:.5px;margin-top:3px;text-transform:none}
+  .opt.sel .d{color:#8fd}
+  .sw{width:34px;height:34px;flex:0 0 auto;border-radius:6px;border:2px solid #0c151d;cursor:pointer;transition:.12s;position:relative}
+  .sw.sel{border-color:#fff;transform:scale(1.08);box-shadow:0 0 10px rgba(255,255,255,.3)}
+  input.nm{width:100%;background:#0c151d;border:1px solid var(--line);color:#fff;font-family:var(--mono);font-size:14px;
+    letter-spacing:2px;padding:11px 13px;border-radius:5px;outline:none}
+  input.nm:focus{border-color:var(--teal)}
+  .start{width:100%;margin-top:8px;background:linear-gradient(180deg,#15323a,#0c1f25);border:1px solid var(--teal);color:var(--teal);
+    font-family:var(--mono);font-size:14px;letter-spacing:4px;padding:15px;border-radius:6px;cursor:pointer;text-transform:uppercase;transition:.15s}
+  .start:hover{background:linear-gradient(180deg,#1c4550,#103038);box-shadow:0 0 22px rgba(25,230,210,.25);color:#fff}
+  .hint{position:fixed;left:22px;bottom:22px;z-index:21;max-width:330px;font-size:10px;line-height:1.6;color:var(--dim);pointer-events:none}
+  .hint b{color:var(--teal)}
+
+  /* ============ HUD ============ */
+  #hud{opacity:0;transition:opacity .6s ease}
+  #hud.on{opacity:1}
+  #top{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:stretch;height:58px;
+    background:linear-gradient(180deg,rgba(7,11,17,.96),rgba(7,11,17,.5));border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:11px;padding:0 16px;border-right:1px solid var(--line)}
+  .rbi{width:26px;height:26px;border-radius:5px;background:#1a2a36;border:1px solid var(--teal);position:relative;flex:0 0 auto;box-shadow:0 0 10px rgba(25,230,210,.3)}
+  .rbi::before,.rbi::after{content:'';position:absolute;top:9px;width:5px;height:5px;border-radius:1px;background:var(--teal);box-shadow:0 0 5px var(--teal)}
+  .rbi::before{left:6px}.rbi::after{right:6px}
+  .brand .t{font-size:13px;letter-spacing:2px;font-weight:600}.brand .t b{color:var(--teal)}
+  .brand .s{font-size:8px;letter-spacing:2px;color:var(--dim);margin-top:2px}
+  .stats{display:flex;flex:1;align-items:center;overflow-x:auto;scrollbar-width:none}.stats::-webkit-scrollbar{display:none}
+  .stat{display:flex;flex-direction:column;justify-content:center;padding:0 14px;min-width:62px;border-right:1px solid var(--line)}
+  .stat .k{font-size:8px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+  .stat .v{font-size:15px;font-weight:600;color:var(--teal);margin-top:3px;font-variant-numeric:tabular-nums;line-height:1.1}
+  .stat .v.a{color:var(--amber)}.stat .v.p{color:var(--pink)}.stat .v small{font-size:9px;color:var(--dim)}
+  .mini{display:flex;align-items:center;padding:0 14px;min-width:150px;border-right:1px solid var(--line)}
+  .mcol{flex:1;display:flex;flex-direction:column;gap:5px}
+  .mbar{display:flex;align-items:center;gap:6px;font-size:8px;color:var(--dim);letter-spacing:1px}
+  .mbar .l{width:46px;text-transform:uppercase;flex:0 0 auto}
+  .mtrack{flex:1;height:5px;background:#0a141b;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .mfill{height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#0d5c55,var(--teal))}
+  .mfill.a{background:linear-gradient(90deg,#7a5512,var(--amber))}.mfill.g{background:linear-gradient(90deg,#0c5a3a,var(--good))}
+  .clock{display:flex;align-items:center;gap:8px;padding:0 14px;flex:0 0 auto}
+  #sky{width:30px;height:30px;border-radius:50%;background:#ffd27a;box-shadow:0 0 12px #ffd27a;transition:.4s}
+
+  #side{position:fixed;top:58px;right:0;bottom:0;z-index:5;width:420px;max-width:86vw;background:var(--panel);
+    border-left:1px solid var(--line);backdrop-filter:blur(7px);display:flex;flex-direction:column;transition:transform .28s ease}
+  #side.hidden{transform:translateX(100%)}
+  .sect{border-bottom:1px solid var(--line);padding:12px 14px}
+  .sect h3{font-size:9px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase;display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .sect h3::before{content:'';width:5px;height:5px;background:var(--teal);box-shadow:0 0 6px var(--teal);transform:rotate(45deg)}
+  .sect h3 .gw{margin-left:auto;color:var(--faint);font-size:8px}
+  #brain{width:100%;height:200px;display:block;border:1px solid var(--line);background:#04080c;border-radius:3px}
+  .blegend{display:flex;justify-content:space-between;font-size:8px;color:var(--dim);margin-top:6px}
+  .blegend b{color:var(--teal)}.blegend i{color:var(--amber);font-style:normal}
+  .feelrow{display:flex;gap:12px;align-items:center}
+  #moodface{width:64px;height:64px;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;background:#04080c}
+  .feelbars{flex:1;display:flex;flex-direction:column;gap:6px}
+  .fb{display:flex;align-items:center;gap:7px;font-size:8px;color:var(--dim);letter-spacing:1px}
+  .fb .l{width:60px;text-transform:uppercase;flex:0 0 auto}
+  .ftrack{flex:1;height:6px;background:#0a141b;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .ffill{height:100%;width:0%;border-radius:3px}
+  #log{font-size:9.5px;line-height:1.7;color:var(--dim);max-height:130px;overflow:auto}
+  #log .e{color:var(--txt)}#log .a{color:var(--faint);margin-right:6px}#log .hi{color:var(--amber)}
+  .ctrls{display:flex;flex-direction:column;gap:9px}
+  .row{display:flex;gap:7px}
+  button.btn{flex:1;min-width:0;background:#0c151d;color:var(--txt);border:1px solid var(--line);font-family:var(--mono);
+    font-size:10px;letter-spacing:1px;padding:9px 5px;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:.13s;white-space:nowrap}
+  button.btn:hover{border-color:var(--teal);color:#fff;background:#0f1f28}button.btn:active{transform:translateY(1px)}
+  button.btn.on{border-color:var(--teal);color:var(--teal);box-shadow:inset 0 0 12px rgba(25,230,210,.12)}
+  button.btn.warm{border-color:#7a5512;color:var(--amber)}button.btn.love{border-color:#7a2f4d;color:var(--pink)}
+  .speeds{display:flex;gap:5px}.speeds button{flex:1;padding:7px 0}
+  .slt{display:flex;justify-content:space-between;font-size:9px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}.slt b{color:var(--teal)}
+  #handle{position:fixed;top:68px;right:0;z-index:6;background:var(--panel);border:1px solid var(--line);border-right:0;
+    border-radius:4px 0 0 4px;color:var(--teal);width:26px;height:46px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;backdrop-filter:blur(6px)}
+  #flash{position:fixed;top:44%;left:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;text-align:center;opacity:0}
+  #flash .big{font-size:32px;letter-spacing:5px;color:var(--amber);text-shadow:0 0 22px rgba(255,176,0,.6);font-weight:600}
+  #flash .sub{font-size:11px;letter-spacing:3px;color:var(--teal);margin-top:6px}
+  @media(max-width:620px){.brand .s,.mini{display:none}#side{width:380px}.stat{min-width:54px;padding:0 10px}.ccard{width:100%}#creator{background:rgba(7,11,17,.6)}}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="scan"></div><div class="vig"></div>
+<div id="flash"><div class="big"></div><div class="sub"></div></div>
+
+<!-- ===================== CREATOR ===================== -->
+<div id="creator">
+  <div class="hint">Trascina nello sfondo per ruotare l'anteprima.<br>Scegli com'è il tuo robottino, poi <b>dagli vita</b>.</div>
+  <div class="ccard">
+    <h1>CREA IL TUO <b>AXOLOTL</b></h1>
+    <div class="sub">CICCARESE AI · VITA ARTIFICIALE VOXEL</div>
+
+    <div class="grp"><div class="lab">Nome</div>
+      <input class="nm" id="c-name" maxlength="14" value="AXO">
+    </div>
+
+    <div class="grp"><div class="lab">Indole</div>
+      <div class="opts" id="c-temper">
+        <div class="opt sel" data-v="curioso">Curioso<span class="d">esplora tutto</span></div>
+        <div class="opt" data-v="coraggioso">Coraggioso<span class="d">non teme nulla</span></div>
+        <div class="opt" data-v="tranquillo">Tranquillo<span class="d">calmo e sereno</span></div>
+        <div class="opt" data-v="socievole">Socievole<span class="d">ama gli amici</span></div>
+      </div>
+    </div>
+
+    <div class="grp"><div class="lab">Corporatura</div>
+      <div class="opts" id="c-body">
+        <div class="opt" data-v="compatto">Compatto</div>
+        <div class="opt sel" data-v="standard">Standard</div>
+        <div class="opt" data-v="slanciato">Slanciato</div>
+        <div class="opt" data-v="robusto">Robusto</div>
+      </div>
+    </div>
+
+    <div class="grp"><div class="lab">Branchie</div>
+      <div class="opts" id="c-head">
+        <div class="opt sel" data-v="piccole">Piccole<span class="d">delicate</span></div>
+        <div class="opt" data-v="medie">Medie<span class="d">bilanciate</span></div>
+        <div class="opt" data-v="grandi">Grandi<span class="d">vistose</span></div>
+        <div class="opt" data-v="fluffy">Fluffy<span class="d">maxi</span></div>
+      </div>
+    </div>
+
+    <div class="grp"><div class="lab">Colore cute</div>
+      <div class="opts" id="c-chassis"></div>
+    </div>
+    <div class="grp"><div class="lab">Colore occhi (LED)</div>
+      <div class="opts" id="c-eye"></div>
+    </div>
+
+    <div class="grp"><div class="lab">Mondo di nascita</div>
+      <div class="opts" id="c-biome">
+        <div class="opt sel" data-v="pianure">Pianure</div>
+        <div class="opt" data-v="foresta">Foresta</div>
+        <div class="opt" data-v="deserto">Deserto</div>
+        <div class="opt" data-v="montagne">Montagne</div>
+        <div class="opt" data-v="arcipelago">Arcipelago</div>
+      </div>
+    </div>
+
+    <button class="start" id="c-start">◈ Dai vita ◈</button>
+  </div>
+</div>
+
+<!-- ===================== HUD ===================== -->
+<div id="hud">
+  <div id="top">
+    <div class="brand"><div class="rbi"></div><div><div class="t" id="h-name">AXO<b>·</b>LOTL</div><div class="s">CICCARESE AI · VITA AXOLOTL VOXEL</div></div></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Fase</div><div class="v a" id="s-stage">Neonato</div></div>
+      <div class="stat"><div class="k">Umore</div><div class="v p" id="s-mood">Curioso</div></div>
+      <div class="stat"><div class="k">Età</div><div class="v" id="s-age">0<small>g</small></div></div>
+      <div class="mini"><div class="mcol">
+        <div class="mbar"><span class="l">Fame</span><div class="mtrack"><div class="mfill a" id="m-hun"></div></div></div>
+        <div class="mbar"><span class="l">Energia</span><div class="mtrack"><div class="mfill" id="m-en"></div></div></div>
+        <div class="mbar"><span class="l">Crescita</span><div class="mtrack"><div class="mfill g" id="m-xp"></div></div></div>
+      </div></div>
+      <div class="stat"><div class="k">Neuroni</div><div class="v" id="s-neu">—</div></div>
+      <div class="clock"><div id="sky"></div></div>
+    </div>
+  </div>
+
+  <div id="handle">‹</div>
+
+  <div id="side">
+    <div class="sect"><h3>La sua mente<span class="gw" id="b-arch"></span></h3>
+      <canvas id="brain" width="640" height="340"></canvas>
+      <div class="blegend"><span><b>■</b> sinapsi + &nbsp; <i>■</i> sinapsi −</span><span id="b-plast">apprendimento attivo</span></div>
+    </div>
+    <div class="sect"><h3>Come si sente</h3>
+      <div class="feelrow"><canvas id="moodface" width="128" height="128"></canvas>
+        <div class="feelbars">
+          <div class="fb"><span class="l">Felicità</span><div class="ftrack"><div class="ffill" id="f-joy" style="background:var(--pink)"></div></div></div>
+          <div class="fb"><span class="l">Serenità</span><div class="ftrack"><div class="ffill" id="f-calm" style="background:var(--good)"></div></div></div>
+          <div class="fb"><span class="l">Curiosità</span><div class="ftrack"><div class="ffill" id="f-cur" style="background:var(--amber)"></div></div></div>
+          <div class="fb"><span class="l">Socievole</span><div class="ftrack"><div class="ffill" id="f-soc" style="background:var(--violet)"></div></div></div>
+          <div class="fb"><span class="l">Paura</span><div class="ftrack"><div class="ffill" id="f-fear" style="background:var(--blue)"></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="sect"><h3>Diario di vita</h3><div id="log"></div></div>
+    <div class="sect" style="flex:1;overflow:auto"><h3>Interazioni</h3>
+      <div class="ctrls">
+        <div class="row"><button class="btn warm" id="b-pause">⏸ Pausa</button><button class="btn on" id="b-follow">◎ Segui</button></div>
+        <div class="row"><button class="btn love" id="b-pet">♥ Coccola</button><button class="btn" id="b-feed">⬡ Nutri</button></div>
+        <div><div class="slt"><span>Velocità del tempo</span><b id="lbl-spd">1×</b></div>
+          <div class="speeds"><button class="btn on" data-spd="1">1×</button><button class="btn" data-spd="2">2×</button><button class="btn" data-spd="4">4×</button></div></div>
+        <div class="row"><button class="btn" id="b-world">⌖ Nuovo mondo</button><button class="btn" id="b-rebirth">⟲ Rinasci</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================================================== utils */
+const clamp=(x,a,b)=>x<a?a:x>b?b:x, lerp=(a,b,t)=>a+(b-a)*t, smooth=t=>t*t*(3-2*t);
+function randn(){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const rand=(a,b)=>a+Math.random()*(b-a);
+function angLerp(a,b,t){let d=((b-a+Math.PI)%(2*Math.PI))-Math.PI;if(d<-Math.PI)d+=2*Math.PI;return a+d*t;}
+let SEED=Math.random()*1000;
+function h2(i,j){let n=Math.sin((i*127.1+j*311.7+SEED))*43758.5453;return n-Math.floor(n);}
+function vnoise(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi,u=smooth(xf),v=smooth(zf);
+  return lerp(lerp(h2(xi,zi),h2(xi+1,zi),u),lerp(h2(xi,zi+1),h2(xi+1,zi+1),u),v);}
+function fbm(x,z){let s=0,a=.5,f=1;for(let o=0;o<4;o++){s+=a*vnoise(x*f,z*f);f*=2;a*=.5;}return s;}
+
+/* ===================================================== neural net (growable + plastic) */
+class Net{
+  constructor(layers){this.build(layers);}
+  build(layers,from){
+    const L=layers.slice(),W=[],B=[],act=L.map(s=>new Float32Array(s));
+    for(let l=0;l<L.length-1;l++){const a=L[l],b=L[l+1],w=new Float32Array(a*b),bb=new Float32Array(b),sc=1/Math.sqrt(a);
+      for(let i=0;i<w.length;i++)w[i]=randn()*sc;for(let i=0;i<bb.length;i++)bb[i]=randn()*.08;
+      if(from&&from.layers[l]!==undefined&&from.layers[l+1]!==undefined){const oa=from.layers[l],ob=from.layers[l+1],ow=from.W[l],obb=from.B[l],ca=Math.min(a,oa),cb=Math.min(b,ob);
+        for(let o=0;o<cb;o++)for(let i=0;i<ca;i++)w[o*a+i]=ow[o*oa+i];for(let o=0;o<cb;o++)bb[o]=obb[o];}
+      W.push(w);B.push(bb);}
+    this.layers=L;this.W=W;this.B=B;this.act=act;
+  }
+  grow(layers){this.build(layers,{layers:this.layers,W:this.W,B:this.B});}
+  forward(input){let a=input;this.act[0].set(input);
+    for(let l=0;l<this.W.length;l++){const ni=this.layers[l],no=this.layers[l+1],w=this.W[l],b=this.B[l],out=this.act[l+1];
+      for(let o=0;o<no;o++){let s=b[o];const base=o*ni;for(let i=0;i<ni;i++)s+=w[base+i]*a[i];out[o]=Math.tanh(s);}a=out;}return a;}
+  plast(reward){const lr=.018,dec=.0008;
+    for(let l=0;l<this.W.length;l++){const ni=this.layers[l],no=this.layers[l+1],w=this.W[l],pre=this.act[l],post=this.act[l+1];
+      for(let o=0;o<no;o++){const base=o*ni,po=post[o];for(let i=0;i<ni;i++){w[base+i]=clamp(w[base+i]+lr*reward*pre[i]*po-dec*w[base+i],-3,3);}}}}
+  get neurons(){return this.layers.reduce((s,n)=>s+n,0);}
+}
+
+/* ===================================================== life stages (human-like) */
+const IN=16, OUT=6;
+const STAGES=[
+  {name:'Neonato',    scale:0.45, head:1.7,  hidden:[16,12],    conf:0.14, xp:0},
+  {name:'Bambino',    scale:0.66, head:1.42, hidden:[22,16],    conf:0.30, xp:28},
+  {name:'Adolescente',scale:0.9,  head:1.18, hidden:[28,20,12], conf:0.50, xp:78},
+  {name:'Adulto',     scale:1.18, head:1.0,  hidden:[34,26,16], conf:0.72, xp:170},
+  {name:'Anziano',    scale:1.12, head:1.08, hidden:[40,30,18], conf:0.86, xp:320},
+];
+const layersFor=s=>[IN,...STAGES[s].hidden,OUT];
+
+/* ===================================================== THREE base */
+const cv=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x8fc0ec);
+scene.fog=new THREE.Fog(0x8fc0ec,60,170);
+const camera=new THREE.PerspectiveCamera(52,1,0.1,600);
+const amb=new THREE.AmbientLight(0xb8c8d8,0.7);scene.add(amb);
+const sun=new THREE.DirectionalLight(0xfff0d8,1.0);sun.position.set(40,80,30);scene.add(sun);
+const fill=new THREE.PointLight(0x6aa9ff,0.3,200);fill.position.set(-40,30,-40);scene.add(fill);
+// stars (night)
+let stars;{const n=400,p=new Float32Array(n*3);for(let i=0;i<n;i++){const r=200,th=Math.random()*6.28,ph=Math.acos(rand(0.1,1));p[i*3]=r*Math.sin(ph)*Math.cos(th);p[i*3+1]=Math.abs(r*Math.cos(ph))+20;p[i*3+2]=r*Math.sin(ph)*Math.sin(th);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  stars=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:.9,transparent:true,opacity:0}));scene.add(stars);}
+
+/* ===================================================== voxel world */
+const BLOCKS=58, BS=1.7, HALF=BLOCKS/2, FLOORY=-10;
+let hMap=new Int16Array(BLOCKS*BLOCKS), typeMap=new Uint8Array(BLOCKS*BLOCKS); // 0 land,1 water,2 lava
+let terrainMesh, waterMesh, lavaMesh, decorGroup;
+const wx=g=>(g-HALF)*BS, gx=x=>Math.round(x/BS+HALF);
+function idx(i,j){return i*BLOCKS+j;}
+function hWorldAt(x,z){const i=clamp(gx(x),0,BLOCKS-1),j=clamp(gx(z),0,BLOCKS-1);return hMap[idx(i,j)]*BS;}
+function typeAt(x,z){const i=clamp(gx(x),0,BLOCKS-1),j=clamp(gx(z),0,BLOCKS-1);return typeMap[idx(i,j)];}
+
+const BIOMES={
+  pianure:   {maxL:7, sea:2, moist:0.55, trees:14, cacti:0,  lava:0, snow:0.0},
+  foresta:   {maxL:8, sea:2, moist:0.7,  trees:34, cacti:0,  lava:0, snow:0.0},
+  deserto:   {maxL:6, sea:1, moist:0.15, trees:0,  cacti:14, lava:3, snow:0.0},
+  montagne:  {maxL:13,sea:2, moist:0.5,  trees:10, cacti:0,  lava:0, snow:0.55},
+  arcipelago:{maxL:9, sea:5, moist:0.6,  trees:16, cacti:0,  lava:0, snow:0.0},
+};
+let BIOME=BIOMES.pianure;
+const C=hex=>new THREE.Color(hex);
+const COL={grass:C(0x6fbf4a),grass2:C(0x589a3a),sand:C(0xe6d6a0),dirt:C(0x8a5a2b),stone:C(0x8b9099),snow:C(0xeef4fb),water:C(0x357ad8),lava:C(0xff7a1a)};
+function genWorld(){
+  const maxL=BIOME.maxL, sea=BIOME.sea;
+  for(let i=0;i<BLOCKS;i++)for(let j=0;j<BLOCKS;j++){
+    let e=fbm(i*0.07,j*0.07); // 0..1
+    // island falloff for archipelago / soft edges
+    const dx=(i-HALF)/HALF, dz=(j-HALF)/HALF, d=Math.sqrt(dx*dx+dz*dz);
+    if(BIOME===BIOMES.arcipelago){const isl=fbm(i*0.045+50,j*0.045+50);e=e*0.5+isl*0.6-d*0.35;}
+    else e-=smooth(clamp((d-0.8)/0.25,0,1))*0.25;
+    let h=Math.max(0,Math.round(e*maxL));
+    let t=0; // land
+    if(h<sea){t=1;} // water
+    typeMap[idx(i,j)]=t; hMap[idx(i,j)]=h;
+  }
+  // lava pools (desert)
+  if(BIOME.lava){let placed=0,tries=0;while(placed<BIOME.lava&&tries++<400){const i=(Math.random()*BLOCKS)|0,j=(Math.random()*BLOCKS)|0;
+    if(typeMap[idx(i,j)]===0){const r=1+((Math.random()*2)|0);for(let a=-r;a<=r;a++)for(let b=-r;b<=r;b++){const ii=i+a,jj=j+b;if(ii>=0&&jj>=0&&ii<BLOCKS&&jj<BLOCKS&&typeMap[idx(ii,jj)]===0){typeMap[idx(ii,jj)]=2;}}placed++;}}}
+  buildTerrainMesh(); buildDecor();
+}
+function colorFor(i,j){
+  const h=hMap[idx(i,j)],t=typeMap[idx(i,j)],sea=BIOME.sea;
+  let c;
+  if(t===2)c=COL.lava.clone();
+  else if(t===1)c=COL.sand.clone().multiplyScalar(0.8); // underwater floor (seen at edges)
+  else if(h<=sea)c=COL.sand.clone();                    // beach
+  else if(BIOME.snow&&h>=BIOME.maxL-2)c=COL.snow.clone();
+  else if(h>=BIOME.maxL-1)c=COL.stone.clone();
+  else { const moist=fbm(i*0.05+99,j*0.05+99)*0.5+BIOME.moist*0.5;
+    c=moist>0.45?(Math.random()<0.5?COL.grass.clone():COL.grass2.clone()):COL.sand.clone(); }
+  c.multiplyScalar(0.86+h2(i,j)*0.18); return c;
+}
+function buildTerrainMesh(){
+  if(terrainMesh){scene.remove(terrainMesh);}if(waterMesh)scene.remove(waterMesh);if(lavaMesh)scene.remove(lavaMesh);
+  const N=BLOCKS*BLOCKS;
+  const geo=new THREE.BoxGeometry(BS,1,BS);
+  const mat=new THREE.MeshStandardMaterial({roughness:0.92,metalness:0.02});
+  terrainMesh=new THREE.InstancedMesh(geo,mat,N);
+  const dum=new THREE.Object3D();let wi=0,li=0;const waterIdx=[],lavaIdx=[];
+  for(let i=0;i<BLOCKS;i++)for(let j=0;j<BLOCKS;j++){
+    const k=idx(i,j),h=hMap[k],top=h*BS,height=top-FLOORY;
+    dum.position.set(wx(i),(top+FLOORY)/2,wx(j));dum.scale.set(1,height,1);dum.updateMatrix();
+    terrainMesh.setMatrixAt(k,dum.matrix);terrainMesh.setColorAt(k,colorFor(i,j));
+    if(typeMap[k]===1)waterIdx.push([i,j]); if(typeMap[k]===2)lavaIdx.push([i,j]);
+  }
+  terrainMesh.instanceMatrix.needsUpdate=true;if(terrainMesh.instanceColor)terrainMesh.instanceColor.needsUpdate=true;
+  scene.add(terrainMesh);
+  // water tiles
+  const wgeo=new THREE.BoxGeometry(BS,0.3,BS);
+  const wmat=new THREE.MeshStandardMaterial({color:0x357ad8,transparent:true,opacity:0.72,roughness:0.2,metalness:0.1,emissive:0x10406a,emissiveIntensity:0.3});
+  waterMesh=new THREE.InstancedMesh(wgeo,wmat,Math.max(1,waterIdx.length));
+  waterIdx.forEach(([i,j],n)=>{dum.position.set(wx(i),BIOME.sea*BS,wx(j));dum.scale.set(1,1,1);dum.updateMatrix();waterMesh.setMatrixAt(n,dum.matrix);});
+  waterMesh.instanceMatrix.needsUpdate=true;waterMesh.userData={base:BIOME.sea*BS};scene.add(waterMesh);
+  if(waterIdx.length===0)waterMesh.visible=false;
+  // lava tiles
+  const lmat=new THREE.MeshStandardMaterial({color:0xff7a1a,emissive:0xff5500,emissiveIntensity:1.2,roughness:0.6});
+  lavaMesh=new THREE.InstancedMesh(wgeo,lmat,Math.max(1,lavaIdx.length));
+  lavaIdx.forEach(([i,j],n)=>{dum.position.set(wx(i),hMap[idx(i,j)]*BS+0.18,wx(j));dum.updateMatrix();lavaMesh.setMatrixAt(n,dum.matrix);});
+  lavaMesh.instanceMatrix.needsUpdate=true;lavaMesh.count=Math.max(1,lavaIdx.length);scene.add(lavaMesh);
+  if(lavaIdx.length===0)lavaMesh.visible=false;
+}
+function buildDecor(){
+  if(decorGroup)scene.remove(decorGroup);decorGroup=new THREE.Group();scene.add(decorGroup);
+  const wood=new THREE.MeshStandardMaterial({color:0x6b4a2b,roughness:.9}),leaf=new THREE.MeshStandardMaterial({color:0x3f8f3a,roughness:.85}),
+        cact=new THREE.MeshStandardMaterial({color:0x3f9f5a,roughness:.8}),flr=[0xff7eb6,0xffd166,0xb18cff,0xff4d6d];
+  const grassCols=[],sandCols=[];
+  for(let i=2;i<BLOCKS-2;i++)for(let j=2;j<BLOCKS-2;j++){const k=idx(i,j),h=hMap[k],t=typeMap[k];if(t!==0)continue;
+    if(h>BIOME.sea&&h<BIOME.maxL-1)grassCols.push([i,j,h]); if(h<=BIOME.sea+1)sandCols.push([i,j,h]);}
+  const pick=(arr,n)=>{const out=[];for(let c=0;c<n&&arr.length;c++)out.push(arr[(Math.random()*arr.length)|0]);return out;};
+  // trees
+  pick(grassCols,BIOME.trees).forEach(([i,j,h])=>{const g=new THREE.Group();
+    const th=2+((Math.random()*2)|0);for(let y=0;y<th;y++){const t=new THREE.Mesh(new THREE.BoxGeometry(BS*.45,BS,BS*.45),wood);t.position.y=h*BS+BS/2+y*BS;g.add(t);}
+    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)for(let c=0;c<2;c++){if(Math.random()<.15)continue;const lf=new THREE.Mesh(new THREE.BoxGeometry(BS*.92,BS*.92,BS*.92),leaf);lf.position.set(wx(i)+a*BS,h*BS+(th+c)*BS,wx(j)+b*BS);g.add(lf);}
+    g.position.set(wx(i),0,wx(j));g.children.forEach(ch=>{if(ch.geometry.parameters.width<BS)ch.position.x=0,ch.position.z=0;});decorGroup.add(g);});
+  // cacti
+  pick(sandCols,BIOME.cacti).forEach(([i,j,h])=>{const ch=2+((Math.random()*2)|0);for(let y=0;y<ch;y++){const c=new THREE.Mesh(new THREE.BoxGeometry(BS*.5,BS,BS*.5),cact);c.position.set(wx(i),h*BS+BS/2+y*BS,wx(j));decorGroup.add(c);}});
+  // flowers
+  pick(grassCols,18).forEach(([i,j,h])=>{const f=new THREE.Mesh(new THREE.BoxGeometry(BS*.2,BS*.4,BS*.2),new THREE.MeshStandardMaterial({color:flr[(Math.random()*flr.length)|0],emissive:0x111,roughness:.7}));f.position.set(wx(i)+rand(-.4,.4)*BS,h*BS+BS*.4,wx(j)+rand(-.4,.4)*BS);decorGroup.add(f);});
+}
+
+/* ===================================================== food / companions */
+let foodGroup,foods=[];
+function spawnFood(x,z){const m=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),new THREE.MeshStandardMaterial({color:0xff4d4d,emissive:0xaa1010,emissiveIntensity:.7,roughness:.4}));
+  m.position.set(x,hWorldAt(x,z)+1,z);foodGroup.add(m);foods.push({x,z,mesh:m,bob:Math.random()*6});}
+function buildFood(){if(foodGroup)scene.remove(foodGroup);foodGroup=new THREE.Group();scene.add(foodGroup);foods=[];
+  let c=0;while(c<16){const x=rand(-HALF*BS+6,HALF*BS-6),z=rand(-HALF*BS+6,HALF*BS-6);if(typeAt(x,z)===0){spawnFood(x,z);c++;}}}
+function relocateFood(f){let x,z;do{x=rand(-HALF*BS+6,HALF*BS-6);z=rand(-HALF*BS+6,HALF*BS-6);}while(typeAt(x,z)!==0);f.x=x;f.z=z;f.mesh.position.set(x,hWorldAt(x,z)+1,z);}
+
+/* ===================================================== AXOLOTL factory (voxel, Minecraft-inspired) */
+// cfg: {chassis:int, eye:int, body:str, head:str (gill style), name, temper}
+// body variants → body proportions; head → gill style
+const BODY_DIMS={
+  compatto: {bw:1.9,bh:.80,bd:1.3,legH:.42,legR:.52},
+  standard: {bw:2.1,bh:.85,bd:1.45,legH:.46,legR:.56},
+  slanciato:{bw:1.8,bh:1.0, bd:1.2, legH:.52,legR:.52},
+  robusto:  {bw:2.4,bh:.95,bd:1.6, legH:.44,legR:.60},
+};
+function makeAxolotl(cfg){
+  const G=new THREE.Group();
+  const skin=new THREE.MeshStandardMaterial({color:cfg.chassis,metalness:.08,roughness:.62});
+  const skinD=new THREE.MeshStandardMaterial({color:new THREE.Color(cfg.chassis).multiplyScalar(.72),metalness:.06,roughness:.68});
+  const eyeMat=new THREE.MeshStandardMaterial({color:cfg.eye,emissive:cfg.eye,emissiveIntensity:1.8,roughness:.2});
+  const glowMat=new THREE.MeshStandardMaterial({color:cfg.eye,emissive:cfg.eye,emissiveIntensity:1.4,roughness:.25});
+  const d=BODY_DIMS[cfg.body]||BODY_DIMS.standard;
+  const bodyY=d.legH+d.bh/2;
+  // ---- body (main wide squat block) ----
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(d.bw,d.bh,d.bd),skin);torso.position.y=bodyY;
+  // belly stripe (slightly lighter slab on underside)
+  const belly=new THREE.Mesh(new THREE.BoxGeometry(d.bw*.85,d.bh*.28,d.bd*.78),new THREE.MeshStandardMaterial({color:new THREE.Color(cfg.chassis).lerp(new THREE.Color(0xffffff),.22),roughness:.7}));
+  belly.position.set(0,d.legH+d.bh*.12,0);
+  // ---- tail (flat tapered blocks behind body) ----
+  const tailG=new THREE.Group();
+  const ts=[{s:[.9*d.bd,.32,.7*d.bd],x:-(d.bw/2+.5)},{s:[.6*d.bd,.22,.55*d.bd],x:-(d.bw/2+1.1)},{s:[.4*d.bd,.14,.4*d.bd],x:-(d.bw/2+1.7)}];
+  ts.forEach(t=>{const m=new THREE.Mesh(new THREE.BoxGeometry(...t.s),skin);m.position.set(t.x,bodyY,0);tailG.add(m);});
+  // tail fin (thin flat dorsal)
+  const tailFin=new THREE.Mesh(new THREE.BoxGeometry(1.2,.08,d.bd*.7),glowMat);tailFin.position.set(-(d.bw/2+1.1),bodyY+d.bh*.5+.04,0);tailG.add(tailFin);
+  // ---- legs (4 stubby, at corners) ----
+  function leg(xoff,zoff){const grp=new THREE.Group();grp.position.set(xoff,d.legH,zoff);
+    const upper=new THREE.Mesh(new THREE.BoxGeometry(.36,d.legH*.7,.36),skin);upper.position.y=-d.legH*.35;
+    const lower=new THREE.Mesh(new THREE.BoxGeometry(.32,d.legH*.5,.38),skinD);lower.position.y=-d.legH*.85;
+    const foot=new THREE.Mesh(new THREE.BoxGeometry(.44,.14,.52),skinD);foot.position.set(0,-d.legH+.04,0);
+    grp.add(upper,lower,foot);return grp;}
+  const xR=d.bw*.36,zR=d.legR;
+  const legFL=leg( xR, zR),legFR=leg( xR,-zR),legBL=leg(-xR, zR),legBR=leg(-xR,-zR);
+  // ---- head (big, wide, low-set) ----
+  const headG=new THREE.Group();
+  const headBaseY=d.legH+d.bh*.5;
+  const hW=1.0,hH=.58,hD=d.bd*1.0; // wider, flatter head — no snout protrusion
+  const hbox=new THREE.Mesh(new THREE.BoxGeometry(hW,hH,hD),skin);headG.add(hbox);
+  // flat cheek pads (subtle width, flush — no pig snout)
+  const cheekL=new THREE.Mesh(new THREE.BoxGeometry(hW*.55,hH*.45,hD*.28),skin);cheekL.position.set(hW*.22,-.04, hD*.42);headG.add(cheekL);
+  const cheekR=new THREE.Mesh(new THREE.BoxGeometry(hW*.55,hH*.45,hD*.28),skin);cheekR.position.set(hW*.22,-.04,-hD*.42);headG.add(cheekR);
+  // big round eyes on TOP-SIDES of head (axolotl eyes are high and lateral)
+  const eL=new THREE.Mesh(new THREE.BoxGeometry(.16,.20,.20),eyeMat);eL.position.set(hW*.22, hH*.42, hD*.46);
+  const eR=new THREE.Mesh(new THREE.BoxGeometry(.16,.20,.20),eyeMat);eR.position.set(hW*.22, hH*.42,-hD*.46);
+  // pupil (dark square on front face of each eye)
+  const pL=new THREE.Mesh(new THREE.BoxGeometry(.10,.12,.10),new THREE.MeshBasicMaterial({color:0x06090e}));pL.position.set(hW*.32, hH*.42, hD*.46);
+  const pR=new THREE.Mesh(new THREE.BoxGeometry(.10,.12,.10),new THREE.MeshBasicMaterial({color:0x06090e}));pR.position.set(hW*.32, hH*.42,-hD*.46);
+  // thin smile strip along the front face (not a pig nose — just a horizontal line)
+  const mouth=new THREE.Mesh(new THREE.BoxGeometry(.05,hH*.10,hD*.62),glowMat);mouth.position.set(hW*.52,-.16,0);
+  headG.add(eL,eR,pL,pR,mouth);
+  // ---- gills (head style) ----
+  const antTips=[];
+  const gillMat=new THREE.MeshStandardMaterial({color:cfg.eye,emissive:cfg.eye,emissiveIntensity:1.6,roughness:.28});
+  function gillFan(zOff){// one side: cluster of branching voxel sticks
+    const grp=new THREE.Group();grp.position.set(0,hH*.45,zOff);
+    const stems=cfg.head==='piccole'?[[0,.32,0,.06],[0,.22,0,.06]]:cfg.head==='medie'?[[-.06,.44,0,.06],[.08,.34,0,.06],[0,.28,-.06,.05]]:cfg.head==='grandi'?[[-.08,.5,0,.06],[.06,.42,0,.05],[-.04,.34,.08,.05],[.04,.28,-.08,.04]]:// fluffy (4+tip bulbs)
+    [[-.1,.52,0,.06],[.08,.44,.04,.05],[-.04,.36,.1,.05],[.1,.28,-.06,.04]];
+    stems.forEach(([ox,hy,oz,r])=>{
+      const st=new THREE.Mesh(new THREE.BoxGeometry(r*1.4,hy,r*1.4),skin);st.position.set(ox,hy/2,oz);grp.add(st);
+      const tip=new THREE.Mesh(new THREE.BoxGeometry(r*2.2,r*2.2,r*2.2),gillMat);tip.position.set(ox,hy,oz);grp.add(tip);antTips.push(tip);});
+    return grp;}
+  const gillL=gillFan(hD*.54),gillR=gillFan(-hD*.54);headG.add(gillL,gillR);
+  // head holder for scaling (young = big head)
+  const headHolder=new THREE.Group();headG.position.y=0;headHolder.add(headG);headHolder.position.set(d.bw*.42,headBaseY,0);
+  // ---- dorsal fin stripe ----
+  const dorsalFin=new THREE.Mesh(new THREE.BoxGeometry(d.bw*.7,.08,d.bd*.55),glowMat);dorsalFin.position.set(0,bodyY+d.bh*.54,0);
+  // ---- aura ----
+  const aura=new THREE.Mesh(new THREE.SphereGeometry(1.6,12,10),new THREE.MeshBasicMaterial({color:cfg.chassis,transparent:true,opacity:.05,blending:THREE.AdditiveBlending,depthWrite:false}));aura.position.y=bodyY;
+  G.add(aura,belly,torso,tailG,dorsalFin,legFL,legFR,legBL,legBR,headHolder);
+  // expose refs for animation
+  G.userData={skin,skinD,eyeMat,glowMat,gillMat,mouthMat:glowMat,
+    legFL,legFR,legBL,legBR,torso,head:headHolder,headInner:headG,eL,eR,mouth,antTips,aura,
+    dorsalFin,tailFin,belly,
+    bodyY,headBaseY,torsoY:bodyY,
+    baseChassis:new THREE.Color(cfg.chassis),baseEye:new THREE.Color(cfg.eye),cfg};
+  return G;
+}
+
+/* ===================================================== mind lattice (holographic, above head) */
+/* lattice removed — rete neurale visibile solo nel pannello HUD */
+
+/* ===================================================== particles */
+function tex(draw){const c=document.createElement('canvas');c.width=c.height=64;draw(c.getContext('2d'));return new THREE.CanvasTexture(c);}
+const T_HEART=tex(x=>{x.fillStyle='#fff';x.beginPath();x.moveTo(32,58);x.bezierCurveTo(2,36,10,8,32,22);x.bezierCurveTo(54,8,62,36,32,58);x.fill();});
+const T_SPARK=tex(x=>{x.translate(32,32);x.fillStyle='#fff';for(let i=0;i<4;i++){x.rotate(Math.PI/2);x.beginPath();x.moveTo(0,-28);x.lineTo(4,0);x.lineTo(0,28);x.lineTo(-4,0);x.fill();}});
+const T_Z=tex(x=>{x.fillStyle='#fff';x.font='bold 44px monospace';x.textAlign='center';x.fillText('z',32,46);});
+let particles=[];
+function emit(type,n){if(!P)return;const map={heart:T_HEART,spark:T_SPARK,z:T_Z},colr={heart:0xff7eb6,spark:0xffd166,z:0x9fd6ff};
+  for(let i=0;i<n;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:map[type],color:colr[type],transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+    const sc=rand(.5,.9);s.scale.setScalar(sc);s.position.set(P.x+rand(-.5,.5),P.group.position.y+2.4*P.scale,P.z+rand(-.5,.5));
+    scene.add(s);particles.push({s,life:1,vy:rand(1.4,2.4),vx:rand(-.3,.3),vz:rand(-.3,.3),sc});}}
+function updateParticles(dt){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt*0.7;if(p.life<=0){scene.remove(p.s);particles.splice(i,1);continue;}
+  p.s.position.x+=p.vx*dt;p.s.position.y+=p.vy*dt;p.s.position.z+=p.vz*dt;p.s.material.opacity=clamp(p.life,0,1);p.s.scale.setScalar(p.sc*(.6+p.life*.5));}}
+
+/* ===================================================== state */
+const EMO_COL={joy:C(0xff7eb6),calm:C(0x3ee6a0),curious:C(0xffd166),social:C(0xb18cff),fear:C(0x6aa9ff),tired:C(0x9fb0bd)};
+let P=null, companions=[], visited=new Set();
+let sim={paused:false,speed:1,follow:true,time:0,started:false};
+const DAYLEN=90; // seconds per day-night cycle
+function timeOfDay(){return (sim.time/DAYLEN)%1;}
+function nightFactor(){const t=timeOfDay();const sunH=Math.sin(t*6.283-1.2);return clamp(-sunH*1.4,0,1);} // 0 day,1 deep night
+
+const TEMPER={curioso:{cur:1.3,fear:1.0,soc:1.0,conf:0.05,calm:1.0},coraggioso:{cur:1.1,fear:0.5,soc:1.0,conf:0.12,calm:1.0},tranquillo:{cur:0.8,fear:0.9,soc:1.0,conf:0.06,calm:1.4},socievole:{cur:1.0,fear:1.0,soc:1.6,conf:0.05,calm:1.1}};
+
+// nearest land column to a point (scans grid) — guarantees valid spawn even in archipelago
+function findLand(cx,cz){let bx=cx,bz=cz,bd=Infinity;for(let i=2;i<BLOCKS-2;i++)for(let j=2;j<BLOCKS-2;j++){if(typeMap[idx(i,j)]===0){const x=wx(i),z=wx(j),d=(x-cx)*(x-cx)+(z-cz)*(z-cz);if(d<bd){bd=d;bx=x;bz=z;}}}return{x:bx,z:bz};}
+
+function spawnHero(cfg){
+  if(P)scene.remove(P.group);
+  const group=makeAxolotl(cfg);scene.add(group);
+  const land=findLand(0,0),sx=land.x,sz=land.z;
+  P={group,cfg,net:new Net(layersFor(0)),x:sx,z:sz,heading:rand(0,6.28),speed:0,
+    hunger:0.2,energy:0.9,social:0.3,health:1,confidence:STAGES[0].conf,curiosity:0.5,comfort:0.7,
+    xp:0,stage:0,scale:STAGES[0].scale,age:0,asleep:false,
+    temper:TEMPER[cfg.temper],wander:{x:sx,z:sz,t:0},legPhase:0,blink:0,blinkT:rand(2,5),
+    expr:{eye:1,col:EMO_COL.curious.clone(),ant:0,core:1,bounce:.1,bf:2,mouth:.4,tilt:0,tremble:0},
+    emo:{joy:0,calm:.2,curious:.5,social:.1,fear:0,tired:.1},eatP:0,socP:0,zT:0};
+  visited=new Set();
+}
+function spawnCompanions(){
+  companions.forEach(c=>scene.remove(c.group));companions=[];
+  const pals=[{chassis:0xfad6a5,eye:0xff9f1c},{chassis:0xc5e8b0,eye:0x6adfb0},{chassis:0xa8d8f0,eye:0x6ab8ff},{chassis:0xd4b8f5,eye:0xd18cff}];
+  const bodies=['compatto','standard','slanciato','robusto'],heads=['piccole','medie','grandi','fluffy'];
+  for(let i=0;i<4;i++){const cfg={chassis:pals[i].chassis,eye:pals[i].eye,body:bodies[i%4],head:heads[i%4]};
+    const group=makeAxolotl(cfg);const sc=rand(.85,1.15);group.scale.setScalar(sc);scene.add(group);
+    const land=findLand(rand(-HALF*BS*0.7,HALF*BS*0.7),rand(-HALF*BS*0.7,HALF*BS*0.7)),x=land.x,z=land.z;
+    companions.push({group,cfg,x,z,heading:rand(0,6.28),speed:0,scale:sc,wander:{x,z,t:0},legPhase:Math.random()*6,blink:0,blinkT:rand(2,6),y:hWorldAt(x,z)});}
+}
+
+/* ===================================================== behavior + needs + emotion */
+function nearest(arr,fx){let bi=-1,bd=Infinity;for(let i=0;i<arr.length;i++){const d=fx(arr[i]);if(d<bd){bd=d;bi=i;}}return{i:bi,d:bd};}
+function blockedAt(x,z){const t=typeAt(x,z);return t===1||t===2;}
+function lavaDist(x,z){let bd=Infinity;for(let i=0;i<BLOCKS;i++)for(let j=0;j<BLOCKS;j++){if(typeMap[idx(i,j)]===2){const d=Math.hypot(x-wx(i),z-wx(j));if(d<bd)bd=d;}}return bd;}
+let lavaCache={x:1e9,z:1e9,d:Infinity};
+function step(dt){
+  P.age+=dt/DAYLEN*4; // age in "giorni" accelerated
+  const night=nightFactor();
+  // --- sleep state machine ---
+  if(P.asleep){
+    P.energy=clamp(P.energy+0.16*dt,0,1);P.hunger=clamp(P.hunger+0.005*dt,0,1);
+    P.zT-=dt;if(P.zT<=0){emit('z',1);P.zT=0.9;}
+    if(P.energy>0.9||(night<0.2&&P.energy>0.5)){P.asleep=false;addLog('Si è svegliato');}
+    P.emo.tired=lerp(P.emo.tired,0.4,dt);P.emo.calm=lerp(P.emo.calm,0.7,dt);applyExpr(dt,0,true);return;
+  }
+  // --- senses ---
+  const fN=nearest(foods,f=>Math.hypot(P.x-f.x,P.z-f.z)),food=foods[fN.i],fd=fN.d;
+  const cN=nearest(companions,c=>Math.hypot(P.x-c.x,P.z-c.z)),comp=companions[cN.i],cd=cN.d;
+  if(Math.hypot(P.x-lavaCache.x,P.z-lavaCache.z)>4)lavaCache={x:P.x,z:P.z,d:lavaDist(P.x,P.z)};
+  const ld=lavaCache.d, fearLevel=clamp(1-ld/12,0,1)*P.temper.fear;
+  const relA=(tx,tz)=>{let a=Math.atan2(tz-P.z,tx-P.x)-P.heading;while(a>Math.PI)a-=6.283;while(a<-Math.PI)a+=6.283;return a;};
+  const aheadX=P.x+Math.cos(P.heading)*2.5,aheadZ=P.z+Math.sin(P.heading)*2.5;
+  const edgeAhead=blockedAt(aheadX,aheadZ)?1:0;
+  const slope=clamp((hWorldAt(aheadX,aheadZ)-hWorldAt(P.x,P.z))/4,-1,1);
+  const fA=food?relA(food.x,food.z):0,cA=comp?relA(comp.x,comp.z):0,tod=timeOfDay()*6.283;
+  // --- neural net ---
+  const inp=new Float32Array(IN);
+  inp[0]=Math.sin(fA);inp[1]=Math.cos(fA);inp[2]=clamp(fd/40,0,1)*2-1;
+  inp[3]=Math.sin(cA);inp[4]=Math.cos(cA);inp[5]=clamp(cd/40,0,1)*2-1;
+  inp[6]=fearLevel*2-1;inp[7]=edgeAhead*2-1;inp[8]=slope;
+  inp[9]=P.hunger*2-1;inp[10]=P.energy*2-1;inp[11]=P.social*2-1;
+  inp[12]=Math.sin(tod);inp[13]=Math.cos(tod);inp[14]=P.confidence*2-1;inp[15]=(P.temper.cur-1);
+  const out=P.net.forward(inp);const nnTurn=out[0],nnThr=out[1];
+  // --- decide goal (needs-driven) ---
+  let desired=P.heading,urg=.4;
+  if(fearLevel>0.2){const fl=fleeLava();desired=fl;urg=1;}
+  else if(P.hunger>0.5&&food){desired=Math.atan2(food.z-P.z,food.x-P.x);urg=.85;}
+  else if(P.social<0.45&&P.temper.soc>1.0&&P.confidence>0.35&&comp){desired=Math.atan2(comp.z-P.z,comp.x-P.x);urg=.55;}
+  else { // explore
+    P.wander.t-=dt;
+    if(P.wander.t<=0||Math.hypot(P.x-P.wander.x,P.z-P.wander.z)<4){let nx,nz,ok=false;
+      const R=lerp(10,32,P.confidence)*P.temper.cur;
+      for(let k=0;k<12;k++){nx=clamp(P.x+rand(-R,R),-HALF*BS+8,HALF*BS-8);nz=clamp(P.z+rand(-R,R),-HALF*BS+8,HALF*BS-8);if(typeAt(nx,nz)===0){ok=true;break;}}
+      if(ok){P.wander.x=nx;P.wander.z=nz;}P.wander.t=rand(3,7);}
+    desired=Math.atan2(P.wander.z-P.z,P.wander.x-P.x);urg=.4;}
+  let target=desired+nnTurn*0.55;
+  P.heading=angLerp(P.heading,target,lerp(.05,.16,P.confidence)*urg*60*dt);
+  P.heading+=randn()*((1-P.confidence)*0.5+fearLevel*0.7)*dt;
+  // --- move (blocked by water/lava) ---
+  const baseSpd=lerp(3.2,7.5,P.confidence)*lerp(0.6,1,P.energy);
+  let thr=clamp(.55+.45*nnThr,.25,1),spd=baseSpd*thr;if(fearLevel>.3)spd*=1.6;
+  P.speed=lerp(P.speed,spd,clamp(dt*4,0,1));
+  let nx=P.x+Math.cos(P.heading)*P.speed*dt,nz=P.z+Math.sin(P.heading)*P.speed*dt;
+  nx=clamp(nx,-HALF*BS+5,HALF*BS-5);nz=clamp(nz,-HALF*BS+5,HALF*BS-5);
+  if(blockedAt(nx,nz)){P.heading+=2.2*dt+rand(-.4,.4);P.speed*=.3;} else {P.x=nx;P.z=nz;}
+  P.legPhase+=P.speed*dt*1.6;
+  // --- needs ---
+  let reward=0;
+  P.hunger=clamp(P.hunger+(0.018+P.speed*0.003)*dt,0,1);
+  P.energy=clamp(P.energy-(0.012+P.speed*0.004+night*0.02)*dt,0,1);
+  P.social=clamp(P.social-0.03*dt,0,1);
+  if(food&&fd<1.8){P.hunger=clamp(P.hunger-0.55,0,1);relocateFood(food);P.xp+=3;reward+=.7;P.eatP=1;emit('heart',5);if(Math.random()<.6)addLog('Ha mangiato una mela');}
+  if(comp&&cd<3.5){P.social=clamp(P.social+0.6*dt,0,1);reward+=.4;P.socP=1;if(P.social>.6&&Math.random()<.01){addLog('Gioca con un amico');P.xp+=2;emit('heart',4);}}
+  if(ld<2.6){P.health=clamp(P.health-0.3*dt,0,1);P.comfort=clamp(P.comfort-0.5*dt,0,1);reward-=.8;if(Math.random()<.03)addLog('La lava lo spaventa!');}
+  else P.comfort=clamp(P.comfort+0.08*dt,0,1);
+  if(P.hunger>0.85){P.health=clamp(P.health-0.04*dt,0,1);reward-=.3;}
+  else P.health=clamp(P.health+0.02*dt,0,1);
+  // exploration
+  const cell=Math.floor(P.x/6)+','+Math.floor(P.z/6);if(!visited.has(cell)){visited.add(cell);P.xp+=1;reward+=.25;P.curiosity=clamp(P.curiosity+.1,0,1);}
+  P.curiosity=clamp(P.curiosity-0.02*dt,0.1,1);
+  // confidence maturation
+  const tc=STAGES[P.stage].conf+P.comfort*0.12+clamp(P.xp/400,0,0.1)-fearLevel*0.25;
+  P.confidence=clamp(lerp(P.confidence,clamp(tc,0,1),0.4*dt),0,1);
+  // fall asleep?
+  if((P.energy<0.18)||(night>0.55&&P.energy<0.55&&fearLevel<0.2)){P.asleep=true;addLog('Si addormenta...','');}
+  // plasticity
+  P.eatP*=Math.pow(.06,dt);P.socP*=Math.pow(.2,dt);
+  if(((sim.time*30)|0)%3===0)P.net.plast(clamp(reward,-1,1));
+  // emotions
+  const m=P.emo,tgt={
+    fear:clamp(fearLevel*1.2,0,1),
+    joy:clamp(P.eatP*.9+P.socP*.5+(out[5]*.5+.5)*.25,0,1),
+    social:clamp((comp&&cd<5?.6:0)+P.social*.5,0,1),
+    curious:clamp(P.curiosity*P.temper.cur*.8,0,1),
+    tired:clamp(1-P.energy,0,1)*.9,
+    calm:clamp(P.confidence*P.comfort*(1-fearLevel)*0.9*P.temper.calm*.7+(P.hunger<.5?.15:0),0,1)};
+  for(const k in m)m[k]=lerp(m[k],tgt[k],clamp(dt*3,0,1));
+  applyExpr(dt,fearLevel,false);
+}
+function fleeLava(){let bx=0,bz=0;for(let i=0;i<BLOCKS;i++)for(let j=0;j<BLOCKS;j++){if(typeMap[idx(i,j)]===2){const dx=P.x-wx(i),dz=P.z-wx(j),d=dx*dx+dz*dz+1;bx+=dx/d;bz+=dz/d;}}return Math.atan2(bz,bx);}
+
+function dominant(m){let k='calm',v=-1;for(const key in m)if(m[key]>v){v=m[key];k=key;}return{k,v};}
+const MOOD={joy:'Felice',calm:'Sereno',curious:'Curioso',social:'Socievole',fear:'Spaventato',tired:'Stanco'};
+function applyExpr(dt,fearLevel,sleeping){
+  const m=P.emo,e=P.expr;let eye=1,ant=0,core=1,bounce=.1,bf=2,mouth=.4,tilt=0,trem=0;
+  const col=new THREE.Color(0,0,0);let ws=0;for(const k in m){col.add(EMO_COL[k].clone().multiplyScalar(m[k]));ws+=m[k];}if(ws>.001)col.multiplyScalar(1/ws);else col.copy(EMO_COL.calm);
+  const dom=dominant(m).k;
+  if(sleeping){eye=0.05;ant=-0.7;core=0.25;bounce=.03;bf=1.2;mouth=0;tilt=.18;}
+  else switch(dom){
+    case 'fear':eye=1.3;ant=-.7;core=1.6;bounce=.04;bf=20;mouth=-.4;trem=.9;break;
+    case 'joy':eye=.5;ant=.6;core=1.5;bounce=.26;bf=8;mouth=1;break;
+    case 'social':eye=.8;ant=.45;core=1.2;bounce=.16;bf=6;mouth=.8;break;
+    case 'curious':eye=1.15;ant=.5;core=1.2;bounce=.15;bf=6;mouth=.35;tilt=-.06;break;
+    case 'tired':eye=.32;ant=-.5;core=.5;bounce=.04;bf=1.4;mouth=-.1;break;
+    default:eye=.62;ant=.1;core=.9;bounce=.08;bf=2.2;mouth=.55;
+  }
+  const k=clamp(dt*5,0,1);
+  e.eye=lerp(e.eye,eye,k);e.ant=lerp(e.ant,ant,k);e.core=lerp(e.core,core,k);e.bounce=lerp(e.bounce,bounce,k);
+  e.bf=lerp(e.bf,bf,k);e.mouth=lerp(e.mouth,mouth,k);e.tilt=lerp(e.tilt,tilt,k);e.tremble=lerp(e.tremble,trem,k);e.col.lerp(col,k);
+}
+
+/* render hero from state */
+function renderHero(dt){
+  if(!P)return;const u=P.group.userData,e=P.expr,st=STAGES[P.stage];
+  P.scale=lerp(P.scale,st.scale,clamp(dt*1.5,0,1));
+  P.group.scale.setScalar(P.scale);
+  // young axolotl has proportionally bigger head
+  u.head.scale.setScalar(st.head);
+  const groundY=hWorldAt(P.x,P.z);
+  P.group.position.y=lerp(P.group.position.y||groundY,groundY,clamp(dt*8,0,1));
+  const bounce=P.asleep?0:Math.sin(sim.time*e.bf)*e.bounce;
+  const trX=e.tremble?randn()*.04:0,trZ=e.tremble?randn()*.04:0;
+  P.group.position.x=P.x+trX;P.group.position.z=P.z+trZ;
+  P.group.rotation.y=-P.heading;
+  // body bob (squat body bobs up-down while walking)
+  u.torso.position.y=u.bodyY+bounce;u.belly.position.y=u.bodyY-u.bodyY*.55+bounce;
+  // 4-leg waddle: front pair out-of-phase with back pair
+  const sw=P.asleep?0:Math.sin(P.legPhase)*.38;
+  const swB=P.asleep?0:Math.sin(P.legPhase+Math.PI)*.38; // back legs opposite phase
+  u.legFL.rotation.x= sw; u.legFR.rotation.x=-sw;
+  u.legBL.rotation.x= swB;u.legBR.rotation.x=-swB;
+  // tilt forward while moving
+  P.group.rotation.z=lerp(P.group.rotation.z,-clamp(P.speed*0.018,0,.11),0.1);
+  // tail wag (emotion-driven frequency and amplitude)
+  const wagAmp=P.asleep?.04:lerp(.08,.42,Math.max(e.mouth,0));
+  const wagF=P.asleep?0.5:lerp(1.2,6,e.mouth*.5+.5);
+  if(u.tailFin)u.tailFin.rotation.y=Math.sin(sim.time*wagF)*wagAmp*2;
+  // dorsal fin glow pulses with emotion
+  if(u.dorsalFin){u.dorsalFin.material=u.glowMat;u.dorsalFin.material.emissiveIntensity=(.4+Math.abs(Math.sin(sim.time*3))*.5)*e.core;}
+  // eyes blink + emotion (axolotl: eyes scale Y for blink)
+  P.blinkT-=dt;if(P.blinkT<0){P.blink=.13;P.blinkT=rand(2.5,6);}if(P.blink>0)P.blink-=dt;
+  const eyeOpen=(P.asleep?.06:e.eye)*(P.blink>0&&!P.asleep?.12:1);
+  u.eL.scale.y=eyeOpen;u.eR.scale.y=eyeOpen;
+  u.eyeMat.emissiveIntensity=P.asleep?.18:1.8;
+  // mouth (glow + scale to show smile/frown)
+  u.mouthMat.emissiveIntensity=P.asleep?.08:(.8+Math.max(0,e.mouth)*1.0);
+  u.mouth.scale.z=clamp(Math.abs(e.mouth)+.45,.45,1.5);u.mouth.position.y=e.mouth>=0?-.2:-.14;
+  // gill tips pulse (emotion-driven brightness and jiggle)
+  u.antTips.forEach((t,i)=>{
+    t.material.emissiveIntensity=(1.2+Math.max(0,e.ant)*1.3)*(0.7+Math.sin(sim.time*5+i*1.3)*.3);
+    t.scale.setScalar(P.asleep?.7:1+Math.sin(sim.time*5.5+i)*.12*Math.max(0,e.ant));
+  });
+  u.headInner.rotation.z=lerp(u.headInner.rotation.z,e.tilt,0.1);
+  // aura
+  u.aura.material.color.copy(e.col);u.aura.material.opacity=.04+P.emo.joy*.06+P.emo.calm*.025;
+  // elder: slight desaturation
+  if(P.stage>=4){u.skin.color.copy(u.baseChassis).multiplyScalar(.82);u.skinD.color.copy(u.baseChassis).multiplyScalar(.58);}
+}
+function renderCompanions(dt){
+  for(const c of companions){c.wander.t-=dt;
+    if(c.wander.t<=0||Math.hypot(c.x-c.wander.x,c.z-c.wander.z)<4){let ok=false,nx,nz;for(let k=0;k<10;k++){nx=clamp(c.x+rand(-22,22),-HALF*BS+7,HALF*BS-7);nz=clamp(c.z+rand(-22,22),-HALF*BS+7,HALF*BS-7);if(typeAt(nx,nz)===0){ok=true;break;}}if(ok){c.wander.x=nx;c.wander.z=nz;}c.wander.t=rand(3,8);}
+    let desired=Math.atan2(c.wander.z-c.z,c.wander.x-c.x);if(P&&Math.hypot(c.x-P.x,c.z-P.z)<13)desired=Math.atan2(P.z-c.z,P.x-c.x);
+    c.heading=angLerp(c.heading,desired,0.06);c.speed=lerp(c.speed,3,dt*3);
+    let nx=c.x+Math.cos(c.heading)*c.speed*dt,nz=c.z+Math.sin(c.heading)*c.speed*dt;nx=clamp(nx,-HALF*BS+5,HALF*BS-5);nz=clamp(nz,-HALF*BS+5,HALF*BS-5);
+    if(blockedAt(nx,nz)){c.heading+=2*dt;}else{c.x=nx;c.z=nz;}c.legPhase+=c.speed*dt*1.6;
+    const gy=hWorldAt(c.x,c.z);c.y=lerp(c.y,gy,clamp(dt*8,0,1));
+    c.group.position.set(c.x,c.y,c.z);c.group.rotation.y=-c.heading;
+    const u=c.group.userData;
+    u.torso.position.y=u.bodyY+Math.sin(sim.time*2.5+c.x)*.05;
+    // 4 legs waddle
+    const sw=Math.sin(c.legPhase)*.35;const swB=Math.sin(c.legPhase+Math.PI)*.35;
+    if(u.legFL)u.legFL.rotation.x=sw;if(u.legFR)u.legFR.rotation.x=-sw;
+    if(u.legBL)u.legBL.rotation.x=swB;if(u.legBR)u.legBR.rotation.x=-swB;
+    // blink
+    c.blinkT-=dt;if(c.blinkT<0){c.blink=.12;c.blinkT=rand(2.5,6);}if(c.blink>0)c.blink-=dt;
+    const op=c.blink>0?.1:.9;if(u.eL)u.eL.scale.y=op;if(u.eR)u.eR.scale.y=op;
+    // tail wag
+    if(u.tailFin)u.tailFin.rotation.y=Math.sin(sim.time*3.5+c.x)*.3;
+    // gill glow
+    if(u.antTips)u.antTips.forEach((t,i)=>{t.material.emissiveIntensity=1.1+Math.sin(sim.time*4+i)*0.4;});
+  }
+}
+
+/* ===================================================== environment anim + day/night */
+const skyDay=C(0x8fc0ec),skySet=C(0xffb27a),skyNight=C(0x0a1330);
+function animEnv(dt){
+  const t=timeOfDay(),night=nightFactor();
+  // sun
+  const ang=t*6.283-1.2;sun.position.set(Math.cos(ang)*80,Math.sin(ang)*90,30);
+  sun.intensity=clamp(Math.sin(ang)*1.2,0.05,1.1);sun.color.lerpColors(C(0xffd0a0),C(0xfff0d8),clamp(Math.sin(ang),0,1));
+  amb.intensity=lerp(0.25,0.7,1-night);
+  // sky
+  let sky=new THREE.Color();const dusk=clamp(1-Math.abs(Math.sin(ang))*1.5,0,1);
+  sky.copy(skyDay).lerp(skyNight,night);sky.lerp(skySet,dusk*(1-night)*0.7);
+  scene.background.copy(sky);scene.fog.color.copy(sky);
+  stars.material.opacity=night*0.9;stars.rotation.y+=dt*0.005;
+  // hud sky icon
+  const skyEl=document.getElementById('sky');if(night>0.5){skyEl.style.background='#cfe0ff';skyEl.style.boxShadow='0 0 12px #9fb8e0';}else{skyEl.style.background='#ffd27a';skyEl.style.boxShadow='0 0 12px #ffd27a';}
+  // food bob, water waves, lava flicker
+  foods.forEach(f=>{f.mesh.rotation.y+=dt;f.mesh.position.y=hWorldAt(f.x,f.z)+1+Math.sin(sim.time*2+f.bob)*0.18;});
+  if(waterMesh)waterMesh.position.y=Math.sin(sim.time*1.5)*0.12;
+  if(lavaMesh&&lavaMesh.visible)lavaMesh.material.emissiveIntensity=1+Math.abs(Math.sin(sim.time*3))*0.6;
+}
+
+/* ===================================================== HUD */
+const brain=document.getElementById('brain'),bx=brain.getContext('2d');
+function drawBrain(){const w=brain.width,h=brain.height;bx.clearRect(0,0,w,h);if(!P)return;
+  const L=P.net.layers,cols=L.length,padX=34,padY=16,colX=i=>padX+(w-2*padX)*(i/(cols-1)),np=[];
+  for(let l=0;l<cols;l++){const cap=Math.min(L[l],16),arr=[];for(let i=0;i<cap;i++){const y=cap===1?h/2:padY+(h-2*padY)*(i/(cap-1));arr.push({x:colX(l),y,idx:i});}np.push(arr);}
+  for(let l=0;l<L.length-1;l++){const ni=L[l],wm=P.net.W[l];for(const B of np[l+1])for(const A of np[l]){const wt=wm[B.idx*ni+A.idx],mag=Math.min(Math.abs(wt),2)/2;if(mag<.09)continue;
+    bx.globalAlpha=.08+mag*.5;bx.lineWidth=.4+mag*1.6;bx.strokeStyle=wt>=0?'#19e6d2':'#ffb000';bx.beginPath();bx.moveTo(A.x,A.y);bx.lineTo(B.x,B.y);bx.stroke();}}
+  bx.globalAlpha=1;for(let l=0;l<cols;l++){const act=P.net.act[l];for(const nd of np[l]){const v=act?act[nd.idx]:0,a=Math.abs(v);
+    bx.beginPath();bx.arc(nd.x,nd.y,3+a*2.4,0,7);bx.fillStyle=v>=0?`rgba(25,230,210,${.35+a*.6})`:`rgba(255,176,0,${.35+a*.6})`;bx.fill();bx.lineWidth=.6;bx.strokeStyle='rgba(255,255,255,.14)';bx.stroke();}}
+  bx.fillStyle='#5f7782';bx.font='8px monospace';bx.textAlign='center';const lab=['SENSI','H1','H2','H3','AZIONE'];
+  for(let l=0;l<cols;l++)bx.fillText(l===cols-1?'AZIONE':lab[l]||('H'+l),colX(l),h-3);
+}
+const mf=document.getElementById('moodface'),mfx=mf.getContext('2d');
+function drawFace(){const w=mf.width,h=mf.height;mfx.clearRect(0,0,w,h);if(!P)return;const e=P.expr,cx=w/2,cy=h/2;
+  const col='#'+e.col.getHexString();
+  // head silhouette
+  mfx.fillStyle=col;mfx.globalAlpha=.18;mfx.beginPath();mfx.ellipse(cx,cy,44,36,0,0,7);mfx.fill();mfx.globalAlpha=1;
+  mfx.strokeStyle=col;mfx.lineWidth=1.8;mfx.beginPath();mfx.ellipse(cx,cy,44,36,0,0,7);mfx.stroke();
+  // eyes (big round axolotl eyes)
+  const eyeOpen=clamp(P.asleep?.08:e.eye,0.08,1.3);
+  [[cx-16,cy-4],[cx+16,cy-4]].forEach(([ex,ey])=>{
+    mfx.fillStyle='#eff8ff';mfx.beginPath();mfx.ellipse(ex,ey,9,9*eyeOpen,0,0,7);mfx.fill();
+    mfx.fillStyle='#0a0e14';mfx.beginPath();mfx.arc(ex,ey+(e.mouth<0?1:-.5),4,0,7);mfx.fill();
+    mfx.fillStyle='#fff';mfx.beginPath();mfx.arc(ex+2.5,ey-2.5,1.5,0,7);mfx.fill();
+    mfx.strokeStyle=col;mfx.lineWidth=1.2;mfx.beginPath();mfx.ellipse(ex,ey,10,10*eyeOpen,0,0,7);mfx.stroke();
+  });
+  // wide smile/frown
+  mfx.strokeStyle=col;mfx.lineWidth=2.5;mfx.lineCap='round';mfx.beginPath();
+  const my=cy+18,mw=22,curve=e.mouth*12;
+  mfx.moveTo(cx-mw,my);mfx.quadraticCurveTo(cx,my+curve,cx+mw,my);mfx.stroke();
+  // gill tufts on sides
+  mfx.fillStyle=col;mfx.shadowColor=col;mfx.shadowBlur=8;
+  [[-44,cy-8],[44,cy-8]].forEach(([gx,gy])=>{
+    for(let i=0;i<3;i++){mfx.globalAlpha=.7;mfx.beginPath();const gly=gy-i*7,sz=4-i;mfx.ellipse(gx,gly,sz,sz*1.8,0,0,7);mfx.fill();}
+  });mfx.shadowBlur=0;mfx.globalAlpha=1;
+  // sleeping zzz
+  if(P.asleep){mfx.fillStyle='#9fd6ff';mfx.font='bold 12px monospace';mfx.textAlign='center';mfx.fillText('z z',cx+28,cy-28);}
+}
+const $=id=>document.getElementById(id);
+let logArr=[];function addLog(t,hi){if(!P)return;logArr.unshift({t:Math.floor(P.age),text:t,hi});if(logArr.length>7)logArr.pop();
+  $('log').innerHTML=logArr.map(e=>`<div><span class="a">g${e.t}</span><span class="e ${e.hi?'hi':''}">${e.text}</span></div>`).join('');}
+const setW=(id,v)=>$(id).style.width=clamp(v*100,0,100)+'%';
+function updateHUD(){if(!P)return;const st=STAGES[P.stage];
+  $('s-stage').textContent=st.name;$('s-age').innerHTML=Math.floor(P.age)+'<small>g</small>';$('s-neu').textContent=P.net.neurons;$('b-arch').textContent=P.net.layers.join('·');
+  const m=P.emo,dom=dominant(m);$('s-mood').textContent=P.asleep?'Dorme':MOOD[dom.k];$('s-mood').style.color=P.asleep?'#9fd6ff':'#'+EMO_COL[dom.k].getHexString();
+  setW('m-hun',P.hunger);setW('m-en',P.energy);const nx=P.stage<STAGES.length-1?STAGES[P.stage+1].xp:st.xp,pv=st.xp;setW('m-xp',P.stage<STAGES.length-1?(P.xp-pv)/(nx-pv):1);
+  setW('f-joy',m.joy);setW('f-calm',m.calm);setW('f-cur',m.curious);setW('f-soc',m.social);setW('f-fear',m.fear);
+  drawBrain();drawFace();
+}
+function checkStage(){while(P.stage<STAGES.length-1&&P.xp>=STAGES[P.stage+1].xp){P.stage++;P.net.grow(layersFor(P.stage));
+  P.confidence=Math.max(P.confidence,STAGES[P.stage].conf);addLog('È cresciuto: '+STAGES[P.stage].name+'!',true);emit('spark',14);emit('heart',6);
+  flash('CRESCITA',STAGES[P.stage].name.toUpperCase()+' · mente più grande');}}
+
+/* ===================================================== camera */
+let camR=22,camTheta=-Math.PI/3,camPhi=0.95,camT=new THREE.Vector3();
+function updateCamera(){const tx=sim.started&&sim.follow&&P?P.x:0,tz=sim.started&&sim.follow&&P?P.z:0,ty=sim.started&&P?(P.group.position.y+2):3;
+  camT.x=lerp(camT.x,tx,0.08);camT.z=lerp(camT.z,tz,0.08);camT.y=lerp(camT.y,ty,0.08);
+  camera.position.set(camT.x+camR*Math.sin(camPhi)*Math.cos(camTheta),camT.y+camR*Math.cos(camPhi),camT.z+camR*Math.sin(camPhi)*Math.sin(camTheta));
+  camera.lookAt(camT.x,camT.y,camT.z);}
+let drag=false,lx=0,ly=0;
+cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;camTheta-=(e.clientX-lx)*.006;camPhi=clamp(camPhi-(e.clientY-ly)*.005,0.18,1.45);lx=e.clientX;ly=e.clientY;});
+cv.addEventListener('pointerup',()=>drag=false);
+cv.addEventListener('wheel',e=>{e.preventDefault();camR=clamp(camR+e.deltaY*.03,8,70);},{passive:false});
+let pinch=0;cv.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinch)camR=clamp(camR-(d-pinch)*.05,8,70);pinch=d;}},{passive:true});
+cv.addEventListener('touchend',()=>pinch=0);
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);
+
+/* ===================================================== flash */
+const flashEl=$('flash');
+function flash(big,sub){flashEl.querySelector('.big').textContent=big;flashEl.querySelector('.sub').textContent=sub||'';flashEl.style.transition='none';flashEl.style.opacity='1';requestAnimationFrame(()=>{flashEl.style.transition='opacity 1.4s ease';flashEl.style.opacity='0';});}
+
+/* ===================================================== CREATOR logic */
+const CHASSIS=['#c8cdd4','#f4a8c0','#f7cfe3','#fad6a5','#c5e8b0','#a8d8f0','#d4b8f5','#b8e8d8']; // grigio default + pastels
+const EYES=['#19e6d2','#ff6fa8','#ff9f1c','#6adfb0','#6ab8ff','#d18cff','#ffe066']; // teal default
+const CFG={name:'AXO',temper:'curioso',body:'standard',head:'piccole',chassis:0xc8cdd4,eye:0x19e6d2,biome:'pianure'};
+function buildSwatches(){
+  const ce=$('c-chassis');CHASSIS.forEach((hex,i)=>{const d=document.createElement('div');d.className='sw'+(i===0?' sel':'');d.style.background=hex;d.dataset.v=hex;ce.appendChild(d);});
+  const ee=$('c-eye');EYES.forEach((hex,i)=>{const d=document.createElement('div');d.className='sw'+(i===0?' sel':'');d.style.background=hex;d.dataset.v=hex;ee.appendChild(d);});
+  ce.addEventListener('click',e=>{const sw=e.target.closest('.sw');if(!sw||!sw.dataset.v)return;ce.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));sw.classList.add('sel');CFG.chassis=parseInt(sw.dataset.v.replace('#',''),16);rebuildPreview();});
+  ee.addEventListener('click',e=>{const sw=e.target.closest('.sw');if(!sw||!sw.dataset.v)return;ee.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));sw.classList.add('sel');CFG.eye=parseInt(sw.dataset.v.replace('#',''),16);rebuildPreview();});
+}
+function optGroup(id,key){const el=$(id);el.addEventListener('click',e=>{const o=e.target.closest('.opt');if(!o)return;el.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));o.classList.add('sel');CFG[key]=o.dataset.v;rebuildPreview();});}
+['c-temper:temper','c-body:body','c-head:head','c-biome:biome'].forEach(s=>{const[id,k]=s.split(':');optGroup(id,k);});
+$('c-name').addEventListener('input',e=>{CFG.name=e.target.value||'BIT';});
+buildSwatches();
+
+/* preview */
+let preview=null,previewPad=null;
+function buildPreviewPad(){if(previewPad)scene.remove(previewPad);previewPad=new THREE.Group();
+  const gmat=new THREE.MeshStandardMaterial({color:0x6fbf4a,roughness:.9});
+  for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){const b=new THREE.Mesh(new THREE.BoxGeometry(BS,BS,BS),gmat);b.position.set(i*BS,-BS/2,j*BS);previewPad.add(b);}
+  scene.add(previewPad);}
+function rebuildPreview(){if(!sim.started){if(preview)scene.remove(preview);preview=makeAxolotl({chassis:CFG.chassis,eye:CFG.eye,body:CFG.body,head:CFG.head});preview.scale.setScalar(1.1);scene.add(preview);}}
+function startCreatorScene(){scene.background.copy(skyDay);buildPreviewPad();rebuildPreview();camR=8;camPhi=1.05;camTheta=-Math.PI/4;camT.set(0,1.4,0);}
+
+$('c-start').onclick=()=>{
+  CFG.name=$('c-name').value||'BIT';
+  BIOME=BIOMES[CFG.biome]||BIOMES.pianure;
+  if(preview)scene.remove(preview);if(previewPad)scene.remove(previewPad);
+  SEED=Math.random()*1000;genWorld();buildFood();
+  spawnHero({chassis:CFG.chassis,eye:CFG.eye,body:CFG.body,head:CFG.head,temper:CFG.temper,name:CFG.name});
+  spawnCompanions();
+  sim.started=true;camR=20;camPhi=0.95;
+  $('h-name').innerHTML=CFG.name+'<b>·</b>AXOLOTL';
+  $('creator').classList.add('gone');$('hud').classList.add('on');document.querySelector('.hint').style.display='none';
+  logArr=[];addLog(CFG.name+' nasce nel mondo voxel','');  flash('NASCITA',CFG.name);
+};
+
+/* ===================================================== main loop */
+const DT=1/60;let last=performance.now();
+function loop(now){requestAnimationFrame(loop);let fdt=Math.min((now-last)/1000,.05);last=now;
+  if(!sim.started){ // preview spin
+    if(preview)preview.rotation.y+=fdt*0.6; updateCamera(); renderer.render(scene,camera); return;
+  }
+  if(!sim.paused){const steps=sim.speed;for(let s=0;s<steps;s++){sim.time+=DT;step(DT);}checkStage();}
+  renderHero(DT);renderCompanions(DT);updateParticles(DT);animEnv(DT);updateCamera();
+  renderer.render(scene,camera);updateHUD();
+}
+startCreatorScene();resize();requestAnimationFrame(loop);
+
+/* ===================================================== UI wiring */
+$('b-pause').onclick=function(){sim.paused=!sim.paused;this.classList.toggle('warm',!sim.paused);this.textContent=sim.paused?'▶ Riprendi':'⏸ Pausa';};
+$('b-follow').onclick=function(){sim.follow=!sim.follow;this.classList.toggle('on',sim.follow);};
+$('b-pet').onclick=function(){if(!P)return;P.emo.joy=1;P.comfort=clamp(P.comfort+.2,0,1);P.confidence=clamp(P.confidence+.04,0,1);P.xp+=2;if(P.asleep){P.asleep=false;}emit('heart',8);addLog('Coccole! Si sente amato','hi');};
+$('b-feed').onclick=function(){if(!P)return;for(let i=0;i<4;i++){let x,z,ok=false;for(let k=0;k<20;k++){x=clamp(P.x+rand(-8,8),-HALF*BS+6,HALF*BS-6);z=clamp(P.z+rand(-8,8),-HALF*BS+6,HALF*BS-6);if(typeAt(x,z)===0){ok=true;break;}}if(ok)spawnFood(x,z);}addLog('Hai offerto del cibo');};
+$('b-world').onclick=function(){SEED=Math.random()*1000;genWorld();buildFood();if(P){const l=findLand(0,0);P.x=l.x;P.z=l.z;}visited=new Set();spawnCompanions();addLog('Un nuovo mondo prende forma','hi');flash('NUOVO MONDO',CFG.biome.toUpperCase());};
+$('b-rebirth').onclick=function(){spawnHero({chassis:CFG.chassis,eye:CFG.eye,body:CFG.body,head:CFG.head,temper:CFG.temper,name:CFG.name});spawnCompanions();logArr=[];addLog(CFG.name+' rinasce neonato','hi');flash('RINASCITA',CFG.name);};
+document.querySelectorAll('[data-spd]').forEach(b=>b.onclick=function(){sim.speed=+this.dataset.spd;document.querySelectorAll('[data-spd]').forEach(x=>x.classList.remove('on'));this.classList.add('on');$('lbl-spd').textContent=sim.speed+'×';});
+const side=$('side'),handle=$('handle');
+handle.onclick=function(){side.classList.toggle('hidden');const h=side.classList.contains('hidden');handle.textContent=h?'‹':'›';handle.style.right=(!h&&innerWidth>720)?'420px':'0';};
+function placeHandle(){handle.style.right=(innerWidth>720&&!side.classList.contains('hidden'))?'420px':'0';}
+addEventListener('resize',placeHandle);placeHandle();
+addEventListener('keydown',e=>{if(!sim.started)return;if(e.code==='Space'){e.preventDefault();$('b-pause').click();}if(e.key==='f')$('b-follow').click();if(e.key==='p')$('b-pet').click();});
+</script>
+</body>
+</html>
