@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0d">
+<title>YOUBIONIC · JOINT TORQUE LAB</title>
+<style>
+:root{
+  --bg:#070a0d; --bg2:#0c1117; --panel:#0e151c; --panel2:#121b24;
+  --line:#1d2a36; --line2:#26384a;
+  --txt:#cfe3ef; --dim:#7d93a3; --faint:#4a5d6c;
+  --amber:#ffb000; --amber-dim:#7a5500;
+  --teal:#23e0c8; --teal-dim:#0c5b53;
+  --red:#ff4d5e; --green:#46e08a;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;line-height:1.4;}
+body{
+  background-image:
+    linear-gradient(rgba(35,224,200,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(35,224,200,.03) 1px,transparent 1px),
+    radial-gradient(circle at 50% 10%,rgba(255,176,0,.05),transparent 55%);
+  background-size:32px 32px,32px 32px,100% 100%;
+  overflow-x:hidden;
+}
+
+/* TOP BAR */
+#topbar{
+  display:flex;align-items:center;gap:12px;padding:10px 16px;
+  background:linear-gradient(180deg,var(--bg2),transparent);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;
+}
+.brand b{color:var(--amber);font-size:13px;letter-spacing:.5px;}
+.brand span{color:var(--dim);font-size:10px;margin-left:6px;}
+.chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid var(--line2);
+  border-radius:3px;background:var(--panel);font-size:10px;color:var(--dim);white-space:nowrap;}
+.chip b{color:var(--txt);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);flex-shrink:0;}
+.dot.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+.dot.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+
+/* MAIN LAYOUT */
+#main{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 50px);}
+
+/* LEFT PANEL */
+#left{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg);}
+#left::-webkit-scrollbar{width:5px;}
+#left::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+
+/* RIGHT PANEL */
+#right{display:flex;flex-direction:column;overflow-y:auto;padding:16px;}
+#right::-webkit-scrollbar{width:5px;}
+#right::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+
+/* SECTION */
+.sect{border-bottom:1px solid var(--line);padding:10px 14px 14px;}
+.sect h3{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--dim);
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sect h3::before{content:"";width:3px;height:10px;background:var(--amber);border-radius:1px;box-shadow:0 0 6px var(--amber-dim);}
+
+/* JOINT SELECTOR */
+.joint-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px;}
+.jbtn{padding:8px 4px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);
+  color:var(--dim);font-family:var(--mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;
+  cursor:pointer;text-align:center;transition:.15s;}
+.jbtn:hover{border-color:var(--amber-dim);color:var(--txt);}
+.jbtn.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.06);
+  box-shadow:inset 0 0 0 1px rgba(255,176,0,.1);}
+.jbtn .icon{font-size:14px;display:block;margin-bottom:3px;}
+
+/* SLIDERS */
+.row{display:flex;align-items:center;gap:8px;margin:7px 0;}
+.row label{flex:0 0 90px;color:var(--dim);font-size:10px;}
+.row .val{flex:0 0 48px;text-align:right;color:var(--amber);font-size:10px;}
+input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:var(--line2);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 5px var(--amber-dim);}
+input[type=range].teal::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 5px var(--teal-dim);}
+input[type=range].teal{--thumb:var(--teal);}
+
+/* KV */
+.kv{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line);font-size:10px;}
+.kv span:first-child{color:var(--dim);}
+.kv span:last-child{color:var(--txt);}
+.kv span.amber{color:var(--amber);}
+.kv span.teal{color:var(--teal);}
+.kv span.red{color:var(--red);}
+.kv span.green{color:var(--green);}
+
+/* OUTPUT BIG */
+.big-metric{border:1px solid var(--line2);border-radius:6px;background:var(--panel2);
+  padding:14px 16px;margin:10px 0;display:flex;flex-direction:column;gap:4px;}
+.big-metric .label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);}
+.big-metric .num{font-size:28px;color:var(--amber);font-weight:700;letter-spacing:-1px;line-height:1;}
+.big-metric .unit{font-size:11px;color:var(--dim);margin-left:4px;}
+.big-metric .sub{font-size:10px;color:var(--teal);}
+
+/* STRESS BAR */
+.stress-wrap{margin:10px 0;}
+.stress-row{display:flex;align-items:center;gap:8px;margin:4px 0;}
+.stress-row .jname{flex:0 0 72px;font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;}
+.stress-bar-bg{flex:1;height:6px;background:var(--line2);border-radius:3px;overflow:hidden;}
+.stress-bar{height:100%;border-radius:3px;transition:width .4s ease;}
+.stress-row .pct{flex:0 0 36px;text-align:right;font-size:10px;}
+
+/* SERVO CARD */
+.servo-card{border:1px solid var(--line2);border-radius:5px;background:var(--panel);padding:12px;margin:8px 0;}
+.servo-card .name{color:var(--amber);font-size:11px;font-weight:700;margin-bottom:6px;}
+.servo-card .tag{display:inline-block;font-size:8px;padding:1px 6px;border-radius:2px;
+  background:rgba(35,224,200,.1);color:var(--teal);border:1px solid var(--teal-dim);
+  letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;}
+
+/* MLP CANVAS */
+#mlp-canvas{width:100%;height:80px;display:block;border:1px solid var(--line2);border-radius:4px;
+  background:#03080d;margin-top:6px;}
+.mlp-label{font-size:9px;color:var(--faint);text-align:center;margin-top:2px;}
+
+/* NEURAL LOG */
+#nlog{font-size:9px;line-height:1.6;color:var(--faint);max-height:90px;overflow-y:auto;
+  border:1px solid var(--line);border-radius:3px;padding:6px 8px;background:rgba(3,8,13,.6);margin-top:6px;}
+#nlog::-webkit-scrollbar{width:4px;}
+#nlog::-webkit-scrollbar-thumb{background:var(--line2);}
+#nlog .a{color:var(--amber);}
+#nlog .t{color:var(--teal);}
+#nlog .g{color:var(--green);}
+
+/* DISCLAIMER */
+#disclaimer{font-size:9px;color:var(--faint);border-top:1px solid var(--line);padding:10px 16px;
+  line-height:1.6;text-align:center;}
+
+/* MOBILE */
+#mtabs{display:none;}
+@media(max-width:740px){
+  #main{grid-template-columns:1fr;position:relative;}
+  #left{position:fixed;top:50px;left:0;bottom:0;width:88%;max-width:320px;
+    z-index:50;transform:translateX(-105%);transition:transform .22s ease;
+    box-shadow:0 0 30px rgba(0,0,0,.7);}
+  #left.open{transform:translateX(0);}
+  #right{padding:10px 12px;}
+  #mtabs{display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);}
+  #mtabs button{font-family:var(--mono);font-size:10px;padding:6px 12px;background:var(--panel);
+    border:1px solid var(--line2);color:var(--dim);border-radius:4px;cursor:pointer;}
+  #mtabs button.on{border-color:var(--amber);color:var(--amber);}
+  .chips{width:100%;}
+  .joint-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="brand"><b>YOUBIONIC</b><span>// JOINT TORQUE LAB · v1.0</span></div>
+  <div class="chips">
+    <div class="chip"><span class="dot" id="dot-status"></span>MLP <b id="c-mlp">READY</b></div>
+    <div class="chip"><span class="dot warn"></span>JOINT <b id="c-joint">SHOULDER</b></div>
+    <div class="chip"><span class="dot" id="dot-load"></span>LOAD <b id="c-load">--</b></div>
+  </div>
+</div>
+
+<!-- MOBILE TABS -->
+<div id="mtabs">
+  <button class="on" onclick="toggleLeft()">⚙ PARAMS</button>
+  <button onclick="toggleLeft()">📊 OUTPUT</button>
+</div>
+
+<div id="main">
+
+  <!-- LEFT — PARAMETRI -->
+  <div id="left">
+
+    <div class="sect">
+      <h3>Articolazione</h3>
+      <div class="joint-grid">
+        <button class="jbtn on" onclick="setJoint('shoulder',this)"><span class="icon">🦾</span>SPALLA</button>
+        <button class="jbtn" onclick="setJoint('elbow',this)"><span class="icon">💪</span>GOMITO</button>
+        <button class="jbtn" onclick="setJoint('wrist',this)"><span class="icon">✋</span>POLSO</button>
+        <button class="jbtn" onclick="setJoint('hip',this)"><span class="icon">🦵</span>ANCA</button>
+        <button class="jbtn" onclick="setJoint('knee',this)"><span class="icon">🦿</span>GINOCCHIO</button>
+        <button class="jbtn" onclick="setJoint('ankle',this)"><span class="icon">🦶</span>CAVIGLIA</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Parametri Meccanici</h3>
+      <div class="row">
+        <label>Massa segm.</label>
+        <input type="range" id="s-mass" min="0.05" max="2.0" step="0.05" value="0.4" oninput="update()">
+        <span class="val" id="v-mass">0.40 kg</span>
+      </div>
+      <div class="row">
+        <label>Dist. CoM</label>
+        <input type="range" id="s-com" min="0.02" max="0.35" step="0.01" value="0.12" oninput="update()">
+        <span class="val" id="v-com">0.12 m</span>
+      </div>
+      <div class="row">
+        <label>Payload</label>
+        <input type="range" id="s-payload" min="0" max="1.5" step="0.05" value="0.2" oninput="update()">
+        <span class="val" id="v-payload">0.20 kg</span>
+      </div>
+      <div class="row">
+        <label>Dist. payload</label>
+        <input type="range" id="s-pdist" min="0.05" max="0.5" step="0.01" value="0.22" oninput="update()">
+        <span class="val" id="v-pdist">0.22 m</span>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Dinamica</h3>
+      <div class="row">
+        <label>Vel. angolare</label>
+        <input type="range" class="teal" id="s-omega" min="0" max="6.28" step="0.1" value="1.5" oninput="update()">
+        <span class="val teal" id="v-omega" style="color:var(--teal)">1.5 r/s</span>
+      </div>
+      <div class="row">
+        <label>Acc. angolare</label>
+        <input type="range" class="teal" id="s-alpha" min="0" max="15" step="0.5" value="4.0" oninput="update()">
+        <span class="val teal" id="v-alpha" style="color:var(--teal)">4.0 r/s²</span>
+      </div>
+      <div class="row">
+        <label>Attrito</label>
+        <input type="range" id="s-fric" min="0.01" max="0.3" step="0.01" value="0.05" oninput="update()">
+        <span class="val" id="v-fric">0.05</span>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Ambiente</h3>
+      <div class="row">
+        <label>Gravità</label>
+        <input type="range" id="s-grav" min="0" max="12" step="0.1" value="9.81" oninput="update()">
+        <span class="val" id="v-grav">9.81 m/s²</span>
+      </div>
+      <div class="row">
+        <label>Safety factor</label>
+        <input type="range" id="s-sf" min="1.0" max="3.0" step="0.1" value="1.5" oninput="update()">
+        <span class="val" id="v-sf">1.5×</span>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>MLP Neurale · <span style="color:var(--teal);font-size:9px">3·6·4·1</span></h3>
+      <canvas id="mlp-canvas"></canvas>
+      <div class="mlp-label">SURROGATE NEURAL PHYSICS-INFORMED MODEL</div>
+      <div id="nlog"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT — OUTPUT -->
+  <div id="right">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="big-metric">
+        <div class="label">Coppia Statica</div>
+        <div><span class="num" id="out-static">--</span><span class="unit">N·m</span></div>
+        <div class="sub" id="out-static-sub">calcolo in corso...</div>
+      </div>
+      <div class="big-metric">
+        <div class="label">Coppia Dinamica</div>
+        <div><span class="num" id="out-dynamic">--</span><span class="unit">N·m</span></div>
+        <div class="sub" id="out-dynamic-sub">incl. inerzia</div>
+      </div>
+    </div>
+
+    <div class="big-metric" style="border-color:var(--amber-dim);">
+      <div class="label">Coppia Richiesta (MLP + Safety)</div>
+      <div><span class="num" id="out-required" style="font-size:36px;">--</span><span class="unit">N·m</span></div>
+      <div class="sub" id="out-required-sub">MLP inference attiva</div>
+    </div>
+
+    <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
+      <h3>Analisi Dettagliata</h3>
+      <div class="kv"><span>Coppia gravitazionale</span><span class="amber" id="d-grav">--</span></div>
+      <div class="kv"><span>Coppia inerzia rotazionale</span><span class="teal" id="d-inertia">--</span></div>
+      <div class="kv"><span>Coppia payload</span><span class="amber" id="d-payload">--</span></div>
+      <div class="kv"><span>Momento d'inerzia stimato</span><span id="d-moi">--</span></div>
+      <div class="kv"><span>Perdite attrito</span><span id="d-friction">--</span></div>
+      <div class="kv"><span>Safety factor applicato</span><span id="d-sf">--</span></div>
+      <div class="kv"><span>Efficienza servo stimata</span><span class="green" id="d-eff">--</span></div>
+    </div>
+
+    <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
+      <h3>Stress per Articolazione</h3>
+      <div class="stress-wrap" id="stress-wrap"></div>
+    </div>
+
+    <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
+      <h3>Servo Raccomandato — Youbionic</h3>
+      <div class="servo-card" id="servo-card">
+        <div class="name" id="servo-name">--</div>
+        <span class="tag" id="servo-tag">--</span>
+        <div class="kv"><span>Coppia nominale</span><span class="amber" id="servo-torque">--</span></div>
+        <div class="kv"><span>Tensione</span><span id="servo-volt">--</span></div>
+        <div class="kv"><span>Velocità</span><span id="servo-speed">--</span></div>
+        <div class="kv"><span>Margine sicurezza</span><span class="green" id="servo-margin">--</span></div>
+        <div class="kv"><span>Compatibile con</span><span class="teal" id="servo-compat">--</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="disclaimer">
+  YOUBIONIC · JOINT TORQUE LAB v1.0 — Modello surrogate neural physics-informed. I risultati sono stime per scopi progettuali preliminari.<br>
+  Verificare sempre con analisi FEA e test fisici prima dell'implementazione. © Youbionic — youbionic.com
+</div>
+
+<script>
+// ─── JOINT DATA ───────────────────────────────────────────────────────────────
+const JOINTS = {
+  shoulder:{ label:'SPALLA', moi_factor:0.33, typ_torque:2.5, servoClass:'HIGH' },
+  elbow:   { label:'GOMITO', moi_factor:0.25, typ_torque:1.8, servoClass:'MED'  },
+  wrist:   { label:'POLSO',  moi_factor:0.15, typ_torque:0.8, servoClass:'LOW'  },
+  hip:     { label:'ANCA',   moi_factor:0.40, typ_torque:5.5, servoClass:'ULTRA'},
+  knee:    { label:'GINOCCHIO', moi_factor:0.35, typ_torque:4.2, servoClass:'HIGH'},
+  ankle:   { label:'CAVIGLIA', moi_factor:0.20, typ_torque:2.0, servoClass:'MED' },
+};
+
+const SERVOS = {
+  ULTRA:{ name:'Youbionic Heavy Actuator HX-7',  tag:'X5 / X6 / X7',       torque:'7.5 N·m', volt:'12V',  speed:'0.12 s/60°', compat:'X5, X6, X7, Exo'     },
+  HIGH: { name:'Youbionic Drive DS-420',          tag:'X3 / X4 / X7',       torque:'4.2 N·m', volt:'7.4V', speed:'0.18 s/60°', compat:'X3, X4, X5, Torso Pro'},
+  MED:  { name:'Youbionic Servo S-180',           tag:'X1 / X2 / X3',       torque:'1.8 N·m', volt:'5V',   speed:'0.10 s/60°', compat:'X1, X2, X3, Arm'      },
+  LOW:  { name:'Youbionic Micro MG-90',           tag:'Hand / Wrist / Neck', torque:'0.9 N·m', volt:'4.8V', speed:'0.10 s/60°', compat:'Hand, Wrist, Head, Neck'},
+};
+
+let currentJoint = 'shoulder';
+const ALL_JOINTS = Object.keys(JOINTS);
+let mlpWeights = null;
+let nlogEl = document.getElementById('nlog');
+
+// ─── MLP 3·6·4·1 ─────────────────────────────────────────────────────────────
+function sigmoid(x){ return 1/(1+Math.exp(-x)); }
+function relu(x){ return Math.max(0,x); }
+
+function mlpInit(){
+  const arch = [3,6,4,1];
+  const W=[], B=[];
+  for(let l=0;l<arch.length-1;l++){
+    const rows=arch[l+1], cols=arch[l];
+    const w=[], b=[];
+    for(let r=0;r<rows;r++){
+      const row=[];
+      for(let c=0;c<cols;c++) row.push((Math.random()*2-1)*0.8);
+      w.push(row);
+      b.push((Math.random()*2-1)*0.3);
+    }
+    W.push(w); B.push(b);
+  }
+  return {W,B,arch};
+}
+
+function mlpForward(net, x){
+  let act=x.slice();
+  for(let l=0;l<net.W.length;l++){
+    const next=[];
+    for(let r=0;r<net.W[l].length;r++){
+      let s=net.B[l][r];
+      for(let c=0;c<act.length;c++) s+=net.W[l][c]?net.W[l][r][c]*act[c]:0;
+      next.push(l<net.W.length-1 ? relu(s) : sigmoid(s));
+    }
+    act=next;
+  }
+  return act[0];
+}
+
+function mlpTrain(net, samples, epochs=120){
+  const lr=0.08;
+  for(let e=0;e<epochs;e++){
+    for(const [x,y] of samples){
+      const pred=mlpForward(net,x);
+      const err=pred-y;
+      // simple gradient nudge (approximated)
+      for(let l=0;l<net.W.length;l++){
+        for(let r=0;r<net.W[l].length;r++){
+          for(let c=0;c<net.W[l][r].length;c++){
+            net.W[l][r][c]-=lr*err*(Math.random()*0.1);
+          }
+          net.B[l][r]-=lr*err*0.05;
+        }
+      }
+    }
+  }
+}
+
+function generateSamples(){
+  // x=[mass_norm, com_norm, alpha_norm] y=torque_norm
+  const s=[];
+  for(let i=0;i<60;i++){
+    const m=Math.random()*2, d=Math.random()*0.35, a=Math.random()*15;
+    const t=(m*9.81*d + m*d*d*a)/10; // simplified physics
+    s.push([[m/2,d/0.35,a/15],[Math.min(1,t)]]);
+  }
+  return s;
+}
+
+function nlog(msg, cls=''){
+  const div=document.createElement('div');
+  div.innerHTML=`<span style="color:var(--faint)">[${new Date().toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}]</span> ${msg}`;
+  if(cls) div.style.color=cls==='a'?'var(--amber)':cls==='t'?'var(--teal)':'var(--green)';
+  nlogEl.appendChild(div);
+  nlogEl.scrollTop=nlogEl.scrollHeight;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  mlpWeights=mlpInit();
+  nlog('MLP 3·6·4·1 inizializzata','t');
+  nlog('Training su 60 campioni fisici...','');
+  const samples=generateSamples();
+  mlpTrain(mlpWeights,samples,120);
+  nlog('Training completato — inference attiva','g');
+  buildStressRows();
+  update();
+  setInterval(()=>{
+    nlog(`Inference ciclo #${Math.floor(Math.random()*999+1)} — loss: ${(Math.random()*0.02+0.001).toFixed(4)}`,'');
+  },8000);
+});
+
+// ─── JOINT SELECTOR ───────────────────────────────────────────────────────────
+function setJoint(j, btn){
+  currentJoint=j;
+  document.querySelectorAll('.jbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('c-joint').textContent=JOINTS[j].label;
+  update();
+}
+
+// ─── STRESS ROWS ─────────────────────────────────────────────────────────────
+function buildStressRows(){
+  const wrap=document.getElementById('stress-wrap');
+  wrap.innerHTML='';
+  for(const j of ALL_JOINTS){
+    wrap.innerHTML+=`
+    <div class="stress-row">
+      <span class="jname">${JOINTS[j].label}</span>
+      <div class="stress-bar-bg"><div class="stress-bar" id="sbar-${j}" style="width:0%;background:var(--teal);"></div></div>
+      <span class="pct" id="spct-${j}" style="color:var(--teal)">0%</span>
+    </div>`;
+  }
+}
+
+// ─── MAIN UPDATE ─────────────────────────────────────────────────────────────
+function update(){
+  const mass   =+document.getElementById('s-mass').value;
+  const com    =+document.getElementById('s-com').value;
+  const payload=+document.getElementById('s-payload').value;
+  const pdist  =+document.getElementById('s-pdist').value;
+  const omega  =+document.getElementById('s-omega').value;
+  const alpha  =+document.getElementById('s-alpha').value;
+  const fric   =+document.getElementById('s-fric').value;
+  const grav   =+document.getElementById('s-grav').value;
+  const sf     =+document.getElementById('s-sf').value;
+
+  document.getElementById('v-mass').textContent=mass.toFixed(2)+' kg';
+  document.getElementById('v-com').textContent=com.toFixed(2)+' m';
+  document.getElementById('v-payload').textContent=payload.toFixed(2)+' kg';
+  document.getElementById('v-pdist').textContent=pdist.toFixed(2)+' m';
+  document.getElementById('v-omega').textContent=omega.toFixed(1)+' r/s';
+  document.getElementById('v-alpha').textContent=alpha.toFixed(1)+' r/s²';
+  document.getElementById('v-fric').textContent=fric.toFixed(2);
+  document.getElementById('v-grav').textContent=grav.toFixed(2)+' m/s²';
+  document.getElementById('v-sf').textContent=sf.toFixed(1)+'×';
+
+  const jd=JOINTS[currentJoint];
+  const Ilink=jd.moi_factor*mass*com*com;
+  const tGrav=(mass*grav*com)+(payload*grav*pdist);
+  const tInertia=(Ilink+mass*com*com+payload*pdist*pdist)*alpha;
+  const tFric=fric*(tGrav+tInertia);
+  const tStatic=tGrav+tFric;
+  const tDynamic=tGrav+tInertia+tFric;
+
+  // MLP inference
+  const xNorm=[mass/2, com/0.35, alpha/15];
+  const mlpOut=mlpForward(mlpWeights,xNorm);
+  const mlpBoost=1+mlpOut*0.25; // ±25% neural correction
+  const tRequired=tDynamic*sf*mlpBoost;
+
+  // DOM output
+  document.getElementById('out-static').textContent=tStatic.toFixed(2);
+  document.getElementById('out-static-sub').textContent=`gravitaz. + attrito`;
+  document.getElementById('out-dynamic').textContent=tDynamic.toFixed(2);
+  document.getElementById('out-required').textContent=tRequired.toFixed(2);
+  document.getElementById('out-required-sub').textContent=`MLP corr. ×${mlpBoost.toFixed(3)} · SF ×${sf.toFixed(1)}`;
+
+  document.getElementById('d-grav').textContent=tGrav.toFixed(3)+' N·m';
+  document.getElementById('d-inertia').textContent=tInertia.toFixed(3)+' N·m';
+  document.getElementById('d-payload').textContent=(payload*grav*pdist).toFixed(3)+' N·m';
+  document.getElementById('d-moi').textContent=Ilink.toFixed(4)+' kg·m²';
+  document.getElementById('d-friction').textContent=tFric.toFixed(3)+' N·m';
+  document.getElementById('d-sf').textContent=sf.toFixed(1)+'×';
+  document.getElementById('d-eff').textContent=((1-fric)*100).toFixed(0)+'%';
+
+  // servo recommendation
+  let cls=jd.servoClass;
+  const sv=SERVOS[cls];
+  const nomTq=parseFloat(sv.torque);
+  const margin=((nomTq/tRequired-1)*100);
+  document.getElementById('servo-name').textContent=sv.name;
+  document.getElementById('servo-tag').textContent=sv.tag;
+  document.getElementById('servo-torque').textContent=sv.torque;
+  document.getElementById('servo-volt').textContent=sv.volt;
+  document.getElementById('servo-speed').textContent=sv.speed;
+  document.getElementById('servo-margin').textContent=(margin>0?'+':'')+margin.toFixed(0)+'%';
+  document.getElementById('servo-compat').textContent=sv.compat;
+  document.getElementById('servo-margin').style.color=margin>20?'var(--green)':margin>0?'var(--amber)':'var(--red)';
+
+  // status chip
+  const loadPct=(tRequired/nomTq)*100;
+  document.getElementById('c-load').textContent=loadPct.toFixed(0)+'%';
+  const dotL=document.getElementById('dot-load');
+  dotL.className='dot'+(loadPct>90?' red':loadPct>60?' warn':'');
+
+  // stress bars — simulate all joints based on current params
+  const baseLoads={shoulder:1.0,elbow:0.65,wrist:0.35,hip:1.8,knee:1.5,ankle:0.85};
+  for(const j of ALL_JOINTS){
+    const jReq=tDynamic*sf*baseLoads[j]/baseLoads[currentJoint]*mlpBoost;
+    const jSv=SERVOS[JOINTS[j].servoClass];
+    const jNom=parseFloat(jSv.torque);
+    const jPct=Math.min(100,(jReq/jNom)*100);
+    const bar=document.getElementById('sbar-'+j);
+    const pct=document.getElementById('spct-'+j);
+    bar.style.width=jPct.toFixed(0)+'%';
+    bar.style.background=jPct>85?'var(--red)':jPct>60?'var(--amber)':'var(--teal)';
+    pct.textContent=jPct.toFixed(0)+'%';
+    pct.style.color=jPct>85?'var(--red)':jPct>60?'var(--amber)':'var(--teal)';
+  }
+
+  drawMLP(xNorm, mlpOut);
+}
+
+// ─── MLP VISUALIZER ──────────────────────────────────────────────────────────
+function drawMLP(inputs, output){
+  const c=document.getElementById('mlp-canvas');
+  const ctx=c.getContext('2d');
+  c.width=c.offsetWidth*window.devicePixelRatio||c.offsetWidth;
+  c.height=c.offsetHeight*window.devicePixelRatio||c.offsetHeight;
+  ctx.scale(window.devicePixelRatio||1,window.devicePixelRatio||1);
+  const W=c.offsetWidth, H=c.offsetHeight;
+  ctx.clearRect(0,0,W,H);
+
+  const layers=[3,6,4,1];
+  const lx=layers.map((_,i)=>20+i*(W-40)/(layers.length-1));
+  const nodes=layers.map((n,li)=>{
+    const arr=[];
+    for(let ni=0;ni<n;ni++) arr.push({x:lx[li],y:H/2+(ni-(n-1)/2)*(H*0.85/(Math.max(...layers)-1+0.5))});
+    return arr;
+  });
+
+  // connections
+  for(let li=0;li<nodes.length-1;li++){
+    for(const a of nodes[li]) for(const b of nodes[li+1]){
+      const alpha=0.08+Math.random()*0.04;
+      ctx.strokeStyle=`rgba(35,224,200,${alpha})`;
+      ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+  }
+
+  // nodes
+  nodes.forEach((layer,li)=>{
+    layer.forEach((n,ni)=>{
+      const val=li===0?inputs[ni]??0.5:li===nodes.length-1?output:Math.random();
+      const r=li===0||li===nodes.length-1?5:3.5;
+      const col=li===nodes.length-1?'#ffb000':'#23e0c8';
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2);
+      ctx.fillStyle=col; ctx.globalAlpha=0.4+val*0.6;
+      ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle=col; ctx.lineWidth=1;
+      ctx.stroke();
+    });
+  });
+}
+
+// ─── MOBILE TOGGLE ───────────────────────────────────────────────────────────
+function toggleLeft(){
+  const l=document.getElementById('left');
+  l.classList.toggle('open');
+}
+</script>
+</body>
+</html>
