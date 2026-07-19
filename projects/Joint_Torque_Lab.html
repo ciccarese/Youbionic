@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -174,26 +174,26 @@ input[type=range].teal{--thumb:var(--teal);}
   <div id="left">
 
     <div class="sect">
-      <h3>Articolazione</h3>
+      <h3>Joint</h3>
       <div class="joint-grid">
-        <button class="jbtn on" onclick="setJoint('shoulder',this)"><span class="icon">🦾</span>SPALLA</button>
-        <button class="jbtn" onclick="setJoint('elbow',this)"><span class="icon">💪</span>GOMITO</button>
-        <button class="jbtn" onclick="setJoint('wrist',this)"><span class="icon">✋</span>POLSO</button>
-        <button class="jbtn" onclick="setJoint('hip',this)"><span class="icon">🦵</span>ANCA</button>
-        <button class="jbtn" onclick="setJoint('knee',this)"><span class="icon">🦿</span>GINOCCHIO</button>
-        <button class="jbtn" onclick="setJoint('ankle',this)"><span class="icon">🦶</span>CAVIGLIA</button>
+        <button class="jbtn on" onclick="setJoint('shoulder',this)"><span class="icon">🦾</span>SHOULDER</button>
+        <button class="jbtn" onclick="setJoint('elbow',this)"><span class="icon">💪</span>ELBOW</button>
+        <button class="jbtn" onclick="setJoint('wrist',this)"><span class="icon">✋</span>WRIST</button>
+        <button class="jbtn" onclick="setJoint('hip',this)"><span class="icon">🦵</span>HIP</button>
+        <button class="jbtn" onclick="setJoint('knee',this)"><span class="icon">🦿</span>KNEE</button>
+        <button class="jbtn" onclick="setJoint('ankle',this)"><span class="icon">🦶</span>ANKLE</button>
       </div>
     </div>
 
     <div class="sect">
-      <h3>Parametri Meccanici</h3>
+      <h3>Mechanical Parameters</h3>
       <div class="row">
-        <label>Massa segm.</label>
+        <label>Segm. mass</label>
         <input type="range" id="s-mass" min="0.05" max="2.0" step="0.05" value="0.4" oninput="update()">
         <span class="val" id="v-mass">0.40 kg</span>
       </div>
       <div class="row">
-        <label>Dist. CoM</label>
+        <label>CoM dist.</label>
         <input type="range" id="s-com" min="0.02" max="0.35" step="0.01" value="0.12" oninput="update()">
         <span class="val" id="v-com">0.12 m</span>
       </div>
@@ -203,35 +203,35 @@ input[type=range].teal{--thumb:var(--teal);}
         <span class="val" id="v-payload">0.20 kg</span>
       </div>
       <div class="row">
-        <label>Dist. payload</label>
+        <label>Payload dist.</label>
         <input type="range" id="s-pdist" min="0.05" max="0.5" step="0.01" value="0.22" oninput="update()">
         <span class="val" id="v-pdist">0.22 m</span>
       </div>
     </div>
 
     <div class="sect">
-      <h3>Dinamica</h3>
+      <h3>Dynamics</h3>
       <div class="row">
-        <label>Vel. angolare</label>
+        <label>Ang. velocity</label>
         <input type="range" class="teal" id="s-omega" min="0" max="6.28" step="0.1" value="1.5" oninput="update()">
         <span class="val teal" id="v-omega" style="color:var(--teal)">1.5 r/s</span>
       </div>
       <div class="row">
-        <label>Acc. angolare</label>
+        <label>Ang. accel.</label>
         <input type="range" class="teal" id="s-alpha" min="0" max="15" step="0.5" value="4.0" oninput="update()">
         <span class="val teal" id="v-alpha" style="color:var(--teal)">4.0 r/s²</span>
       </div>
       <div class="row">
-        <label>Attrito</label>
+        <label>Friction</label>
         <input type="range" id="s-fric" min="0.01" max="0.3" step="0.01" value="0.05" oninput="update()">
         <span class="val" id="v-fric">0.05</span>
       </div>
     </div>
 
     <div class="sect">
-      <h3>Ambiente</h3>
+      <h3>Environment</h3>
       <div class="row">
-        <label>Gravità</label>
+        <label>Gravity</label>
         <input type="range" id="s-grav" min="0" max="12" step="0.1" value="9.81" oninput="update()">
         <span class="val" id="v-grav">9.81 m/s²</span>
       </div>
@@ -243,9 +243,9 @@ input[type=range].teal{--thumb:var(--teal);}
     </div>
 
     <div class="sect">
-      <h3>MLP Neurale · <span style="color:var(--teal);font-size:9px">3·6·4·1</span></h3>
+      <h3>Neural MLP · <span style="color:var(--teal);font-size:9px">3·6·4·1</span></h3>
       <canvas id="mlp-canvas"></canvas>
-      <div class="mlp-label">SURROGATE NEURAL PHYSICS-INFORMED MODEL</div>
+      <div class="mlp-label">PHYSICS-INFORMED NEURAL SURROGATE MODEL</div>
       <div id="nlog"></div>
     </div>
 
@@ -256,49 +256,49 @@ input[type=range].teal{--thumb:var(--teal);}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="big-metric">
-        <div class="label">Coppia Statica</div>
+        <div class="label">Static Torque</div>
         <div><span class="num" id="out-static">--</span><span class="unit">N·m</span></div>
-        <div class="sub" id="out-static-sub">calcolo in corso...</div>
+        <div class="sub" id="out-static-sub">computing...</div>
       </div>
       <div class="big-metric">
-        <div class="label">Coppia Dinamica</div>
+        <div class="label">Dynamic Torque</div>
         <div><span class="num" id="out-dynamic">--</span><span class="unit">N·m</span></div>
-        <div class="sub" id="out-dynamic-sub">incl. inerzia</div>
+        <div class="sub" id="out-dynamic-sub">incl. inertia</div>
       </div>
     </div>
 
     <div class="big-metric" style="border-color:var(--amber-dim);">
-      <div class="label">Coppia Richiesta (MLP + Safety)</div>
+      <div class="label">Required Torque (MLP + Safety)</div>
       <div><span class="num" id="out-required" style="font-size:36px;">--</span><span class="unit">N·m</span></div>
-      <div class="sub" id="out-required-sub">MLP inference attiva</div>
+      <div class="sub" id="out-required-sub">MLP inference active</div>
     </div>
 
     <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
-      <h3>Analisi Dettagliata</h3>
-      <div class="kv"><span>Coppia gravitazionale</span><span class="amber" id="d-grav">--</span></div>
-      <div class="kv"><span>Coppia inerzia rotazionale</span><span class="teal" id="d-inertia">--</span></div>
-      <div class="kv"><span>Coppia payload</span><span class="amber" id="d-payload">--</span></div>
-      <div class="kv"><span>Momento d'inerzia stimato</span><span id="d-moi">--</span></div>
-      <div class="kv"><span>Perdite attrito</span><span id="d-friction">--</span></div>
-      <div class="kv"><span>Safety factor applicato</span><span id="d-sf">--</span></div>
-      <div class="kv"><span>Efficienza servo stimata</span><span class="green" id="d-eff">--</span></div>
+      <h3>Detailed Analysis</h3>
+      <div class="kv"><span>Gravitational torque</span><span class="amber" id="d-grav">--</span></div>
+      <div class="kv"><span>Rotational inertia torque</span><span class="teal" id="d-inertia">--</span></div>
+      <div class="kv"><span>Payload torque</span><span class="amber" id="d-payload">--</span></div>
+      <div class="kv"><span>Estimated moment of inertia</span><span id="d-moi">--</span></div>
+      <div class="kv"><span>Friction losses</span><span id="d-friction">--</span></div>
+      <div class="kv"><span>Applied safety factor</span><span id="d-sf">--</span></div>
+      <div class="kv"><span>Estimated servo efficiency</span><span class="green" id="d-eff">--</span></div>
     </div>
 
     <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
-      <h3>Stress per Articolazione</h3>
+      <h3>Stress per Joint</h3>
       <div class="stress-wrap" id="stress-wrap"></div>
     </div>
 
     <div class="sect" style="border:1px solid var(--line2);border-radius:6px;margin:8px 0;">
-      <h3>Servo Raccomandato — Youbionic</h3>
+      <h3>Recommended Servo — Youbionic</h3>
       <div class="servo-card" id="servo-card">
         <div class="name" id="servo-name">--</div>
         <span class="tag" id="servo-tag">--</span>
-        <div class="kv"><span>Coppia nominale</span><span class="amber" id="servo-torque">--</span></div>
-        <div class="kv"><span>Tensione</span><span id="servo-volt">--</span></div>
-        <div class="kv"><span>Velocità</span><span id="servo-speed">--</span></div>
-        <div class="kv"><span>Margine sicurezza</span><span class="green" id="servo-margin">--</span></div>
-        <div class="kv"><span>Compatibile con</span><span class="teal" id="servo-compat">--</span></div>
+        <div class="kv"><span>Rated torque</span><span class="amber" id="servo-torque">--</span></div>
+        <div class="kv"><span>Voltage</span><span id="servo-volt">--</span></div>
+        <div class="kv"><span>Speed</span><span id="servo-speed">--</span></div>
+        <div class="kv"><span>Safety margin</span><span class="green" id="servo-margin">--</span></div>
+        <div class="kv"><span>Compatible with</span><span class="teal" id="servo-compat">--</span></div>
       </div>
     </div>
 
@@ -306,19 +306,19 @@ input[type=range].teal{--thumb:var(--teal);}
 </div>
 
 <div id="disclaimer">
-  YOUBIONIC · JOINT TORQUE LAB v1.0 — Modello surrogate neural physics-informed. I risultati sono stime per scopi progettuali preliminari.<br>
-  Verificare sempre con analisi FEA e test fisici prima dell'implementazione. © Youbionic — youbionic.com
+  YOUBIONIC · JOINT TORQUE LAB v1.0 — Physics-informed neural surrogate model. Results are estimates for preliminary design purposes.<br>
+  Always verify with FEA analysis and physical testing before implementation. © Youbionic — youbionic.com
 </div>
 
 <script>
 // ─── JOINT DATA ───────────────────────────────────────────────────────────────
 const JOINTS = {
-  shoulder:{ label:'SPALLA', moi_factor:0.33, typ_torque:2.5, servoClass:'HIGH' },
-  elbow:   { label:'GOMITO', moi_factor:0.25, typ_torque:1.8, servoClass:'MED'  },
-  wrist:   { label:'POLSO',  moi_factor:0.15, typ_torque:0.8, servoClass:'LOW'  },
-  hip:     { label:'ANCA',   moi_factor:0.40, typ_torque:5.5, servoClass:'ULTRA'},
-  knee:    { label:'GINOCCHIO', moi_factor:0.35, typ_torque:4.2, servoClass:'HIGH'},
-  ankle:   { label:'CAVIGLIA', moi_factor:0.20, typ_torque:2.0, servoClass:'MED' },
+  shoulder:{ label:'SHOULDER', moi_factor:0.33, typ_torque:2.5, servoClass:'HIGH' },
+  elbow:   { label:'ELBOW', moi_factor:0.25, typ_torque:1.8, servoClass:'MED'  },
+  wrist:   { label:'WRIST',  moi_factor:0.15, typ_torque:0.8, servoClass:'LOW'  },
+  hip:     { label:'HIP',   moi_factor:0.40, typ_torque:5.5, servoClass:'ULTRA'},
+  knee:    { label:'KNEE', moi_factor:0.35, typ_torque:4.2, servoClass:'HIGH'},
+  ankle:   { label:'ANKLE', moi_factor:0.20, typ_torque:2.0, servoClass:'MED' },
 };
 
 const SERVOS = {
@@ -409,15 +409,15 @@ function nlog(msg, cls=''){
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
   mlpWeights=mlpInit();
-  nlog('MLP 3·6·4·1 inizializzata','t');
-  nlog('Training su 60 campioni fisici...','');
+  nlog('MLP 3·6·4·1 initialized','t');
+  nlog('Training on 60 physics samples...','');
   const samples=generateSamples();
   mlpTrain(mlpWeights,samples,120);
-  nlog('Training completato — inference attiva','g');
+  nlog('Training complete — inference active','g');
   buildStressRows();
   update();
   setInterval(()=>{
-    nlog(`Inference ciclo #${Math.floor(Math.random()*999+1)} — loss: ${(Math.random()*0.02+0.001).toFixed(4)}`,'');
+    nlog(`Inference cycle #${Math.floor(Math.random()*999+1)} — loss: ${(Math.random()*0.02+0.001).toFixed(4)}`,'');
   },8000);
 });
 
@@ -482,7 +482,7 @@ function update(){
 
   // DOM output
   document.getElementById('out-static').textContent=tStatic.toFixed(2);
-  document.getElementById('out-static-sub').textContent=`gravitaz. + attrito`;
+  document.getElementById('out-static-sub').textContent=`gravity + friction`;
   document.getElementById('out-dynamic').textContent=tDynamic.toFixed(2);
   document.getElementById('out-required').textContent=tRequired.toFixed(2);
   document.getElementById('out-required-sub').textContent=`MLP corr. ×${mlpBoost.toFixed(3)} · SF ×${sf.toFixed(1)}`;
