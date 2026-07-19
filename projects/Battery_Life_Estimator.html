@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0d">
+<title>BATTERY·ESTIMATOR — Robot Power Prediction</title>
+<style>
+:root{
+  --bg:#070a0d;--bg2:#0c1117;--panel:#0e151c;--panel2:#121b24;
+  --line:#1d2a36;--line2:#26384a;
+  --txt:#cfe3ef;--txt-dim:#7d93a3;--txt-faint:#4a5d6c;
+  --amber:#ffb000;--amber-dim:#7a5500;
+  --teal:#23e0c8;--teal-dim:#0c5b53;
+  --red:#ff4d5e;--green:#46e08a;--blue:#4ea8ff;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:var(--mono);font-size:12px;line-height:1.4;
+  -webkit-user-select:none;user-select:none;}
+body{
+  background-image:
+    linear-gradient(rgba(255,176,0,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,176,0,.022) 1px,transparent 1px),
+    radial-gradient(circle at 50% 22%,rgba(35,224,200,.05),transparent 58%);
+  background-size:34px 34px,34px 34px,100% 100%;
+}
+#app{display:grid;grid-template-rows:auto 1fr auto;height:100%;}
+
+/* ── TOPBAR ── */
+#topbar{display:flex;align-items:center;gap:12px;padding:8px 14px;
+  background:linear-gradient(180deg,var(--bg2) 60%,transparent);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;flex-shrink:0;}
+.brand{display:flex;align-items:baseline;gap:0;flex-wrap:wrap;}
+.brand b{color:var(--amber);font-weight:700;font-size:14px;letter-spacing:.5px;}
+.brand s{color:var(--txt-dim);font-size:10px;margin-left:10px;text-decoration:none;}
+.brand i{font-style:normal;color:var(--teal);}
+.chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 9px;
+  border:1px solid var(--line2);border-radius:3px;background:var(--panel);
+  font-size:10px;color:var(--txt-dim);white-space:nowrap;}
+.chip b{color:var(--txt);}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot.ok{background:var(--teal);box-shadow:0 0 6px var(--teal);}
+.dot.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+.dot.err{background:var(--red);box-shadow:0 0 6px var(--red);}
+
+/* ── MAIN GRID ── */
+#main{display:grid;grid-template-columns:260px 1fr 276px;min-height:0;overflow:hidden;}
+.col{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line2) transparent;}
+.col::-webkit-scrollbar{width:6px;}
+.col::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+#left{border-right:1px solid var(--line);background:var(--bg);}
+#right{border-left:1px solid var(--line);background:var(--bg);}
+#stage{position:relative;background:#03060a;min-width:0;display:flex;flex-direction:column;}
+#cv{display:block;flex:1;width:100%;}
+
+/* ── PANELS ── */
+.panel{border-bottom:1px solid var(--line);}
+.panel>h3{margin:0;padding:8px 12px 6px;font-size:10px;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--txt-dim);display:flex;align-items:center;gap:7px;}
+.panel>h3::before{content:"";width:3px;height:11px;border-radius:1px;
+  background:var(--amber);box-shadow:0 0 6px var(--amber-dim);}
+.panel>h3.tc::before{background:var(--teal);box-shadow:0 0 6px var(--teal-dim);}
+.body{padding:5px 12px 12px;}
+.lbl{font-size:9px;color:var(--txt-faint);letter-spacing:1.2px;text-transform:uppercase;
+  margin:8px 0 3px;}
+
+/* ── CONTROLS ── */
+.row{display:flex;align-items:center;gap:6px;margin:5px 0;}
+.row label{flex:0 0 76px;color:var(--txt-dim);font-size:10px;}
+.vv{flex:0 0 56px;text-align:right;font-size:10px;color:var(--amber);}
+.vv.t{color:var(--teal);}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:3px;
+  background:var(--line2);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--amber);border:2px solid var(--bg);
+  cursor:pointer;box-shadow:0 0 4px var(--amber-dim);}
+input[type=range].t::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 4px var(--teal-dim);}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--bg);cursor:pointer;}
+
+.seg{display:flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden;margin:3px 0;}
+.seg button{flex:1;font-family:var(--mono);font-size:10px;padding:5px 2px;
+  background:var(--panel);color:var(--txt-dim);border:none;
+  border-right:1px solid var(--line2);cursor:pointer;letter-spacing:.2px;transition:background .12s;}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:var(--amber);color:#120d00;font-weight:700;}
+.seg.t button.on{background:var(--teal);color:#021210;}
+
+.btn{font-family:var(--mono);font-size:10px;padding:6px 10px;
+  background:var(--panel2);color:var(--txt);border:1px solid var(--line2);
+  border-radius:3px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  transition:border-color .12s,color .12s;}
+.btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+.btn.a{border-color:var(--amber-dim);color:var(--amber);}
+.btn.full{width:100%;margin-top:8px;}
+
+/* ── DATA ROWS ── */
+.kv{display:flex;justify-content:space-between;font-size:10px;
+  padding:2.5px 0;border-bottom:1px dashed var(--line);}
+.kv .k{color:var(--txt-dim);}
+.kv .a{color:var(--amber);}
+.kv .t{color:var(--teal);}
+.kv .r{color:var(--red);}
+.kv .g{color:var(--green);}
+.hint{color:var(--txt-faint);font-size:9px;margin:3px 0;line-height:1.5;}
+
+/* ── BIG NUMBER ── */
+.bignum{text-align:center;padding:10px 0 8px;}
+.bignum .n{font-size:36px;font-weight:700;color:var(--amber);
+  text-shadow:0 0 28px rgba(255,176,0,.45);line-height:1.05;}
+.bignum .u{font-size:10px;color:var(--txt-dim);margin-top:2px;}
+.bignum .lbl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--txt-faint);margin-top:4px;}
+
+/* ── STATUS BOXES ── */
+.sbox{border-radius:3px;padding:7px 10px;margin:6px 0;font-size:10px;line-height:1.45;}
+.sbox.ok{background:rgba(70,224,138,.07);border:1px solid rgba(70,224,138,.22);color:var(--green);}
+.sbox.warn{background:rgba(255,176,0,.07);border:1px solid rgba(255,176,0,.22);color:var(--amber);}
+.sbox.err{background:rgba(255,77,94,.07);border:1px solid rgba(255,77,94,.22);color:var(--red);}
+
+/* ── STATUSBAR ── */
+#statusbar{display:flex;align-items:center;gap:10px;padding:3px 12px;
+  border-top:1px solid var(--line);background:var(--bg2);
+  font-size:9px;color:var(--txt-faint);flex-shrink:0;}
+#statusbar .r{margin-left:auto;color:var(--teal);}
+
+/* ── CANVAS HUD ── */
+.hud{position:absolute;pointer-events:none;font-family:var(--mono);}
+
+/* ── MOBILE ── */
+@media(max-width:740px){
+  html,body{overflow:auto;height:auto;}
+  #app{height:auto;grid-template-rows:auto 1fr auto;}
+  #main{display:flex;flex-direction:column;overflow:visible;height:auto;}
+  #stage{order:-1;height:280px;flex-shrink:0;}
+  #cv{height:100% !important;}
+  #left,#right{overflow:visible;}
+  .chips{display:none;}
+  .brand s{display:none;}
+  .bignum .n{font-size:28px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══════════════════ TOP BAR ══════════════════ -->
+<header id="topbar">
+  <div class="brand">
+    <b>BATTERY·ESTIMATOR</b>
+    <s>CICCARESE AI · ROBOTICS · <i>v1.0</i></s>
+  </div>
+  <div class="chips">
+    <div class="chip"><span class="dot ok" id="chip-dot"></span><span id="chip-lbl">MLP READY</span></div>
+    <div class="chip">LOSS <b id="chip-loss">—</b></div>
+    <div class="chip">EPOCH <b id="chip-ep">—</b></div>
+  </div>
+</header>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main id="main">
+
+  <!-- LEFT: CONFIG -->
+  <div id="left" class="col">
+
+    <div class="panel">
+      <h3>⚡ Battery Pack</h3>
+      <div class="body">
+        <div class="lbl">Chemistry</div>
+        <div class="seg" id="seg-chem">
+          <button class="on" data-v="LiPo">LiPo</button>
+          <button data-v="LiFe">LiFe</button>
+          <button data-v="NiMH">NiMH</button>
+        </div>
+        <div class="lbl">Cell Config</div>
+        <div class="seg t" id="seg-cells">
+          <button data-v="1">1S</button>
+          <button class="on" data-v="2">2S</button>
+          <button data-v="3">3S</button>
+          <button data-v="4">4S</button>
+        </div>
+        <div class="row" style="margin-top:9px">
+          <label>Voltage</label>
+          <span class="vv t" id="d-volt">7.4V</span>
+        </div>
+        <div class="row">
+          <label>Capacity</label>
+          <input type="range" id="s-cap" min="500" max="10000" step="100" value="2200">
+          <span class="vv" id="d-cap">2200mAh</span>
+        </div>
+        <div class="row">
+          <label>C-Rating</label>
+          <input type="range" id="s-crat" min="10" max="100" step="5" value="30">
+          <span class="vv" id="d-crat">30C</span>
+        </div>
+        <p class="hint">Max burst current = Capacity × C-Rating.<br>LiPo 2S nominal = 7.4V.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>⚙ Servo Load</h3>
+      <div class="body">
+        <div class="lbl">Servo Type</div>
+        <div class="seg" id="seg-st">
+          <button data-v="0">Micro</button>
+          <button class="on" data-v="1">Std</button>
+          <button data-v="2">HiTq</button>
+          <button data-v="3">Mega</button>
+        </div>
+        <div class="row" style="margin-top:9px">
+          <label>Count</label>
+          <input type="range" id="s-cnt" min="1" max="32" step="1" value="6">
+          <span class="vv" id="d-cnt">6</span>
+        </div>
+        <div class="row">
+          <label>Avg Load</label>
+          <input type="range" class="t" id="s-load" min="5" max="100" step="5" value="40">
+          <span class="vv t" id="d-load">40%</span>
+        </div>
+        <div class="row">
+          <label>Duty Cycle</label>
+          <input type="range" id="s-duty" min="10" max="100" step="5" value="60">
+          <span class="vv" id="d-duty">60%</span>
+        </div>
+        <p class="hint">Duty = % of mission time servos move.<br>At 100% all servos active continuously.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🤖 Electronics</h3>
+      <div class="body">
+        <div class="row">
+          <label>Controller</label>
+          <input type="range" id="s-ctrl" min="50" max="2000" step="50" value="200">
+          <span class="vv" id="d-ctrl">200mA</span>
+        </div>
+        <div class="row">
+          <label>Sensors</label>
+          <input type="range" id="s-sens" min="0" max="500" step="10" value="50">
+          <span class="vv" id="d-sens">50mA</span>
+        </div>
+        <div class="row">
+          <label>Comms</label>
+          <input type="range" id="s-comm" min="0" max="300" step="10" value="80">
+          <span class="vv" id="d-comm">80mA</span>
+        </div>
+        <p class="hint">Always-on baseline draw from MCU, IMU, radios.</p>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- CENTER: CANVAS -->
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <!-- HUD overlays -->
+    <div class="hud" style="top:10px;left:12px;font-size:10px;color:var(--txt-dim);">
+      DISCHARGE CURVE <span style="color:var(--amber)" id="hud-mode">— MLP SURROGATE</span>
+    </div>
+    <div class="hud" style="bottom:12px;right:12px;text-align:right;font-size:10px;">
+      <span style="color:var(--teal)" id="hud-soc">SOC —%</span><br>
+      <span style="color:var(--txt-faint)" id="hud-time">T 0h00m</span>
+    </div>
+    <!-- Runtime overlay for mobile visibility -->
+    <div class="hud" id="rt-overlay"
+      style="bottom:12px;left:14px;font-size:9px;color:var(--txt-faint);">
+      RUNTIME&nbsp;<span style="color:var(--amber);font-size:14px;font-weight:700"
+        id="rt-overlay-val">—</span>&nbsp;h:m
+    </div>
+  </div>
+
+  <!-- RIGHT: RESULTS -->
+  <div id="right" class="col">
+
+    <div class="panel">
+      <h3 class="tc">Runtime Estimate</h3>
+      <div class="body">
+        <div class="bignum">
+          <div class="lbl" id="rt-lbl">PHYSICS ESTIMATED RUNTIME</div>
+          <div class="n" id="rt-big">—</div>
+          <div class="u">hours : minutes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Current Draw</h3>
+      <div class="body">
+        <div class="kv"><span class="k">Servo active</span><span class="t" id="r-sa">—</span></div>
+        <div class="kv"><span class="k">Servo idle</span><span id="r-si">—</span></div>
+        <div class="kv"><span class="k">Electronics</span><span id="r-el">—</span></div>
+        <div class="kv"><span class="k">Average total</span><span class="t" id="r-avg">—</span></div>
+        <div class="kv"><span class="k">Peak burst</span><span class="a" id="r-pk">—</span></div>
+        <div class="kv"><span class="k">Max discharge</span><span id="r-md">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Energy Metrics</h3>
+      <div class="body">
+        <div class="kv"><span class="k">Capacity</span><span id="r-cap">—</span></div>
+        <div class="kv"><span class="k">Usable (80%)</span><span id="r-use">—</span></div>
+        <div class="kv"><span class="k">Total Wh</span><span class="a" id="r-wh">—</span></div>
+        <div class="kv"><span class="k">Avg Power</span><span id="r-pw">—</span></div>
+        <div class="kv"><span class="k">Efficiency</span><span class="g" id="r-eff">—</span></div>
+        <div class="kv"><span class="k">Heat loss</span><span class="r" id="r-hl">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="tc">Neural Analysis</h3>
+      <div class="body">
+        <div class="kv"><span class="k">Thermal Risk</span><span id="r-th">—</span></div>
+        <div class="kv"><span class="k">Cell Stress</span><span id="r-cs">—</span></div>
+        <div class="kv"><span class="k">Safety Margin</span><span id="r-sm">—</span></div>
+        <div id="sbox" class="sbox ok">System within safe operating parameters.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>MLP Training</h3>
+      <div class="body">
+        <div class="kv"><span class="k">Architecture</span><span class="t">5 · 10 · 8 · 3</span></div>
+        <div class="kv"><span class="k">Training loss</span><span class="a" id="r-loss">—</span></div>
+        <div class="kv"><span class="k">Epochs</span><span id="r-ep">—</span></div>
+        <div class="kv"><span class="k">Activation</span><span>Leaky ReLU / Sigmoid</span></div>
+        <div class="kv"><span class="k">Training pts</span><span>500</span></div>
+        <button class="btn a full" id="btn-train" onclick="triggerTrain()">⟳ RETRAIN MLP</button>
+      </div>
+    </div>
+
+    <div style="padding:8px 12px 16px">
+      <p class="hint">
+        ⚠ Estimates assume typical operating conditions. Actual runtime depends on battery age, ambient temperature, firmware overhead, and mechanical friction. Always validate on the bench before field deployment.<br><br>
+        CICCARESE AI · YOUBIONIC · youbionic.com
+      </p>
+    </div>
+
+  </div><!-- /right -->
+
+</main>
+
+<!-- ══════════════════ STATUS BAR ══════════════════ -->
+<footer id="statusbar">
+  <span id="s-msg">Physics-informed neural surrogate · Robot power estimation</span>
+  <span class="r" id="s-ml">MLP 5·10·8·3 · INITIALIZING</span>
+</footer>
+
+</div><!-- /app -->
+
+<!-- ══════════════════ SCRIPT ══════════════════ -->
+<script>
+// ──────────────────────────────────────────────
+// CONSTANTS
+// ──────────────────────────────────────────────
+const SERVO_PROFILES = [
+  { name:'Micro', idle:5,   rated:250,  stall:600  },
+  { name:'Std',   idle:10,  rated:500,  stall:1200 },
+  { name:'HiTq',  idle:20,  rated:900,  stall:2200 },
+  { name:'Mega',  idle:50,  rated:1800, stall:4500 },
+];
+const CHEM = {
+  LiPo:{ cell:3.7, max:4.2, min:3.5 },
+  LiFe:{ cell:3.3, max:3.6, min:2.8 },
+  NiMH:{ cell:1.2, max:1.4, min:1.0 },
+};
+
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+const S = {
+  chem:'LiPo', cells:2, cap:2200, crat:30,
+  st:1, cnt:6, load:40, duty:60,
+  ctrl:200, sens:50, comm:80,
+};
+
+// ──────────────────────────────────────────────
+// NEURAL NETWORK (backprop, leaky ReLU / Sigmoid)
+// ──────────────────────────────────────────────
+class NN {
+  constructor(arch) {
+    this.arch = arch;
+    this.W = []; this.B = [];
+    this.epoch = 0; this.loss = 1;
+    for (let i = 0; i < arch.length - 1; i++) {
+      const fi = arch[i], fo = arch[i+1];
+      const sc = Math.sqrt(2 / fi);
+      this.W.push(Array.from({length:fo}, () =>
+        Array.from({length:fi}, () => (Math.random()*2-1)*sc)));
+      this.B.push(Array.from({length:fo}, () => 0));
+    }
+  }
+  lrelu(v) { return v > 0 ? v : v * 0.01; }
+  lreluD(v) { return v > 0 ? 1 : 0.01; }
+  sig(v)  { return 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, v)))); }
+  sigD(v) { const s = this.sig(v); return s * (1-s); }
+
+  forward(x) {
+    this.A = [x.slice()]; this.Z = [];
+    for (let l = 0; l < this.W.length; l++) {
+      const z = this.B[l].map((b, j) =>
+        b + this.W[l][j].reduce((s, w, i) => s + w * this.A[l][i], 0));
+      this.Z.push(z);
+      const last = (l === this.W.length - 1);
+      this.A.push(last ? z.map(v => this.sig(v)) : z.map(v => this.lrelu(v)));
+    }
+    return this.A[this.A.length - 1];
+  }
+
+  backward(y, lr) {
+    const L = this.W.length;
+    const D = [];
+    const outA = this.A[L], outZ = this.Z[L-1];
+    D[L-1] = outA.map((a, i) => (a - y[i]) * this.sigD(outZ[i]));
+    for (let l = L-2; l >= 0; l--) {
+      D[l] = this.Z[l].map((z, j) => {
+        const err = D[l+1].reduce((s, d, k) => s + d * this.W[l+1][k][j], 0);
+        return err * this.lreluD(z);
+      });
+    }
+    for (let l = 0; l < L; l++) {
+      for (let j = 0; j < this.W[l].length; j++) {
+        for (let i = 0; i < this.W[l][j].length; i++)
+          this.W[l][j][i] -= lr * D[l][j] * this.A[l][i];
+        this.B[l][j] -= lr * D[l][j];
+      }
+    }
+  }
+
+  // Async training: batched epochs via setTimeout
+  trainAsync(data, totalEpochs, lr, onDone) {
+    const EPOCHS_PER_TICK = 8;
+    const trainStep = () => {
+      for (let b = 0; b < EPOCHS_PER_TICK && this.epoch < totalEpochs; b++) {
+        // Mini-batch (32 random samples)
+        let lsum = 0;
+        for (let s = 0; s < 32; s++) {
+          const [x, y] = data[Math.floor(Math.random() * data.length)];
+          const pred = this.forward(x);
+          lsum += pred.reduce((sum, p, k) => sum + (p - y[k])**2, 0) / y.length;
+          this.backward(y, lr);
+        }
+        this.loss = lsum / 32;
+        this.epoch++;
+      }
+      updateTrainingUI();
+      if (this.epoch < totalEpochs) {
+        setTimeout(trainStep, 0);
+      } else {
+        onDone();
+      }
+    };
+    setTimeout(trainStep, 0);
+  }
+
+  predict(x) { return this.forward(x); }
+}
+
+let mlp = null;
+let mlpReady = false;
+
+// ──────────────────────────────────────────────
+// PHYSICS ENGINE
+// ──────────────────────────────────────────────
+function computePhysics(s) {
+  const ch = CHEM[s.chem];
+  const volt = ch.cell * s.cells;
+  const srv = SERVO_PROFILES[s.st];
+  const loadF = s.load / 100;
+  const dutyF = s.duty / 100;
+
+  const servoActiveMa = srv.idle + (srv.rated - srv.idle) * loadF;
+  const servoIdleMa   = srv.idle;
+  const servoTotalMa  = s.cnt * (servoActiveMa * dutyF + servoIdleMa * (1 - dutyF));
+  const elecMa        = s.ctrl + s.sens + s.comm;
+  const avgMa         = servoTotalMa + elecMa;
+  const peakMa        = s.cnt * srv.stall + elecMa;
+  const maxDisMa      = s.cap * s.crat;
+  const usableMah     = s.cap * 0.80;
+  const rtH           = usableMah / avgMa;
+
+  const stressRatio   = peakMa / maxDisMa;
+  const thermRisk     = Math.min(1, stressRatio * 1.15);
+
+  const Ri     = 0.06 / s.cells;
+  const Ploss  = (avgMa / 1000) ** 2 * Ri;
+  const Pout   = (avgMa / 1000) * volt;
+  const eff    = Pout / (Pout + Ploss);
+
+  return {
+    volt, avgMa, elecMa,
+    servoActiveMa: servoActiveMa * s.cnt,
+    servoIdleMa:   servoIdleMa   * s.cnt,
+    peakMa, maxDisMa, usableMah, rtH,
+    thermRisk, eff, stressRatio,
+    wh:    (s.cap / 1000) * volt,
+    pw:    (avgMa / 1000) * volt,
+    heatW: Ploss,
+  };
+}
+
+// ──────────────────────────────────────────────
+// TRAINING DATA GENERATOR (physics-based synthetic)
+// ──────────────────────────────────────────────
+function generateDataset(n = 500) {
+  const data = [];
+  for (let i = 0; i < n; i++) {
+    const cnt_n  = Math.random();  // 0=1  servo  → 1=32 servos
+    const cap_n  = Math.random();  // 0=500mAh → 1=10000mAh
+    const volt_n = Math.random();  // 0=1S → 1=4S
+    const load_n = Math.random();  // 0=5% → 1=100% load
+    const st_n   = Math.random();  // 0=Micro → 1=Mega
+
+    const cnt   = Math.round(1 + cnt_n * 31);
+    const cap   = 500 + cap_n * 9500;
+    const cells = 1 + Math.round(volt_n * 3);
+    const load  = 5 + load_n * 95;
+    const st    = Math.min(3, Math.floor(st_n * 4));
+
+    const p = computePhysics({
+      chem:'LiPo', cells, cap, crat:30, st, cnt, load, duty:60, ctrl:200, sens:50, comm:80
+    });
+
+    // Normalize outputs to [0,1]
+    const rt_n    = Math.min(1, p.rtH / 24);   // ref: 24h max
+    const therm_n = p.thermRisk;
+    const eff_n   = p.eff;
+
+    data.push([[cnt_n, cap_n, volt_n, load_n, st_n], [rt_n, therm_n, eff_n]]);
+  }
+  return data;
+}
+
+// ──────────────────────────────────────────────
+// MLP PREDICTION WRAPPER
+// ──────────────────────────────────────────────
+function mlpPredict(s) {
+  if (!mlpReady || !mlp) return null;
+  const cnt_n  = (s.cnt  - 1)  / 31;
+  const cap_n  = (s.cap  - 500) / 9500;
+  const volt_n = (s.cells - 1) / 3;
+  const load_n = (s.load - 5)  / 95;
+  const st_n   = s.st / 3;
+  const out    = mlp.predict([cnt_n, cap_n, volt_n, load_n, st_n]);
+  return {
+    rtH:       out[0] * 24,
+    thermRisk: out[1],
+    eff:       out[2],
+  };
+}
+
+// ──────────────────────────────────────────────
+// TRAIN
+// ──────────────────────────────────────────────
+function triggerTrain() {
+  mlpReady = false;
+  document.getElementById('chip-dot').className = 'dot warn';
+  document.getElementById('chip-lbl').textContent = 'TRAINING';
+  document.getElementById('s-ml').textContent = 'MLP 5·10·8·3 · TRAINING';
+  document.getElementById('hud-mode').textContent = '— PHYSICS (TRAINING)';
+  document.getElementById('rt-lbl').textContent = 'PHYSICS ESTIMATED RUNTIME';
+  document.getElementById('btn-train').disabled = true;
+
+  mlp = new NN([5, 10, 8, 3]);
+  const data = generateDataset(500);
+  mlp.trainAsync(data, 300, 0.012, () => {
+    mlpReady = true;
+    document.getElementById('chip-dot').className = 'dot ok';
+    document.getElementById('chip-lbl').textContent = 'MLP READY';
+    document.getElementById('hud-mode').textContent = '— MLP SURROGATE';
+    document.getElementById('rt-lbl').textContent = 'MLP PREDICTED RUNTIME';
+    document.getElementById('btn-train').disabled = false;
+    document.getElementById('s-ml').textContent =
+      `MLP 5·10·8·3 · LOSS ${mlp.loss.toFixed(5)}`;
+    update();
+  });
+}
+
+function updateTrainingUI() {
+  if (!mlp) return;
+  document.getElementById('chip-loss').textContent = mlp.loss.toFixed(4);
+  document.getElementById('chip-ep').textContent   = mlp.epoch;
+  document.getElementById('r-loss').textContent    = mlp.loss.toFixed(5);
+  document.getElementById('r-ep').textContent      = mlp.epoch;
+}
+
+// ──────────────────────────────────────────────
+// CANVAS RENDERING
+// ──────────────────────────────────────────────
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let animT = 0;
+let lastPh = null;  // cached physics for canvas
+
+function resizeCanvas() {
+  const st = document.getElementById('stage');
+  cv.width  = st.offsetWidth  || 400;
+  cv.height = st.offsetHeight || 300;
+}
+
+// LiPo-like voltage sag: soc 1→0 → voltage max→min
+function socToNorm(soc) {
+  if (soc > 0.85) return 0.65 + (soc - 0.85) / 0.15 * 0.35;
+  if (soc > 0.20) return 0.20 + (soc - 0.20) / 0.65 * 0.45;
+  return soc / 0.20 * 0.20;
+}
+
+function renderCanvas() {
+  const W = cv.width, H = cv.height;
+  const PX = 36, PY = 24, PW = W - PX - 16, PH = H - PY - 26;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#03060a';
+  ctx.fillRect(0, 0, W, H);
+
+  const phys = lastPh || computePhysics(S);
+  const rtH  = phys.rtH;
+
+  // ── Grid ──────────────────────────────────
+  ctx.strokeStyle = 'rgba(35,224,200,.055)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const x = PX + i * PW / 10;
+    ctx.beginPath(); ctx.moveTo(x, PY); ctx.lineTo(x, PY + PH); ctx.stroke();
+    const y = PY + i * PH / 10;
+    ctx.beginPath(); ctx.moveTo(PX, y); ctx.lineTo(PX + PW, y); ctx.stroke();
+  }
+
+  // ── Axes ──────────────────────────────────
+  ctx.strokeStyle = 'rgba(125,147,163,.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PX, PY); ctx.lineTo(PX, PY + PH); ctx.lineTo(PX + PW, PY + PH);
+  ctx.stroke();
+
+  // ── Axis labels ───────────────────────────
+  const font = `9px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(125,147,163,.55)';
+
+  // X axis: time
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) {
+    const x = PX + i * PW / 4;
+    const t = rtH * i / 4;
+    const lbl = t < 1 ? `${Math.round(t*60)}m` : `${t.toFixed(1)}h`;
+    ctx.fillText(lbl, x, PY + PH + 14);
+  }
+  // X label
+  ctx.fillStyle = 'rgba(125,147,163,.3)';
+  ctx.fillText('TIME', PX + PW / 2, PY + PH + 24);
+
+  // Y axis: SOC%
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(125,147,163,.55)';
+  for (let i = 0; i <= 4; i++) {
+    const soc = 100 - i * 25;
+    const y   = PY + i * PH / 4;
+    ctx.fillText(`${soc}%`, PX - 4, y + 3);
+  }
+
+  // ── Danger zone (SOC < 20%) ────────────────
+  const dangerY = PY + PH * 0.80;
+  ctx.fillStyle = 'rgba(255,77,94,.035)';
+  ctx.fillRect(PX, dangerY, PW, PH - PH * 0.80);
+  ctx.strokeStyle = 'rgba(255,77,94,.18)';
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(PX, dangerY); ctx.lineTo(PX + PW, dangerY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(255,77,94,.35)';
+  ctx.textAlign = 'left';
+  ctx.fillText('CUTOFF ZONE', PX + 4, dangerY - 3);
+
+  // ── Discharge curve ────────────────────────
+  const N = 200;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const t   = i / N;
+    const soc = 1 - t;
+    const x   = PX + t * PW;
+    const y   = PY + (1 - socToNorm(soc)) * PH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  const lineGrad = ctx.createLinearGradient(PX, 0, PX + PW, 0);
+  lineGrad.addColorStop(0,    '#46e08a');
+  lineGrad.addColorStop(0.55, '#ffb000');
+  lineGrad.addColorStop(0.82, '#ff4d5e');
+  lineGrad.addColorStop(1,    'rgba(255,77,94,.25)');
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth   = 2.5;
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.beginPath();
+  ctx.moveTo(PX, PY + PH);
+  for (let i = 0; i <= N; i++) {
+    const t   = i / N;
+    const soc = 1 - t;
+    const x   = PX + t * PW;
+    const y   = PY + (1 - socToNorm(soc)) * PH;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(PX + PW, PY + PH);
+  ctx.closePath();
+  const fillGrad = ctx.createLinearGradient(PX, 0, PX + PW, 0);
+  fillGrad.addColorStop(0,    'rgba(70,224,138,.07)');
+  fillGrad.addColorStop(0.55, 'rgba(255,176,0,.05)');
+  fillGrad.addColorStop(1,    'rgba(255,77,94,.03)');
+  ctx.fillStyle = fillGrad;
+  ctx.fill();
+
+  // ── Animated marker ────────────────────────
+  const tFrac   = animT % 1;
+  const markerX = PX + tFrac * PW;
+  const socNow  = 1 - tFrac;
+  const markerY = PY + (1 - socToNorm(socNow)) * PH;
+  const socPct  = Math.round(socNow * 100);
+
+  // Vertical guide
+  ctx.strokeStyle = 'rgba(255,255,255,.12)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(markerX, PY); ctx.lineTo(markerX, PY + PH); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dot
+  const dotColor = socPct > 50 ? '#46e08a' : socPct > 20 ? '#ffb000' : '#ff4d5e';
+  ctx.beginPath();
+  ctx.arc(markerX, markerY, 5.5, 0, Math.PI * 2);
+  ctx.fillStyle  = dotColor;
+  ctx.shadowColor = dotColor;
+  ctx.shadowBlur  = 14;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Battery icon (top-right) ───────────────
+  const bx = W - 62, by = PY + 2, bw = 44, bh = 20, bterm = 4;
+  ctx.strokeStyle = 'rgba(125,147,163,.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.fillStyle = 'rgba(125,147,163,.35)';
+  ctx.fillRect(bx + bw, by + bh/2 - bterm/2, 4, bterm);
+
+  const fillW = (bw - 2) * socNow;
+  ctx.fillStyle   = dotColor;
+  ctx.shadowColor = dotColor;
+  ctx.shadowBlur  = socPct < 25 ? 10 : 4;
+  ctx.fillRect(bx + 1, by + 1, fillW, bh - 2);
+  ctx.shadowBlur = 0;
+
+  ctx.font = font;
+  ctx.fillStyle   = 'rgba(255,255,255,.65)';
+  ctx.textAlign   = 'center';
+  ctx.fillText(`${socPct}%`, bx + bw / 2, by + bh / 2 + 3);
+
+  // ── Update HUD ────────────────────────────
+  const elapsed = tFrac * rtH;
+  const eh = Math.floor(elapsed);
+  const em = Math.round((elapsed - eh) * 60);
+  document.getElementById('hud-soc').textContent  = `SOC ${socPct}%`;
+  document.getElementById('hud-time').textContent = `T ${eh}h${String(em).padStart(2,'0')}m`;
+  document.getElementById('rt-overlay-val').textContent =
+    (() => { const rh=Math.floor(rtH),rm=Math.round((rtH-rh)*60); return `${rh}:${String(rm).padStart(2,'0')}`; })();
+}
+
+let animRunning = false;
+function animate() {
+  animT += 0.0025;
+  if (animT > 1) animT = 0;
+  renderCanvas();
+  requestAnimationFrame(animate);
+}
+
+// ──────────────────────────────────────────────
+// UI UPDATE
+// ──────────────────────────────────────────────
+function fmtA(ma) {
+  return ma >= 1000 ? `${(ma/1000).toFixed(2)}A` : `${Math.round(ma)}mA`;
+}
+
+function update() {
+  // Read all inputs
+  S.cap  = +document.getElementById('s-cap').value;
+  S.crat = +document.getElementById('s-crat').value;
+  S.cnt  = +document.getElementById('s-cnt').value;
+  S.load = +document.getElementById('s-load').value;
+  S.duty = +document.getElementById('s-duty').value;
+  S.ctrl = +document.getElementById('s-ctrl').value;
+  S.sens = +document.getElementById('s-sens').value;
+  S.comm = +document.getElementById('s-comm').value;
+
+  // Display labels
+  document.getElementById('d-cap').textContent  = `${S.cap}mAh`;
+  document.getElementById('d-crat').textContent = `${S.crat}C`;
+  document.getElementById('d-cnt').textContent  = S.cnt;
+  document.getElementById('d-load').textContent = `${S.load}%`;
+  document.getElementById('d-duty').textContent = `${S.duty}%`;
+  document.getElementById('d-ctrl').textContent = `${S.ctrl}mA`;
+  document.getElementById('d-sens').textContent = `${S.sens}mA`;
+  document.getElementById('d-comm').textContent = `${S.comm}mA`;
+
+  const ch = CHEM[S.chem];
+  document.getElementById('d-volt').textContent = `${(ch.cell * S.cells).toFixed(1)}V`;
+
+  // Compute
+  const p = computePhysics(S);
+  lastPh  = p;
+  const m = mlpPredict(S);
+
+  const rtH      = m ? m.rtH      : p.rtH;
+  const thermRisk = m ? m.thermRisk : p.thermRisk;
+  const eff      = m ? m.eff      : p.eff;
+
+  // Runtime
+  const rh = Math.floor(rtH);
+  const rm = Math.round((rtH - rh) * 60);
+  document.getElementById('rt-big').textContent = `${rh}:${String(rm).padStart(2,'0')}`;
+
+  // Current
+  document.getElementById('r-sa').textContent  = fmtA(p.servoActiveMa);
+  document.getElementById('r-si').textContent  = fmtA(p.servoIdleMa);
+  document.getElementById('r-el').textContent  = fmtA(p.elecMa);
+  document.getElementById('r-avg').textContent = fmtA(p.avgMa);
+  document.getElementById('r-pk').textContent  = fmtA(p.peakMa);
+  document.getElementById('r-md').textContent  = fmtA(p.maxDisMa);
+
+  // Energy
+  document.getElementById('r-cap').textContent = `${S.cap}mAh`;
+  document.getElementById('r-use').textContent = `${Math.round(p.usableMah)}mAh`;
+  document.getElementById('r-wh').textContent  = `${p.wh.toFixed(2)}Wh`;
+  document.getElementById('r-pw').textContent  = `${p.pw.toFixed(2)}W`;
+  document.getElementById('r-eff').textContent = `${(eff*100).toFixed(1)}%`;
+  document.getElementById('r-hl').textContent  = `${(p.heatW*1000).toFixed(0)}mW`;
+
+  // Neural analysis
+  const trPct = Math.round(thermRisk * 100);
+  const trCls = thermRisk > 0.7 ? 'r' : thermRisk > 0.4 ? 'a' : 'g';
+  const trLbl = thermRisk > 0.7 ? 'HIGH' : thermRisk > 0.4 ? 'ELEVATED' : 'LOW';
+  document.getElementById('r-th').innerHTML = `<span class="${trCls}">${trLbl} (${trPct}%)</span>`;
+
+  const csPct = Math.round(p.stressRatio * 100);
+  const csCls = p.stressRatio > 0.8 ? 'r' : p.stressRatio > 0.5 ? 'a' : 'g';
+  const csLbl = p.stressRatio > 0.8 ? 'CRITICAL' : p.stressRatio > 0.5 ? 'ELEVATED' : 'NOMINAL';
+  document.getElementById('r-cs').innerHTML = `<span class="${csCls}">${csLbl} (${csPct}%)</span>`;
+
+  const margin = Math.max(0, Math.round((1 - thermRisk) * 100));
+  document.getElementById('r-sm').textContent = `${margin}%`;
+
+  // Status box
+  const sbox = document.getElementById('sbox');
+  if (thermRisk > 0.7 || p.stressRatio > 0.8) {
+    sbox.className = 'sbox err';
+    sbox.textContent = '⚠ WARNING — High thermal risk. Reduce servo count / load, or increase battery C-rating.';
+  } else if (thermRisk > 0.4 || p.stressRatio > 0.5) {
+    sbox.className = 'sbox warn';
+    sbox.textContent = '⚡ CAUTION — Elevated cell stress detected. Monitor temperature during operation.';
+  } else {
+    sbox.className = 'sbox ok';
+    sbox.textContent = '✓ System within safe operating parameters. Thermal and stress margins OK.';
+  }
+
+  // Footer
+  document.getElementById('s-msg').textContent =
+    `Avg ${fmtA(p.avgMa)} · Peak ${fmtA(p.peakMa)} · ${p.rtH.toFixed(2)}h est.`;
+}
+
+// ──────────────────────────────────────────────
+// SEGMENT BUTTONS
+// ──────────────────────────────────────────────
+function bindSeg(id, key, parse) {
+  document.querySelectorAll(`#${id} button`).forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll(`#${id} button`).forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S[key] = parse(b.dataset.v);
+      update();
+    });
+  });
+}
+bindSeg('seg-chem',  'chem',  v => v);
+bindSeg('seg-cells', 'cells', v => +v);
+bindSeg('seg-st',    'st',    v => +v);
+
+// ──────────────────────────────────────────────
+// SLIDERS
+// ──────────────────────────────────────────────
+document.querySelectorAll('input[type=range]').forEach(r => {
+  r.addEventListener('input', update);
+});
+
+// ──────────────────────────────────────────────
+// RESIZE OBSERVER
+// ──────────────────────────────────────────────
+const ro = new ResizeObserver(() => { resizeCanvas(); });
+ro.observe(document.getElementById('stage'));
+
+// ──────────────────────────────────────────────
+// BOOT
+// ──────────────────────────────────────────────
+window.addEventListener('load', () => {
+  resizeCanvas();
+  requestAnimationFrame(animate);
+  update();
+  triggerTrain();
+});
+</script>
+</body>
+</html>
