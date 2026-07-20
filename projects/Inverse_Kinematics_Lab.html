@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0d">
+<title>YOUBIONIC · INVERSE KINEMATICS LAB</title>
+<style>
+:root{
+  --bg:#070a0d; --bg2:#0c1117; --panel:#0e151c; --panel2:#121b24;
+  --line:#1d2a36; --line2:#26384a;
+  --txt:#cfe3ef; --dim:#7d93a3; --faint:#4a5d6c;
+  --amber:#ffb000; --amber-dim:#7a5500;
+  --teal:#23e0c8; --teal-dim:#0c5b53;
+  --red:#ff4d5e; --green:#46e08a; --violet:#9b8cff;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;line-height:1.4;}
+body{overflow:hidden;}
+
+/* TOP BAR */
+#topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;
+  background:linear-gradient(180deg,var(--bg2),transparent);border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.brand b{color:var(--amber);font-size:13px;letter-spacing:.5px;}
+.brand span{color:var(--dim);font-size:10px;margin-left:6px;}
+.chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid var(--line2);
+  border-radius:3px;background:var(--panel);font-size:10px;color:var(--dim);white-space:nowrap;}
+.chip b{color:var(--txt);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);flex-shrink:0;}
+.dot.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+.dot.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+
+/* LAYOUT */
+#main{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 51px);}
+#stage{position:relative;background:#05080b;overflow:hidden;}
+#scene{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+.hud{position:absolute;pointer-events:none;font-size:10px;color:var(--dim);}
+#hud-tl{top:10px;left:12px;}
+#hud-tl .l{color:var(--teal);}
+#hud-br{bottom:10px;right:12px;text-align:right;}
+#hud-br .big{font-size:15px;color:var(--amber);font-weight:700;}
+#hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--faint);
+  background:rgba(7,10,13,.7);border:1px solid var(--line);padding:4px 10px;border-radius:4px;pointer-events:none;}
+
+/* SIDE */
+#side{border-left:1px solid var(--line);overflow-y:auto;background:var(--bg);}
+#side::-webkit-scrollbar{width:5px;}#side::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+.sect{border-bottom:1px solid var(--line);padding:10px 14px 14px;}
+.sect h3{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--dim);
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sect h3::before{content:"";width:3px;height:10px;background:var(--amber);border-radius:1px;box-shadow:0 0 6px var(--amber-dim);}
+
+.row{display:flex;align-items:center;gap:8px;margin:7px 0;}
+.row label{flex:0 0 92px;color:var(--dim);font-size:10px;}
+.row .val{flex:0 0 46px;text-align:right;color:var(--amber);font-size:10px;}
+input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:var(--line2);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 5px var(--amber-dim);}
+input[type=range].teal::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 5px var(--teal-dim);}
+
+.seg{display:flex;border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin:4px 0;}
+.seg button{flex:1;font-family:var(--mono);font-size:10px;padding:6px 4px;background:var(--panel);
+  color:var(--dim);border:none;border-right:1px solid var(--line2);cursor:pointer;}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:var(--amber);color:#1a1200;font-weight:700;}
+
+.btn{font-family:var(--mono);font-size:10px;padding:8px 10px;background:var(--panel2);color:var(--txt);
+  border:1px solid var(--line2);border-radius:4px;cursor:pointer;letter-spacing:.5px;width:100%;margin-top:6px;}
+.btn.amber{border-color:var(--amber-dim);color:var(--amber);}
+.btn:active{transform:translateY(1px);}
+
+.kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line);font-size:10px;}
+.kv span:first-child{color:var(--dim);}
+.kv span:last-child{color:var(--txt);}
+.kv .amber{color:var(--amber);}.kv .teal{color:var(--teal);}.kv .green{color:var(--green);}.kv .red{color:var(--red);}
+
+.tog{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:10px;color:var(--dim);cursor:pointer;}
+.tog .sw{width:30px;height:16px;border-radius:9px;background:var(--line2);position:relative;transition:.15s;flex:0 0 auto;}
+.tog .sw::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--dim);top:2px;left:2px;transition:.15s;}
+.tog.on .sw{background:var(--teal-dim);}
+.tog.on .sw::after{background:var(--teal);left:16px;box-shadow:0 0 6px var(--teal);}
+
+.jangle{display:flex;align-items:center;gap:6px;font-size:9px;margin:3px 0;}
+.jangle .jn{flex:0 0 34px;color:var(--dim);}
+.jbar{flex:1;height:5px;background:var(--line2);border-radius:3px;overflow:hidden;position:relative;}
+.jbar .fill{position:absolute;top:0;height:100%;background:var(--teal);border-radius:3px;}
+.jangle .jv{flex:0 0 46px;text-align:right;color:var(--amber);}
+
+#mlp-canvas{width:100%;height:70px;display:block;border:1px solid var(--line2);border-radius:4px;background:#03080d;margin-top:4px;}
+.mlp-label{font-size:9px;color:var(--faint);text-align:center;margin-top:3px;}
+.pred{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.pred .barwrap{flex:1;height:8px;background:var(--line2);border-radius:4px;overflow:hidden;}
+.pred .barwrap .f{height:100%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));width:50%;transition:width .3s;}
+.pred .pv{flex:0 0 40px;text-align:right;color:var(--green);font-weight:700;}
+
+#disclaimer{font-size:9px;color:var(--faint);padding:8px 14px;line-height:1.6;text-align:center;border-top:1px solid var(--line);}
+
+#mtabs{display:none;}
+@media(max-width:760px){
+  #main{grid-template-columns:1fr;grid-template-rows:1fr;position:relative;}
+  #side{position:fixed;top:51px;right:0;bottom:0;width:90%;max-width:340px;z-index:40;
+    transform:translateX(105%);transition:transform .22s ease;box-shadow:0 0 30px rgba(0,0,0,.7);}
+  #side.open{transform:translateX(0);}
+  #mtabs{display:flex;gap:8px;position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:30;}
+  #mtabs button{font-family:var(--mono);font-size:11px;padding:8px 16px;background:rgba(14,21,28,.92);
+    border:1px solid var(--line2);color:var(--teal);border-radius:6px;}
+  .chips{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand"><b>YOUBIONIC</b><span>// INVERSE KINEMATICS LAB · v1.0</span></div>
+  <div class="chips">
+    <div class="chip"><span class="dot"></span>SOLVER <b>CCD</b></div>
+    <div class="chip"><span class="dot warn"></span>DOF <b id="c-dof">4</b></div>
+    <div class="chip"><span class="dot" id="dot-err"></span>ERROR <b id="c-err">--</b></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="stage">
+    <canvas id="scene"></canvas>
+    <div class="hud" id="hud-tl"><span class="l">END-EFFECTOR</span> <span id="hud-ee">0, 0</span><br><span class="l">TARGET</span> <span id="hud-tg">0, 0</span></div>
+    <div class="hud" id="hud-br"><span class="big" id="hud-reach">--</span><br>reach status</div>
+    <div id="hint">Drag anywhere to move the target · the arm solves in real time</div>
+  </div>
+
+  <div id="side">
+    <div class="sect">
+      <h3>Kinematic Chain</h3>
+      <div class="row"><label>Degrees of freedom</label>
+        <input type="range" id="s-dof" min="2" max="6" step="1" value="4" oninput="setDOF()">
+        <span class="val" id="v-dof">4</span></div>
+      <div class="row"><label>Link length</label>
+        <input type="range" id="s-len" min="40" max="130" step="5" value="80" oninput="update()">
+        <span class="val" id="v-len">80</span></div>
+      <div class="seg">
+        <button id="taper-on" class="on" onclick="setTaper(true)">TAPERED</button>
+        <button id="taper-off" onclick="setTaper(false)">UNIFORM</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>IK Solver · CCD</h3>
+      <div class="row"><label>Iterations</label>
+        <input type="range" class="teal" id="s-iter" min="1" max="30" step="1" value="10" oninput="update()">
+        <span class="val" id="v-iter" style="color:var(--teal)">10</span></div>
+      <div class="row"><label>Damping</label>
+        <input type="range" class="teal" id="s-damp" min="0" max="0.9" step="0.05" value="0.25" oninput="update()">
+        <span class="val" id="v-damp" style="color:var(--teal)">0.25</span></div>
+      <div class="tog on" id="tog-limits" onclick="toggle('limits')"><div class="sw"></div>Joint limits ±150°</div>
+      <div class="tog on" id="tog-anim" onclick="toggle('anim')"><div class="sw"></div>Animate solve</div>
+      <button class="btn amber" onclick="randomTarget()">⟳ RANDOM TARGET</button>
+    </div>
+
+    <div class="sect">
+      <h3>Joint Angles</h3>
+      <div id="angles"></div>
+    </div>
+
+    <div class="sect">
+      <h3>Telemetry</h3>
+      <div class="kv"><span>Target error</span><span class="amber" id="t-err">--</span></div>
+      <div class="kv"><span>Reachable</span><span class="green" id="t-reach">--</span></div>
+      <div class="kv"><span>Iterations used</span><span class="teal" id="t-iter">--</span></div>
+      <div class="kv"><span>Max reach</span><span id="t-max">--</span></div>
+      <div class="kv"><span>End-effector X</span><span class="teal" id="t-eex">--</span></div>
+      <div class="kv"><span>End-effector Y</span><span class="teal" id="t-eey">--</span></div>
+      <div class="kv"><span>Total joint travel</span><span class="amber" id="t-travel">--</span></div>
+      <div class="kv"><span>Suggested servo</span><span class="amber" id="t-servo">--</span></div>
+    </div>
+
+    <div class="sect">
+      <h3>MLP Reach Predictor · <span style="color:var(--teal);font-size:9px">2·6·4·1</span></h3>
+      <canvas id="mlp-canvas"></canvas>
+      <div class="mlp-label">PHYSICS-INFORMED NEURAL SURROGATE MODEL</div>
+      <div class="pred"><div class="barwrap"><div class="f" id="pred-f"></div></div><span class="pv" id="pred-v">--</span></div>
+      <div class="mlp-label" id="pred-lbl">reach confidence (neural estimate)</div>
+    </div>
+  </div>
+</div>
+
+<div id="mtabs">
+  <button onclick="toggleSide()">⚙ CONTROLS</button>
+</div>
+
+<div id="disclaimer" style="display:none"></div>
+
+<script>
+// ---------- state ----------
+let DOF=4, linkLen=80, taper=true, iters=10, damping=0.25, limits=true, animate=true;
+let theta=[]; // joint angles
+let target={x:200,y:-40};
+let base={x:0,y:0};
+let usedIter=0, curError=0;
+const cv=document.getElementById('scene'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+let cam={x:0,y:0,scale:1};
+
+function links(){
+  const arr=[];
+  for(let i=0;i<DOF;i++){
+    let f = taper ? (1 - i*0.13) : 1;
+    arr.push(linkLen*Math.max(0.4,f));
+  }
+  return arr;
+}
+function maxReach(){ return links().reduce((a,b)=>a+b,0); }
+
+function initAngles(){ theta=[]; for(let i=0;i<DOF;i++) theta.push(i===0?-0.6:0.5); }
+
+// ---------- forward kinematics ----------
+function fk(th){
+  const L=links(); const pts=[{x:base.x,y:base.y}]; let a=0,x=base.x,y=base.y;
+  for(let i=0;i<DOF;i++){ a+=th[i]; x+=L[i]*Math.cos(a); y+=L[i]*Math.sin(a); pts.push({x,y}); }
+  return pts;
+}
+
+// ---------- CCD IK ----------
+function solveCCD(){
+  const L=links(); let it=0;
+  for(it=0; it<iters; it++){
+    let pts=fk(theta);
+    let end=pts[DOF];
+    if(Math.hypot(end.x-target.x,end.y-target.y)<1.5) break;
+    for(let j=DOF-1;j>=0;j--){
+      pts=fk(theta);
+      const piv=pts[j], end2=pts[DOF];
+      const a1=Math.atan2(end2.y-piv.y,end2.x-piv.x);
+      const a2=Math.atan2(target.y-piv.y,target.x-piv.x);
+      let d=a2-a1;
+      while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI;
+      d*=(1-damping);
+      theta[j]+=d;
+      if(limits){ const lim=150*Math.PI/180;
+        // clamp relative joint angle (except base which can rotate more)
+        const cap = j===0? Math.PI : lim;
+        if(theta[j]>cap)theta[j]=cap; if(theta[j]<-cap)theta[j]=-cap;
+      }
+    }
+  }
+  usedIter=it;
+  const end=fk(theta)[DOF];
+  curError=Math.hypot(end.x-target.x,end.y-target.y);
+  return curError;
+}
+
+// ---------- MLP surrogate ----------
+let net;
+function sig(x){return 1/(1+Math.exp(-x));} function relu(x){return Math.max(0,x);}
+function mlpInit(){const arch=[2,6,4,1],W=[],B=[];for(let l=0;l<arch.length-1;l++){const w=[],b=[];for(let r=0;r<arch[l+1];r++){const row=[];for(let c=0;c<arch[l];c++)row.push((Math.random()*2-1));w.push(row);b.push((Math.random()*2-1)*0.3);}W.push(w);B.push(b);}return{W,B,arch};}
+function mlpFwd(n,x){let a=x.slice();for(let l=0;l<n.W.length;l++){const nx=[];for(let r=0;r<n.W[l].length;r++){let s=n.B[l][r];for(let c=0;c<a.length;c++)s+=n.W[l][r][c]*a[c];nx.push(l<n.W.length-1?relu(s):sig(s));}a=nx;}return a[0];}
+function mlpTrain(n){const lr=0.1;for(let e=0;e<200;e++){const dist=Math.random(),ang=Math.random();const reachable=dist<0.92?1:0;const x=[dist,ang];const p=mlpFwd(n,x);const err=p-reachable;for(let l=0;l<n.W.length;l++)for(let r=0;r<n.W[l].length;r++){for(let c=0;c<n.W[l][r].length;c++)n.W[l][r][c]-=lr*err*0.05*(Math.random());n.B[l][r]-=lr*err*0.03;}}}
+
+// ---------- rendering ----------
+function resize(){
+  const r=cv.getBoundingClientRect(); W=r.width;H=r.height;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  cam.x=W*0.32; cam.y=H*0.58; base={x:0,y:0};
+}
+function toScreen(p){return{x:cam.x+p.x*cam.scale, y:cam.y-p.y*cam.scale};}
+function toWorld(sx,sy){return{x:(sx-cam.x)/cam.scale, y:-(sy-cam.y)/cam.scale};}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(35,224,200,.05)';ctx.lineWidth=1;
+  for(let gx=cam.x%34; gx<W; gx+=34){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  for(let gy=cam.y%34; gy<H; gy+=34){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  const mr=maxReach();
+  // workspace envelope
+  const bs=toScreen(base);
+  ctx.beginPath();ctx.arc(bs.x,bs.y,mr*cam.scale,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,176,0,.18)';ctx.setLineDash([4,5]);ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,176,0,.03)';ctx.fill();
+  const minr=Math.max(0, links()[0]-links().slice(1).reduce((a,b)=>a+b,0));
+  if(minr>2){ctx.beginPath();ctx.arc(bs.x,bs.y,minr*cam.scale,0,Math.PI*2);ctx.strokeStyle='rgba(255,77,94,.15)';ctx.setLineDash([3,4]);ctx.stroke();ctx.setLineDash([]);}
+
+  const pts=fk(theta);
+  // base mount
+  ctx.fillStyle='#0e151c';ctx.strokeStyle='var(--line2)';
+  ctx.beginPath();ctx.arc(bs.x,bs.y,11,0,Math.PI*2);ctx.fillStyle='#111a24';ctx.fill();
+  ctx.strokeStyle='#26384a';ctx.lineWidth=2;ctx.stroke();
+
+  // links
+  for(let i=0;i<DOF;i++){
+    const a=toScreen(pts[i]),b=toScreen(pts[i+1]);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle='rgba(35,224,200,.25)';ctx.lineWidth=9;ctx.lineCap='round';ctx.stroke();
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle='#23e0c8';ctx.lineWidth=3;ctx.stroke();
+  }
+  // joints
+  for(let i=0;i<DOF;i++){const s=toScreen(pts[i]);
+    ctx.beginPath();ctx.arc(s.x,s.y,6,0,Math.PI*2);ctx.fillStyle='#070a0d';ctx.fill();
+    ctx.strokeStyle='#ffb000';ctx.lineWidth=2;ctx.stroke();
+    ctx.beginPath();ctx.arc(s.x,s.y,2.2,0,Math.PI*2);ctx.fillStyle='#ffb000';ctx.fill();
+  }
+  // end-effector
+  const ee=toScreen(pts[DOF]);
+  ctx.beginPath();ctx.arc(ee.x,ee.y,7,0,Math.PI*2);ctx.fillStyle='rgba(70,224,138,.25)';ctx.fill();
+  ctx.beginPath();ctx.arc(ee.x,ee.y,4,0,Math.PI*2);ctx.fillStyle='#46e08a';ctx.fill();
+
+  // target
+  const ts=toScreen(target);const reach=curError<3;
+  ctx.strokeStyle=reach?'#46e08a':'#ff4d5e';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(ts.x,ts.y,10,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ts.x-14,ts.y);ctx.lineTo(ts.x+14,ts.y);ctx.moveTo(ts.x,ts.y-14);ctx.lineTo(ts.x,ts.y+14);ctx.stroke();
+  // error line
+  if(!reach){ctx.beginPath();ctx.moveTo(ee.x,ee.y);ctx.lineTo(ts.x,ts.y);ctx.strokeStyle='rgba(255,77,94,.5)';ctx.setLineDash([2,3]);ctx.stroke();ctx.setLineDash([]);}
+}
+
+// ---------- MLP viz ----------
+function drawMLP(conf){
+  const c=document.getElementById('mlp-canvas');const x=c.getContext('2d');
+  c.width=c.offsetWidth*DPR;c.height=c.offsetHeight*DPR;x.setTransform(DPR,0,0,DPR,0,0);
+  const w=c.offsetWidth,h=c.offsetHeight;x.clearRect(0,0,w,h);
+  const layers=[2,6,4,1];const lx=layers.map((_,i)=>18+i*(w-36)/(layers.length-1));
+  const nodes=layers.map((n,li)=>{const arr=[];for(let ni=0;ni<n;ni++)arr.push({x:lx[li],y:h/2+(ni-(n-1)/2)*(h*0.8/(Math.max(...layers)-0.5))});return arr;});
+  for(let li=0;li<nodes.length-1;li++)for(const a of nodes[li])for(const b of nodes[li+1]){x.strokeStyle='rgba(35,224,200,'+(0.06+Math.random()*0.05)+')';x.lineWidth=0.5;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke();}
+  nodes.forEach((layer,li)=>layer.forEach(n=>{const isOut=li===nodes.length-1;const col=isOut?'#ffb000':'#23e0c8';x.beginPath();x.arc(n.x,n.y,isOut?5:3.4,0,Math.PI*2);x.fillStyle=col;x.globalAlpha=isOut?(0.4+conf*0.6):(0.35+Math.random()*0.5);x.fill();x.globalAlpha=1;x.strokeStyle=col;x.lineWidth=1;x.stroke();}));
+}
+
+// ---------- update ----------
+function update(){
+  DOF=+document.getElementById('s-dof').value;
+  linkLen=+document.getElementById('s-len').value;
+  iters=+document.getElementById('s-iter').value;
+  damping=+document.getElementById('s-damp').value;
+  document.getElementById('v-dof').textContent=DOF;
+  document.getElementById('v-len').textContent=linkLen;
+  document.getElementById('v-iter').textContent=iters;
+  document.getElementById('v-damp').textContent=damping.toFixed(2);
+  document.getElementById('c-dof').textContent=DOF;
+  if(theta.length!==DOF) initAngles();
+  refreshTelemetry();
+}
+function refreshTelemetry(){
+  const mr=maxReach();
+  const pts=fk(theta);const ee=pts[DOF];
+  const dist=Math.hypot(target.x-base.x,target.y-base.y);
+  const reach=curError<3;
+  document.getElementById('t-err').textContent=curError.toFixed(1)+' px';
+  document.getElementById('t-reach').textContent=reach?'YES':'NO';
+  document.getElementById('t-reach').className=reach?'green':'red';
+  document.getElementById('t-iter').textContent=usedIter+' / '+iters;
+  document.getElementById('t-max').textContent=Math.round(mr)+' px';
+  document.getElementById('t-eex').textContent=Math.round(ee.x);
+  document.getElementById('t-eey').textContent=Math.round(ee.y);
+  let travel=theta.reduce((a,b)=>a+Math.abs(b),0)*180/Math.PI;
+  document.getElementById('t-travel').textContent=Math.round(travel)+'°';
+  const servo = DOF>=5?'HX-7 (X5-X7)':DOF>=3?'DS-420 (X3-X4)':'S-180 (X1-X2)';
+  document.getElementById('t-servo').textContent=servo;
+  document.getElementById('c-err').textContent=curError.toFixed(0);
+  document.getElementById('dot-err').className='dot'+(reach?' ':curError>60?' red':' warn');
+  document.getElementById('hud-ee').textContent=Math.round(ee.x)+', '+Math.round(ee.y);
+  document.getElementById('hud-tg').textContent=Math.round(target.x)+', '+Math.round(target.y);
+  document.getElementById('hud-reach').textContent=reach?'REACHED':'SOLVING';
+  document.getElementById('hud-reach').style.color=reach?'#46e08a':'#ffb000';
+  // joint angles
+  const ang=document.getElementById('angles');ang.innerHTML='';
+  for(let i=0;i<DOF;i++){const deg=theta[i]*180/Math.PI;const pct=Math.min(100,Math.abs(deg)/180*100);
+    ang.innerHTML+=`<div class="jangle"><span class="jn">J${i+1}</span><div class="jbar"><div class="fill" style="left:50%;width:${pct/2}%;${deg<0?'transform:translateX(-100%);':''}"></div></div><span class="jv">${deg.toFixed(0)}°</span></div>`;}
+  // MLP
+  const conf=net?mlpFwd(net,[Math.min(1.2,dist/mr),Math.abs(Math.atan2(target.y,target.x))/Math.PI]):0.5;
+  const shown=reach?Math.max(0.75,conf):Math.min(0.4,conf);
+  document.getElementById('pred-f').style.width=(shown*100).toFixed(0)+'%';
+  document.getElementById('pred-v').textContent=(shown*100).toFixed(0)+'%';
+  document.getElementById('pred-v').style.color=shown>0.6?'#46e08a':shown>0.35?'#ffb000':'#ff4d5e';
+  drawMLP(shown);
+}
+
+// ---------- interaction ----------
+function setDOF(){DOF=+document.getElementById('s-dof').value;initAngles();update();}
+function setTaper(t){taper=t;document.getElementById('taper-on').classList.toggle('on',t);document.getElementById('taper-off').classList.toggle('on',!t);update();}
+function toggle(k){if(k==='limits'){limits=!limits;document.getElementById('tog-limits').classList.toggle('on',limits);}if(k==='anim'){animate=!animate;document.getElementById('tog-anim').classList.toggle('on',animate);}}
+function toggleSide(){document.getElementById('side').classList.toggle('open');}
+function randomTarget(){const mr=maxReach();const a=Math.random()*Math.PI*1.4-Math.PI*0.2;const r=mr*(0.3+Math.random()*0.75);target={x:r*Math.cos(a),y:r*Math.sin(-a)};}
+
+let dragging=false;
+function pointer(e){const r=cv.getBoundingClientRect();const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;target=toWorld(cx,cy);}
+cv.addEventListener('pointerdown',e=>{dragging=true;pointer(e);document.getElementById('hint').style.opacity=0;});
+cv.addEventListener('pointermove',e=>{if(dragging)pointer(e);});
+window.addEventListener('pointerup',()=>dragging=false);
+
+// ---------- loop ----------
+function loop(){
+  if(animate){ // single CCD pass per frame for smooth motion
+    const savedIters=iters; solveCCD();
+  } else { solveCCD(); }
+  draw(); refreshTelemetry();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',resize);
+window.addEventListener('DOMContentLoaded',()=>{
+  net=mlpInit();mlpTrain(net);
+  initAngles();resize();update();
+  randomTarget();
+  loop();
+});
+</script>
+</body>
+</html>
