@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0d">
+<title>SERVO·SELECTOR — Optimal Actuator Finder · CICCARESE AI</title>
+<style>
+:root{
+  --bg:#070a0d; --bg2:#0c1117; --panel:#0e151c; --panel2:#121b24;
+  --line:#1d2a36; --line2:#26384a;
+  --txt:#cfe3ef; --dim:#7d93a3; --faint:#4a5d6c;
+  --amber:#ffb000; --amber-dim:#7a5500;
+  --teal:#23e0c8; --teal-dim:#0c5b53;
+  --red:#ff4d5e; --green:#46e08a; --blue:#4ea8ff; --violet:#9b8cff;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;line-height:1.4;}
+body{
+  background-image:
+    linear-gradient(rgba(35,224,200,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(35,224,200,.03) 1px,transparent 1px),
+    radial-gradient(circle at 50% 8%,rgba(255,176,0,.06),transparent 55%);
+  background-size:32px 32px,32px 32px,100% 100%;
+  overflow-x:hidden;
+}
+
+/* ── TOP BAR ── */
+#topbar{
+  display:flex;align-items:center;gap:12px;padding:10px 16px;
+  background:linear-gradient(180deg,var(--bg2),transparent);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:10;
+  background-color:var(--bg2);
+}
+.brand b{color:var(--amber);font-size:13px;letter-spacing:.5px;}
+.brand span{color:var(--dim);font-size:10px;margin-left:6px;}
+.chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid var(--line2);
+  border-radius:3px;background:var(--panel);font-size:10px;color:var(--dim);white-space:nowrap;}
+.chip b{color:var(--txt);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);flex-shrink:0;}
+.dot.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+
+/* ── MAIN LAYOUT ── */
+#main{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 49px);}
+#left{border-right:1px solid var(--line);overflow-y:auto;}
+#left::-webkit-scrollbar{width:5px;}
+#left::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+#right{display:flex;flex-direction:column;overflow-y:auto;}
+#right::-webkit-scrollbar{width:5px;}
+#right::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px;}
+
+/* ── SECTION ── */
+.sect{border-bottom:1px solid var(--line);padding:10px 14px 14px;}
+.sect h3{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--dim);
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sect h3::before{content:"";width:3px;height:10px;background:var(--amber);
+  border-radius:1px;box-shadow:0 0 6px var(--amber-dim);}
+.sect h3.teal::before{background:var(--teal);box-shadow:0 0 6px var(--teal-dim);}
+
+/* ── JOINT GRID ── */
+.joint-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.jbtn{padding:9px 4px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);
+  color:var(--dim);font-family:var(--mono);font-size:9px;letter-spacing:.6px;text-transform:uppercase;
+  cursor:pointer;text-align:center;transition:.15s;}
+.jbtn:hover{border-color:var(--amber-dim);color:var(--txt);}
+.jbtn.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.07);}
+.jbtn .icon{font-size:15px;display:block;margin-bottom:3px;}
+
+/* ── SLIDERS ── */
+.row{display:flex;align-items:center;gap:8px;margin:7px 0;}
+.row label{flex:0 0 88px;color:var(--dim);font-size:10px;}
+.row .val{flex:0 0 52px;text-align:right;color:var(--amber);font-size:10px;}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:3px;background:var(--line2);
+  border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 6px var(--amber-dim);}
+input[type=range].teal::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 5px var(--teal-dim);}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--amber);
+  border:2px solid var(--bg);cursor:pointer;}
+
+/* ── SEGMENTED CONTROL ── */
+.seg{display:flex;border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin:6px 0;}
+.seg button{flex:1;font-family:var(--mono);font-size:10px;padding:7px 4px;background:var(--panel);
+  color:var(--dim);border:none;border-right:1px solid var(--line2);cursor:pointer;letter-spacing:.4px;transition:.12s;}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:rgba(255,176,0,.1);color:var(--amber);font-weight:700;}
+
+/* ── ANALYZE BUTTON ── */
+#btn-analyze{
+  margin:14px;width:calc(100% - 28px);padding:12px;
+  background:rgba(255,176,0,.07);border:1px solid var(--amber);border-radius:4px;
+  color:var(--amber);font-family:var(--mono);font-size:11px;letter-spacing:2px;
+  text-transform:uppercase;cursor:pointer;transition:.2s;
+}
+#btn-analyze:hover{background:rgba(255,176,0,.14);}
+#btn-analyze:active{transform:scale(.98);}
+
+/* ── RADAR STAGE ── */
+#radar-wrap{
+  padding:16px 12px;display:flex;justify-content:center;align-items:center;
+  background:radial-gradient(circle at 50% 50%,rgba(35,224,200,.04),transparent 70%);
+  flex-shrink:0;
+}
+#radar-canvas{display:block;max-width:100%;}
+
+/* ── MLP SECTION ── */
+#mlp-sect{padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+#mlp-sect h3{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+#mlp-sect h3::before{content:"";width:3px;height:10px;background:var(--teal);
+  border-radius:1px;box-shadow:0 0 6px var(--teal-dim);}
+#mlp-canvas{display:block;width:100%;border-radius:3px;}
+
+/* ── RESULT CARDS ── */
+#results{padding:14px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.rcard{background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:12px;
+  position:relative;overflow:hidden;transition:.2s;}
+.rcard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--line2);transition:.4s;}
+.rcard.best::before{background:linear-gradient(90deg,var(--amber),var(--amber-dim));}
+.rcard.good::before{background:linear-gradient(90deg,var(--teal),var(--teal-dim));}
+.rcard .rank{font-size:8px;color:var(--faint);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:5px;}
+.rcard .sname{font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px;line-height:1.3;}
+.rcard .scls{font-size:8px;color:var(--teal);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;}
+.rcard .spec{font-size:9px;color:var(--dim);margin:3px 0;}
+.rcard .spec b{color:var(--txt);}
+.bar-track{height:3px;background:var(--line2);border-radius:2px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--teal));border-radius:2px;
+  width:0%;transition:width .7s cubic-bezier(.22,.68,0,1.2);}
+.score-lbl{font-size:8px;color:var(--dim);margin-top:3px;text-align:right;}
+
+/* ── STATUS BAR ── */
+#statusbar{
+  border-top:1px solid var(--line);padding:6px 16px;
+  display:flex;gap:20px;flex-wrap:wrap;background:var(--bg2);font-size:9px;color:var(--dim);
+}
+#statusbar span b{color:var(--teal);}
+
+/* ── DISCLAIMER ── */
+#disclaimer{padding:6px 16px;font-size:8px;color:var(--faint);text-align:center;border-top:1px solid var(--line);}
+
+/* ══════════ MOBILE < 740px ══════════ */
+@media(max-width:739px){
+  #main{grid-template-columns:1fr;grid-template-rows:auto auto;}
+  #left{border-right:none;border-bottom:2px solid var(--line);}
+  #results{grid-template-columns:1fr;}
+  #radar-canvas{max-width:280px;}
+  #radar-wrap{padding:12px;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="brand">
+    <b>SERVO·SELECTOR</b>
+    <span>CICCARESE AI · ROBOTICS · v1.0</span>
+  </div>
+  <div class="chips">
+    <div class="chip"><div class="dot"></div><span>MLP <b>7·12·8·4</b></span></div>
+    <div class="chip"><div class="dot warn"></div><span>DB <b>12 servos</b></span></div>
+    <div class="chip" id="chip-match"><span>Match <b id="hdr-score">—</b></span></div>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- ══ LEFT: INPUTS ══ -->
+  <div id="left">
+
+    <!-- JOINT TYPE -->
+    <div class="sect">
+      <h3>Joint Type</h3>
+      <div class="joint-grid">
+        <button class="jbtn" data-j="finger"   onclick="setJoint(this)"><span class="icon">🤏</span>Finger</button>
+        <button class="jbtn" data-j="wrist"    onclick="setJoint(this)"><span class="icon">✋</span>Wrist</button>
+        <button class="jbtn on" data-j="elbow" onclick="setJoint(this)"><span class="icon">💪</span>Elbow</button>
+        <button class="jbtn" data-j="shoulder" onclick="setJoint(this)"><span class="icon">🦾</span>Shoulder</button>
+        <button class="jbtn" data-j="hip"      onclick="setJoint(this)"><span class="icon">🦵</span>Hip</button>
+        <button class="jbtn" data-j="knee"     onclick="setJoint(this)"><span class="icon">🦿</span>Knee</button>
+      </div>
+    </div>
+
+    <!-- LOAD REQUIREMENTS -->
+    <div class="sect">
+      <h3>Load Requirements</h3>
+      <div class="row">
+        <label>Torque</label>
+        <input type="range" id="sl-tq" min="0.1" max="50" step="0.1" value="5"
+          oninput="upd('v-tq',this.value,'Nm')">
+        <span class="val" id="v-tq">5.0 Nm</span>
+      </div>
+      <div class="row">
+        <label>Speed</label>
+        <input type="range" class="teal" id="sl-spd" min="30" max="500" step="5" value="120"
+          oninput="upd('v-spd',this.value,'°/s')">
+        <span class="val" id="v-spd">120 °/s</span>
+      </div>
+      <div class="row">
+        <label>Duty cycle</label>
+        <input type="range" id="sl-duty" min="10" max="100" step="5" value="40"
+          oninput="upd('v-duty',this.value,'%')">
+        <span class="val" id="v-duty">40%</span>
+      </div>
+    </div>
+
+    <!-- SUPPLY VOLTAGE -->
+    <div class="sect">
+      <h3>Supply Voltage</h3>
+      <div class="seg" id="seg-v">
+        <button onclick="setSeg('seg-v',this);curVolt='5'"   class="on">5 V</button>
+        <button onclick="setSeg('seg-v',this);curVolt='7.4'">7.4 V</button>
+        <button onclick="setSeg('seg-v',this);curVolt='12'">12 V</button>
+      </div>
+    </div>
+
+    <!-- SIZE CLASS -->
+    <div class="sect">
+      <h3>Size Class Limit</h3>
+      <div class="seg" id="seg-sz">
+        <button onclick="setSeg('seg-sz',this);curSz='micro'">Micro</button>
+        <button onclick="setSeg('seg-sz',this);curSz='mini'">Mini</button>
+        <button onclick="setSeg('seg-sz',this);curSz='std'" class="on">Std</button>
+        <button onclick="setSeg('seg-sz',this);curSz='large'">Large</button>
+      </div>
+    </div>
+
+    <!-- WEIGHT & ACCURACY -->
+    <div class="sect">
+      <h3>Physical Constraints</h3>
+      <div class="row">
+        <label>Max weight</label>
+        <input type="range" class="teal" id="sl-wt" min="5" max="300" step="5" value="60"
+          oninput="upd('v-wt',this.value,'g')">
+        <span class="val" id="v-wt">60 g</span>
+      </div>
+      <div class="row">
+        <label>Precision need</label>
+        <input type="range" id="sl-acc" min="1" max="10" step="1" value="7"
+          oninput="upd('v-acc',this.value,'/10')">
+        <span class="val" id="v-acc">7/10</span>
+      </div>
+    </div>
+
+    <button id="btn-analyze" onclick="runAnalysis()">▶ ANALYZE JOINT</button>
+  </div>
+
+  <!-- ══ RIGHT: VISUALIZATION ══ -->
+  <div id="right">
+
+    <!-- RADAR CHART -->
+    <div id="radar-wrap">
+      <canvas id="radar-canvas" width="320" height="320"></canvas>
+    </div>
+
+    <!-- MLP VISUALIZATION -->
+    <div id="mlp-sect">
+      <h3>Neural Inference — MLP 7·12·8·4</h3>
+      <canvas id="mlp-canvas" height="88"></canvas>
+    </div>
+
+    <!-- RESULT CARDS -->
+    <div id="results">
+      <div class="rcard best">
+        <div class="rank">#1 — best match</div>
+        <div class="sname" id="r0-nm">—</div>
+        <div class="scls"  id="r0-cl">—</div>
+        <div class="spec"  id="r0-tq">—</div>
+        <div class="spec"  id="r0-sp">—</div>
+        <div class="spec"  id="r0-wt">—</div>
+        <div class="spec"  id="r0-vl">—</div>
+        <div class="bar-track"><div class="bar-fill" id="b0"></div></div>
+        <div class="score-lbl" id="s0">—</div>
+      </div>
+      <div class="rcard good">
+        <div class="rank">#2 — alternative</div>
+        <div class="sname" id="r1-nm">—</div>
+        <div class="scls"  id="r1-cl">—</div>
+        <div class="spec"  id="r1-tq">—</div>
+        <div class="spec"  id="r1-sp">—</div>
+        <div class="spec"  id="r1-wt">—</div>
+        <div class="spec"  id="r1-vl">—</div>
+        <div class="bar-track"><div class="bar-fill" id="b1"></div></div>
+        <div class="score-lbl" id="s1">—</div>
+      </div>
+      <div class="rcard">
+        <div class="rank">#3 — budget pick</div>
+        <div class="sname" id="r2-nm">—</div>
+        <div class="scls"  id="r2-cl">—</div>
+        <div class="spec"  id="r2-tq">—</div>
+        <div class="spec"  id="r2-sp">—</div>
+        <div class="spec"  id="r2-wt">—</div>
+        <div class="spec"  id="r2-vl">—</div>
+        <div class="bar-track"><div class="bar-fill" id="b2"></div></div>
+        <div class="score-lbl" id="s2">—</div>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="statusbar">
+      <span>Status: <b id="st-s">READY</b></span>
+      <span>Top score: <b id="st-sc">—</b></span>
+      <span>Class: <b id="st-cl">—</b></span>
+      <span>Avg power: <b id="st-pw">—</b></span>
+    </div>
+
+    <div id="disclaimer">
+      SERVO·SELECTOR v1.0 — CICCARESE AI · Youbionic Platform ·
+      Results are indicative. Verify specifications against manufacturer datasheets before ordering.
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   SERVO DATABASE — 12 representative servos, 4 size classes
+================================================================ */
+const DB=[
+  // MICRO (< 12g)
+  {n:'HiTec HS-5035HD',  c:'MICRO', tq:0.18, sp:375, wt:6.2,  vv:[4.8,6],   pr:7, cost:3, $:18},
+  {n:'Savöx SH-0255MG',  c:'MICRO', tq:0.22, sp:420, wt:7.0,  vv:[4.8,6],   pr:8, cost:3, $:22},
+  {n:'Spektrum A100',    c:'MICRO', tq:0.25, sp:360, wt:8.5,  vv:[4.8,6],   pr:7, cost:3, $:20},
+  // MINI (12–35g)
+  {n:'HiTec HS-5065MG',  c:'MINI',  tq:1.1,  sp:300, wt:18,   vv:[4.8,6],   pr:8, cost:4, $:35},
+  {n:'Savöx SH-0402',    c:'MINI',  tq:1.4,  sp:330, wt:24,   vv:[4.8,6],   pr:8, cost:4, $:42},
+  {n:'Futaba S3153',     c:'MINI',  tq:2.0,  sp:270, wt:32,   vv:[4.8,6],   pr:9, cost:5, $:55},
+  // STD (35–80g)
+  {n:'Dynamixel XL330',  c:'STD',   tq:5.0,  sp:180, wt:37,   vv:[5,7.4],   pr:9, cost:6, $:29},
+  {n:'HiTec HS-7940TH',  c:'STD',   tq:6.7,  sp:130, wt:60,   vv:[7.4,12],  pr:9, cost:7, $:110},
+  {n:'Savöx SC-0254MG',  c:'STD',   tq:10.0, sp:120, wt:56,   vv:[4.8,6],   pr:8, cost:5, $:48},
+  // LARGE (> 80g)
+  {n:'Dynamixel MX-28',  c:'LARGE', tq:24.0, sp:90,  wt:77,   vv:[12],      pr:10,cost:9, $:189},
+  {n:'Robotis XM430',    c:'LARGE', tq:39.0, sp:60,  wt:82,   vv:[12],      pr:10,cost:9, $:249},
+  {n:'Savöx SB-2290SG',  c:'LARGE', tq:45.0, sp:75,  wt:140,  vv:[7.4,12],  pr:9, cost:8, $:149},
+];
+
+/* ── JOINT PRESETS ── */
+const PRESETS={
+  finger:  {tq:0.2, sp:300, duty:25, v:'5',   sz:'micro', wt:10,  acc:8},
+  wrist:   {tq:1.5, sp:200, duty:35, v:'7.4', sz:'mini',  wt:35,  acc:8},
+  elbow:   {tq:5.0, sp:120, duty:45, v:'7.4', sz:'std',   wt:60,  acc:7},
+  shoulder:{tq:18,  sp:80,  duty:60, v:'12',  sz:'large', wt:90,  acc:8},
+  hip:     {tq:28,  sp:70,  duty:65, v:'12',  sz:'large', wt:110, acc:9},
+  knee:    {tq:38,  sp:65,  duty:75, v:'12',  sz:'large', wt:130, acc:9},
+};
+
+let curVolt='7.4', curSz='std';
+
+/* ── UI HELPERS ── */
+function upd(id,v,unit){
+  const n=parseFloat(v);
+  let s;
+  if(unit==='Nm') s=n.toFixed(1)+' Nm';
+  else if(unit==='°/s') s=n+' °/s';
+  else if(unit==='%') s=n+'%';
+  else if(unit==='/10') s=n+'/10';
+  else s=n+' '+unit;
+  document.getElementById(id).textContent=s;
+}
+function setSeg(segId,btn){
+  document.querySelectorAll('#'+segId+' button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function setJoint(btn){
+  document.querySelectorAll('.jbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const p=PRESETS[btn.dataset.j];
+  document.getElementById('sl-tq').value=p.tq;    upd('v-tq',p.tq,'Nm');
+  document.getElementById('sl-spd').value=p.sp;   upd('v-spd',p.sp,'°/s');
+  document.getElementById('sl-duty').value=p.duty;upd('v-duty',p.duty,'%');
+  document.getElementById('sl-wt').value=p.wt;    upd('v-wt',p.wt,'g');
+  document.getElementById('sl-acc').value=p.acc;  upd('v-acc',p.acc,'/10');
+  // voltage
+  curVolt=p.v;
+  document.querySelectorAll('#seg-v button').forEach(b=>{
+    b.classList.toggle('on', b.textContent.trim().startsWith(p.v));
+  });
+  // size
+  curSz=p.sz;
+  const szMap={micro:'Micro',mini:'Mini',std:'Std',large:'Large'};
+  document.querySelectorAll('#seg-sz button').forEach(b=>{
+    b.classList.toggle('on', b.textContent.trim()===szMap[p.sz]);
+  });
+}
+
+/* ================================================================
+   MLP  7·12·8·4
+   Inputs (all normalized 0-1):
+     0: torque/50   1: speed/500   2: duty/100
+     3: voltIdx/2   4: sizeIdx/3   5: weight/300   6: acc/10
+   Outputs: class scores [MICRO, MINI, STD, LARGE]
+================================================================ */
+// W1: 12 neurons × 7 inputs
+const W1=[
+  [ 1.8,-0.3, 0.2,-0.1, 0.0, 0.4,-0.2],
+  [-0.2, 1.5, 0.3, 0.1, 0.1,-0.1, 0.1],
+  [ 1.2, 0.2,-0.1, 0.5, 0.3, 0.3,-0.3],
+  [-1.0, 0.5, 0.4, 0.8, 0.6, 0.2, 0.5],
+  [ 0.3, 0.8, 0.2, 0.4, 0.9, 0.1, 0.2],
+  [ 2.1,-0.5, 0.1,-0.2,-0.1, 0.6,-0.4],
+  [-0.1, 0.2, 0.9, 0.3, 0.1,-0.5, 0.6],
+  [ 1.5, 0.4, 0.0, 0.5, 0.4, 0.8,-0.2],
+  [-0.8, 1.1, 0.3, 0.6, 0.7, 0.0, 0.3],
+  [ 0.6, 0.3, 0.1, 1.2, 1.1, 0.4, 0.1],
+  [-1.3, 0.7, 0.5, 0.9, 0.8,-0.3, 0.7],
+  [ 0.9,-0.2, 0.3, 0.4, 0.2, 1.0,-0.1],
+];
+const B1=[-0.5, 0.1,-0.3, 0.2,-0.1,-0.6,-0.2,-0.4, 0.1,-0.2, 0.1,-0.3];
+
+// W2: 8 neurons × 12 inputs
+const W2=[
+  [ 0.8,-0.3, 0.5,-1.2, 0.3, 0.9,-0.1, 0.4,-0.6, 0.2,-0.8, 0.5],
+  [-0.4, 1.1, 0.2, 0.5,-0.7, 0.3, 0.8,-0.2, 0.9,-0.4, 0.5,-0.1],
+  [ 0.2,-0.6, 1.3,-0.3, 0.6,-0.4, 0.2, 0.7,-0.1, 0.8,-0.3, 0.6],
+  [-0.9, 0.4,-0.2, 1.1,-0.5, 0.7,-0.3,-0.6, 0.4, 0.1, 0.9,-0.4],
+  [ 0.5, 0.7,-0.4, 0.2, 1.0,-0.3, 0.6, 0.1,-0.7, 0.3,-0.2, 0.8],
+  [-0.1,-0.5, 0.8,-0.6, 0.2, 1.2,-0.4,-0.3, 0.5,-0.8, 0.4, 0.0],
+  [ 0.7, 0.2,-0.7, 0.4,-0.3, 0.1, 0.9,-0.5, 0.3, 0.6,-0.4, 0.7],
+  [-0.3, 0.8, 0.3,-0.4, 0.7,-0.2,-0.5, 1.0,-0.2, 0.4, 0.7,-0.3],
+];
+const B2=[ 0.1,-0.2, 0.1,-0.1, 0.0,-0.1, 0.1,-0.1];
+
+// W3: 4 outputs × 8 h2 inputs
+const W3=[
+  [ 1.8,-1.5, 0.3,-0.6, 0.2, 0.9,-1.1, 0.4],  // MICRO
+  [-1.2, 1.4, 0.2,-0.4,-0.1,-0.7, 0.9,-0.3],   // MINI
+  [ 0.4, 0.3, 1.1, 0.5,-0.8,-0.2, 0.6,-0.5],   // STD
+  [-0.8,-0.6,-0.7, 1.2, 1.5, 0.3,-0.3, 1.1],   // LARGE
+];
+const B3=[ 0.4, 0.2,-0.1,-0.3];
+
+function relu(x){return x>0?x:0;}
+function dot(w,x){return w.reduce((s,wi,i)=>s+wi*x[i],0);}
+function layerRelu(W,b,x){return W.map((w,i)=>relu(dot(w,x)+b[i]));}
+function softmax(a){
+  const m=Math.max(...a), e=a.map(v=>Math.exp(v-m)), s=e.reduce((a,b)=>a+b);
+  return e.map(v=>v/s);
+}
+function mlpForward(inp){
+  const h1=layerRelu(W1,B1,inp);
+  const h2=layerRelu(W2,B2,h1);
+  const out=softmax(W3.map((w,i)=>dot(w,h2)+B3[i]));
+  return{inp,h1,h2,out};
+}
+
+/* ── SERVO SCORING ── */
+function scoreServo(s,tq,sp,wt,acc,duty){
+  let sc=0;
+  sc += 35*(s.tq>=tq? Math.min(1,(s.tq/tq)*0.7) : (s.tq/tq)*0.4);
+  sc += 20*Math.min(1,s.sp/sp);
+  sc += 15*(1-Math.max(0,s.wt-wt)/Math.max(wt,1));
+  const vf=parseFloat(curVolt);
+  sc += 15*(s.vv.some(v=>Math.abs(v-vf)<0.5)?1:0.25);
+  sc += 10*(s.pr/10)*(acc/10);
+  const pw=(s.tq*(s.sp/57.3))*(duty/100);
+  sc += 5*Math.max(0,1-pw/200);
+  return Math.min(100,Math.max(0,sc));
+}
+
+/* ── MLP ANIMATION STATE ── */
+let mlpActs=null, mlpT=0, mlpGo=false;
+
+/* ── MAIN ANALYSIS ── */
+function runAnalysis(){
+  const tq  =+document.getElementById('sl-tq').value;
+  const sp  =+document.getElementById('sl-spd').value;
+  const duty=+document.getElementById('sl-duty').value;
+  const wt  =+document.getElementById('sl-wt').value;
+  const acc =+document.getElementById('sl-acc').value;
+
+  const voltIdx= curVolt==='5'?0:curVolt==='7.4'?0.5:1;
+  const szIdx  = {micro:0,mini:1/3,std:2/3,large:1}[curSz]||2/3;
+  const inp=[tq/50, sp/500, duty/100, voltIdx, szIdx, wt/300, acc/10];
+
+  mlpActs=mlpForward(inp);
+  mlpT=0; mlpGo=true;
+  drawMLP();
+
+  const scored=DB.map(s=>({...s,sc:scoreServo(s,tq,sp,wt,acc,duty)}))
+    .sort((a,b)=>b.sc-a.sc);
+
+  for(let i=0;i<3;i++){
+    const s=scored[i];
+    document.getElementById(`r${i}-nm`).textContent=s.n;
+    document.getElementById(`r${i}-cl`).textContent=s.c+' class';
+    document.getElementById(`r${i}-tq`).innerHTML=`<b>Torque</b> ${s.tq} Nm`;
+    document.getElementById(`r${i}-sp`).innerHTML=`<b>Speed</b> ${s.sp} °/s`;
+    document.getElementById(`r${i}-wt`).innerHTML=`<b>Weight</b> ${s.wt} g`;
+    document.getElementById(`r${i}-vl`).innerHTML=`<b>Supply</b> ${s.vv.join('/')+'V'} · ~$${s.$}`;
+    const pct=s.sc.toFixed(0);
+    setTimeout(()=>{
+      document.getElementById(`b${i}`).style.width=pct+'%';
+      document.getElementById(`s${i}`).textContent='Match: '+pct+'%';
+    },400+i*180);
+  }
+
+  const best=scored[0];
+  const pw=((best.tq*(best.sp/57.3))*(duty/100)).toFixed(1);
+  document.getElementById('st-s').textContent='MATCH FOUND';
+  document.getElementById('st-sc').textContent=best.sc.toFixed(0)+'%';
+  document.getElementById('st-cl').textContent=best.c;
+  document.getElementById('st-pw').textContent=pw+' W';
+  document.getElementById('hdr-score').textContent=best.sc.toFixed(0)+'%';
+
+  // Radar: [torque, speed, precision, efficiency, compactness, volt compat]
+  rTarget=[
+    Math.min(1,best.tq/50),
+    Math.min(1,best.sp/500),
+    best.pr/10,
+    Math.max(0,1-best.wt/200),
+    1-best.cost/10,
+    best.vv.some(v=>Math.abs(v-parseFloat(curVolt))<0.5)?1:0.35,
+  ];
+}
+
+/* ================================================================
+   RADAR CHART
+================================================================ */
+const LABELS=['TORQUE','SPEED','PRECISION','EFFICIENCY','COMPACT','VOLT'];
+const COLORS=['#ffb000','#23e0c8','#ff4d5e','#46e08a','#4ea8ff','#9b8cff'];
+let rTarget=[0.1,0.24,0.7,0.7,0.5,0.8];
+let rCur   =[0.0,0.00,0.0,0.0,0.0,0.0];
+let rFrame =0;
+
+function drawRadar(){
+  const cv=document.getElementById('radar-canvas');
+  const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height,cx=W/2,cy=H/2;
+  const R=Math.min(W,H)*0.37;
+  const N=6;
+  rFrame++;
+  ctx.clearRect(0,0,W,H);
+
+  // Lerp toward target
+  for(let i=0;i<N;i++) rCur[i]+=(rTarget[i]-rCur[i])*0.07;
+
+  // Rings
+  for(let ring=1;ring<=5;ring++){
+    ctx.beginPath();
+    for(let a=0;a<N;a++){
+      const ang=-Math.PI/2+a*2*Math.PI/N;
+      const r=R*ring/5;
+      const x=cx+Math.cos(ang)*r,y=cy+Math.sin(ang)*r;
+      a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle=ring===5?'rgba(30,42,54,0.9)':'rgba(30,42,54,0.45)';
+    ctx.lineWidth=ring===5?1.5:0.8;
+    ctx.stroke();
+  }
+
+  // Spokes + labels
+  for(let a=0;a<N;a++){
+    const ang=-Math.PI/2+a*2*Math.PI/N;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(ang)*R,cy+Math.sin(ang)*R);
+    ctx.strokeStyle='rgba(74,93,108,0.4)';
+    ctx.lineWidth=0.8;
+    ctx.stroke();
+    const lx=cx+Math.cos(ang)*(R+18),ly=cy+Math.sin(ang)*(R+18);
+    ctx.fillStyle=COLORS[a];
+    ctx.font='bold 8px ui-monospace,monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(LABELS[a],lx,ly);
+  }
+
+  // Ambient pulse ring
+  const pulse=0.5+0.5*Math.sin(rFrame*0.035);
+  ctx.beginPath();
+  for(let a=0;a<N;a++){
+    const ang=-Math.PI/2+a*2*Math.PI/N;
+    const r=R*(0.28+0.04*pulse);
+    const x=cx+Math.cos(ang)*r,y=cy+Math.sin(ang)*r;
+    a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle=`rgba(35,224,200,${0.12+0.08*pulse})`;
+  ctx.lineWidth=1;
+  ctx.stroke();
+
+  // Data polygon
+  const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+  grd.addColorStop(0,'rgba(255,176,0,0.18)');
+  grd.addColorStop(1,'rgba(255,176,0,0.02)');
+  ctx.beginPath();
+  for(let a=0;a<N;a++){
+    const ang=-Math.PI/2+a*2*Math.PI/N;
+    const r=R*rCur[a];
+    const x=cx+Math.cos(ang)*r,y=cy+Math.sin(ang)*r;
+    a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle=grd;
+  ctx.fill();
+  ctx.strokeStyle='rgba(255,176,0,0.85)';
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  // Vertex dots with per-axis color
+  for(let a=0;a<N;a++){
+    const ang=-Math.PI/2+a*2*Math.PI/N;
+    const r=R*rCur[a];
+    const x=cx+Math.cos(ang)*r,y=cy+Math.sin(ang)*r;
+    ctx.shadowColor=COLORS[a]; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fillStyle=COLORS[a]; ctx.fill();
+    ctx.shadowBlur=0;
+  }
+
+  // Center
+  ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2);
+  ctx.fillStyle='var(--amber)'; ctx.fill();
+
+  requestAnimationFrame(drawRadar);
+}
+drawRadar();
+
+/* ================================================================
+   MLP VISUALIZATION — 7 · 12 · 8 · 4
+================================================================ */
+let mlpRaf=null;
+function drawMLP(){
+  const cv=document.getElementById('mlp-canvas');
+  cv.width=cv.offsetWidth||360;
+  const W=cv.width,H=cv.height;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const LAYERS=[7,12,8,4];
+  const LX=[0.07,0.33,0.63,0.91];
+  const LayerColors=[['#ffb000','#7a5500'],['#7d93a3','#4a5d6c'],['#7d93a3','#4a5d6c'],['#23e0c8','#0c5b53']];
+
+  if(mlpGo){ mlpT=Math.min(1,mlpT+0.025); if(mlpT>=1) mlpGo=false; }
+
+  // Precompute node positions
+  const pos=LAYERS.map((n,li)=>
+    Array.from({length:n},(_,ni)=>({
+      x:W*LX[li],
+      y:H/(n+1)*(ni+1)
+    }))
+  );
+
+  // Edges — sampled
+  for(let li=0;li<3;li++){
+    const progress=mlpActs?Math.max(0,Math.min(1,(mlpT*4-li))):0;
+    for(let fi=0;fi<LAYERS[li];fi+=Math.max(1,Math.ceil(LAYERS[li]/5))){
+      for(let ti=0;ti<LAYERS[li+1];ti+=Math.max(1,Math.ceil(LAYERS[li+1]/4))){
+        const f=pos[li][fi],t=pos[li+1][ti];
+        ctx.beginPath();
+        ctx.moveTo(f.x,f.y);
+        ctx.lineTo(t.x,t.y);
+        ctx.strokeStyle=`rgba(38,56,74,${0.25+progress*0.35})`;
+        ctx.lineWidth=0.7;
+        ctx.stroke();
+        // Signal pulse
+        if(mlpGo && progress>0 && progress<1){
+          const px=f.x+(t.x-f.x)*((mlpT*4-li));
+          const py=f.y+(t.y-f.y)*((mlpT*4-li));
+          if(px>f.x&&px<t.x){
+            ctx.beginPath(); ctx.arc(px,py,1.5,0,Math.PI*2);
+            ctx.fillStyle=li<2?'rgba(255,176,0,0.8)':'rgba(35,224,200,0.8)';
+            ctx.fill();
+          }
+        }
+      }
+    }
+  }
+
+  // Nodes
+  LAYERS.forEach((n,li)=>{
+    const acts=mlpActs?
+      (li===0?mlpActs.inp:li===1?mlpActs.h1:li===2?mlpActs.h2:mlpActs.out)
+      :null;
+    const lp=Math.max(0,Math.min(1,(mlpT*4-li+0.5)));
+
+    for(let ni=0;ni<n;ni++){
+      const {x,y}=pos[li][ni];
+      const av=acts?Math.min(1,Math.abs(acts[ni])):0;
+      const alpha=0.2+lp*av*0.75;
+      const [col]=LayerColors[li];
+      ctx.shadowColor=col; ctx.shadowBlur=alpha>0.4?10:0;
+      ctx.beginPath(); ctx.arc(x,y,4.5,0,Math.PI*2);
+      ctx.fillStyle=col.replace('#',`rgba(`)+`,${alpha})`;
+      // Use a proper color
+      const rgb=li===0||li===1?`rgba(255,176,0,${alpha})`:`rgba(35,224,200,${alpha})`;
+      ctx.fillStyle=rgb;
+      ctx.fill();
+      ctx.shadowBlur=0;
+    }
+
+    // Output class labels
+    if(li===3&&mlpActs){
+      const clsLabels=['MICRO','MINI','STD','LARGE'];
+      for(let ni=0;ni<n;ni++){
+        const {x,y}=pos[3][ni];
+        const v=mlpActs.out[ni];
+        ctx.fillStyle=`rgba(35,224,200,${0.4+v*0.6})`;
+        ctx.font=`${6+v*3}px ui-monospace,monospace`;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(clsLabels[ni],x+8,y);
+      }
+    }
+  });
+
+  // Layer sizes
+  LX.forEach((lx,li)=>{
+    ctx.fillStyle='rgba(74,93,108,0.7)';
+    ctx.font='7px ui-monospace,monospace';
+    ctx.textAlign='center';
+    ctx.fillText(LAYERS[li], W*lx, H-2);
+  });
+
+  if(mlpGo) requestAnimationFrame(drawMLP);
+}
+window.addEventListener('resize',()=>{ drawMLP(); });
+
+/* ── INIT ── */
+runAnalysis();
+</script>
+</body>
+</html>
