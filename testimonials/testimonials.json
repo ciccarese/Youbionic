@@ -1,0 +1,349 @@
+{
+  "_meta": {
+    "aggiornato": "2026-07-20",
+    "totale": 30,
+    "fonte": "Federico Ciccarese",
+    "uso": "Dati strutturati per generazione automatica di Story Instagram, landing, pagina testimonianze. Il campo 'pull' è la citazione breve da usare nelle Story.",
+    "foto": "Le foto dei robot dei clienti vanno in 'Foto Robot Clienti/' con nome <id>.jpg"
+  },
+  "segmenti": {
+    "prestige": "Aziende/nomi che danno autorevolezza immediata (trust anchor)",
+    "academia": "Università e ricerca",
+    "education": "Scuole, STEM, insegnanti",
+    "career": "Chi ha cambiato carriera o avviato un business grazie a Youbionic",
+    "family": "Nonni, genitori, ragazzi — leva emotiva fortissima",
+    "maker": "Maker e professionisti che lodano design e qualità"
+  },
+  "testimonials": [
+    {
+      "id": "kevin-tuber",
+      "name": "Kevin Tuber",
+      "org": "SpaceX",
+      "role": "",
+      "segment": "prestige",
+      "priority": 1,
+      "pull": "Youbionic was the jumpstart I needed to go from just dreaming about robotics to unlocking the skills to get started in one of the fastest growing fields today.",
+      "quote_full": "Youbionic was the jumpstart I needed to go from just dreaming about robotics to unlocking the skills and knowledge required to get started in one of the fastest growing fields today. The fact is that Youbionic really makes it that easy for someone to start 3D printing and assembling a robot at home still blows my mind. If you do get stuck or have questions during your build that's where Youbionic's secret weapon comes in. The private telegram chat with the creators and other makers is one of the companies biggest strengths. Everyone there is learning along with you. You'll find a truly diverse worldwide community of people learning from eachother as well as cheering eachother on in their endeavors.",
+      "tags": ["community", "accessibility", "career"]
+    },
+    {
+      "id": "masanori-muroyama",
+      "name": "Masanori Muroyama, Ph.D.",
+      "org": "Tohoku Institute of Technology",
+      "role": "Researcher",
+      "segment": "academia",
+      "priority": 1,
+      "pull": "When I was developing a remote-controlled robot, I found this product's design data and instructions very useful. I could easily make and customize my own robot.",
+      "quote_full": "When I was developing a remote-controlled robot, I found this product's design data and instructions very useful. I could easily make and customize my own robot. The eye-catching design was also effective.",
+      "tags": ["research", "customization"]
+    },
+    {
+      "id": "kevin-strunk",
+      "name": "Kevin Strunk",
+      "org": "AIkonia",
+      "role": "CEO and Founder",
+      "segment": "prestige",
+      "priority": 1,
+      "pull": "Youbionic has truly set a new standard for accessible robotics innovation. Working with the X1 Pro has been an inspiring experience.",
+      "quote_full": "Youbionic has truly set a new standard for accessible robotics innovation. Working with the X1 Pro has been an inspiring experience; the designs are not only cutting-edge but also well-suited for creators at various levels of expertise. Fede and the team at Youbionic have been incredibly supportive throughout my project, always quick to provide guidance and resources that enhance the entire building experience. Their dedication to creating a community of forward-thinking robotic enthusiasts is evident in every aspect of their work. Youbionic is an invaluable resource for anyone passionate about bringing robotics to life! One of the things that impressed me most is the flexibility and adaptability of the Youbionic designs. With detailed STL files and thoughtfully engineered components, I was able to make several modifications to fit my project needs seamlessly. The instructions are clear, and the team is always open to questions, making Youbionic ideal even for those without extensive robotics experience.",
+      "tags": ["startup", "x1pro", "support", "flexibility"]
+    },
+    {
+      "id": "douglas-borzynski",
+      "name": "Douglas Borzynski",
+      "org": "Buffalo Academy of Science Charter School",
+      "role": "STEM Coordinator",
+      "segment": "education",
+      "priority": 1,
+      "pull": "I have a limited budget, but using Youbionic I can create working robots with my students for a minimal starting cost.",
+      "quote_full": "As a STEM instructor for an urban charter school, I have a limited budget, but using Youbionic I can create working robots with my students for a minimal starting cost. As part of my program, I had students 3D print in one unit, connect circuits in another unit, and code microcontrollers in a third unit. I used to do all those separately, but with Youbionic I can do them all as one larger project. The directions are thorough and very easy to use, and just when I think I am done with my curriculum there is another great upgrade to the robots that my next class can work on.",
+      "tags": ["stem", "budget", "curriculum"]
+    },
+    {
+      "id": "glenn-truett",
+      "name": "Glenn Truett",
+      "org": "",
+      "role": "Future robotics engineer",
+      "segment": "career",
+      "priority": 1,
+      "pull": "Youbionic products have impacted my life in a major and positive way. They have led me to the career path as a robotics engineer.",
+      "quote_full": "Youbionic products have impacted my life in a major and positive way. They have led me to the career path as a robotics engineer. I look forward to graduating in 3 semesters and becoming a robotics engineer.",
+      "tags": ["career", "life-changing"]
+    },
+    {
+      "id": "pablo-martinez",
+      "name": "Pablo Martínez Díaz",
+      "org": "",
+      "role": "Robotics business founder",
+      "segment": "career",
+      "priority": 1,
+      "pull": "I have followed over the years the incredible evolution of your robot. You inspired me to start my robotics business.",
+      "quote_full": "I have followed over the years the incredible evolution of your robot. You inspired me to start my robotics business.",
+      "tags": ["career", "business"]
+    },
+    {
+      "id": "boris-guo",
+      "name": "Boris Guo",
+      "org": "National University of Singapore",
+      "role": "PhD student",
+      "segment": "academia",
+      "priority": 2,
+      "pull": "I'm a PhD student focusing on embodied intelligence and robotic manipulation. I'm excited to explore how Youbionic's solutions can support my work.",
+      "quote_full": "Hi Federico, thank you for the warm welcome! I'm a PhD student at the National University of Singapore, focusing on embodied intelligence and robotic manipulation. My research involves reinforcement learning for adaptive robotic control, and I'm excited to explore how Youbionic's solutions can support my work.",
+      "tags": ["research", "ai", "phd"]
+    },
+    {
+      "id": "rob-miller",
+      "name": "Rob Miller",
+      "org": "",
+      "role": "College professor · Mechanical engineer, 35 years",
+      "segment": "academia",
+      "priority": 2,
+      "pull": "I am now a college professor and have been a mechanical engineer for 35 years. I am about to incorporate your robot into two classes.",
+      "quote_full": "I am building my own robot. I discovered your website through an ad on Threads. I am now a college professor and have been a mechanical engineer for 35 years. I am in the process of entering robotics into my teaching and am about to incorporate your robot into two classes. Thank you!",
+      "tags": ["teaching", "engineering"]
+    },
+    {
+      "id": "dave-hudson",
+      "name": "Dave Hudson",
+      "org": "",
+      "role": "AI engineer / programmer",
+      "segment": "career",
+      "priority": 2,
+      "pull": "Seeing your amazing projects has given me the boost I needed to follow a passion I have in mixing AI and robotics.",
+      "quote_full": "I work as an AI engineer/programmer, I've always had a fascination with robotics but have never had the chance to get into it. Seeing your amazing projects has given me the boost I needed to follow a passion I have in mixing AI and robotics. I look forward to seeing what your team has next in store for robotics.",
+      "tags": ["ai", "inspiration"]
+    },
+    {
+      "id": "norman-huntley-1",
+      "name": "Norman Huntley",
+      "org": "",
+      "role": "Grandfather",
+      "segment": "family",
+      "priority": 1,
+      "pull": "My 6-year-old grandson took the hand to school for show and tell — everyone wanted one. Couldn't believe how it operated.",
+      "quote_full": "Fun and very educational products. My 6-year-old grandson took the hand to school for show and tell, everyone wanted one, couldn't believe how it operated. Thanks, Norm.",
+      "tags": ["family", "school", "hand"]
+    },
+    {
+      "id": "norman-huntley-2",
+      "name": "Norman Huntley",
+      "org": "University of South Florida computer club",
+      "role": "Grandfather",
+      "segment": "family",
+      "priority": 2,
+      "pull": "I took the Youbionic Hand to my university computer club last night — it astounded them. I learned a lot. Thank you.",
+      "quote_full": "My grandson is proceeding with the printing of Youbionic Head, for an 8 year old he is doing really well, he says he can't wait to show it at school. I'm part of a computer club at the University of South Florida and I took Youbionic Hand there last night which astounded them. I want to thank you for what you did, I learned a lot. Thank you. Norm",
+      "tags": ["family", "community"]
+    },
+    {
+      "id": "jim-wilkinson",
+      "name": "Jim Wilkinson",
+      "org": "",
+      "role": "Grandfather",
+      "segment": "family",
+      "priority": 1,
+      "pull": "I finally found something my 14-year-old grandson gets excited about. For a kid that won't pick up a book, he spends hours figuring out how to make it work.",
+      "quote_full": "I finally found something my 14yr old grandson gets excited about. Arduinos and robotics. For a kid that won't pick up a book, he will spend hours in books and on-line figuring out how to make something work. Your robot is the same thing for him. Whenever he is here (2 weeks) we do more together. Over spring break we are planning to build a robotic hand. I have the parts printed out. Servos, interface boards, Arduino, etc all accumulated and ready to build.",
+      "tags": ["family", "motivation"]
+    },
+    {
+      "id": "john-morris",
+      "name": "John Morris",
+      "org": "",
+      "role": "Father",
+      "segment": "family",
+      "priority": 2,
+      "pull": "My son and I built the new head. He was so juiced he printed all the parts in two days — we had it working within a week.",
+      "quote_full": "Federico, my son and I first built the new head. He was so juiced that he had all the parts printed over two days and we had the head working within a week. Based on that I purchased the diamonds pack but totally interested in a full A1 version! Thanks",
+      "tags": ["family", "head", "fast-build"]
+    },
+    {
+      "id": "cheryl-hungerford",
+      "name": "Cheryl Hungerford",
+      "org": "Southern California",
+      "role": "3D printing teacher · Grandmother",
+      "segment": "family",
+      "priority": 2,
+      "pull": "My grandson and I thought it would be a fun project to do together and a great learning experience. He is starting college next year.",
+      "quote_full": "My grandson and I saw your robot on Facebook and thought it would be a fun project to do together and a great learning experience. He is starting college next year, so it is in line with his learning. We do a lot of 3D printing. We teach 3D printing in elementary schools here in Southern California. I love to learn, what I learn I teach others and I apply what I learn to my career.",
+      "tags": ["family", "education", "3dprinting"]
+    },
+    {
+      "id": "ipek-munch",
+      "name": "Ipek Münch",
+      "org": "",
+      "role": "Architect and technology expert",
+      "segment": "education",
+      "priority": 2,
+      "pull": "My son has competed in First Lego League since he was a child. We want to bring Youbionic X5 Pro to tournaments as well.",
+      "quote_full": "Hi Federico. I am really impressed. I am an architect and a technology expert. My son is 15 years old and has participated in First Lego League tournaments since he was a child. We want to bring Youbionic X5 Pro to tournaments as well.",
+      "tags": ["competition", "x5pro", "family"]
+    },
+    {
+      "id": "david-marques",
+      "name": "David Marques",
+      "org": "",
+      "role": "Robotics teacher (15 students)",
+      "segment": "education",
+      "priority": 2,
+      "pull": "I teach a class of 15 students and I teach Robotics using Youbionic. Congratulations for your work!",
+      "quote_full": "After I got to know Youbionic's products and innovations, I started to follow them closely and with great satisfaction! I teach a class of 15 students and I teach Robotics using some items that we can buy. I would like to be able to buy all Youbionic products but unfortunately I don't have the financial conditions to buy the models for my students! Congratulations for your work!",
+      "tags": ["teaching", "classroom"]
+    },
+    {
+      "id": "joshua-verhoff",
+      "name": "Joshua Verhoff",
+      "org": "",
+      "role": "Student",
+      "segment": "education",
+      "priority": 2,
+      "pull": "I would recommend this product to any high school or college that has robotics. Hands down this is a great product.",
+      "quote_full": "I would recommend this product to any high school or college that has robotics. This product can help people achieve great knowledge in robotics and also knowledge of different types of 3d printing. Hands down this is a great product and hope to see it grow. It has made me better.",
+      "tags": ["recommendation", "school"]
+    },
+    {
+      "id": "dave-simbana",
+      "name": "Dave Simbaña",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 1,
+      "pull": "Seeing the movement without seeing the gears and motors looks really magical. Compact, clean and really great functions.",
+      "quote_full": "I like a lot to see a good control in the robots, smooth movements. The mechanic part of your designs is amazing and simple. Without lots of cables outside and just seeing the movement of the robot without seeing the gears and motors looks really magical for me. And you guys get it really well, compact, clean and really great functions in your robots.",
+      "tags": ["design", "mechanics"]
+    },
+    {
+      "id": "brian-fox",
+      "name": "Brian Fox",
+      "org": "",
+      "role": "Animatronics builder",
+      "segment": "maker",
+      "priority": 2,
+      "pull": "Your designs enhanced my animatronic projects tenfold. It is hard to find this kind of information — industry secrets for a long time.",
+      "quote_full": "I want to thank you for your fantastic designs. It has enhanced my animatronic projects 10 fold. It is hard to find and share this kind of information which has been industry secrets for a long time.",
+      "tags": ["animatronics", "knowledge"]
+    },
+    {
+      "id": "jared-solmssen",
+      "name": "Jared H. Solmssen",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 1,
+      "pull": "Youbionic made the whole process comprehensive and painless. I barely experienced a learning curve. A bargain for anybody looking to break into robotics.",
+      "quote_full": "Youbionic made the whole process comprehensive and painless. I barely experienced a learning curve. This program is a bargain for anybody looking to break in to robotics.",
+      "tags": ["ease", "value"]
+    },
+    {
+      "id": "cesar-sanchez",
+      "name": "Cesar Sanchez",
+      "org": "",
+      "role": "Long-time follower",
+      "segment": "maker",
+      "priority": 2,
+      "pull": "I always chose Youbionic. What impressed me most is the design and the practicality that makes their mechanisms unique.",
+      "quote_full": "I always chose Youbionic, I have followed it since the project started. What impressed me most about the projects is their design and the practicality that makes their mechanisms unique.",
+      "tags": ["loyalty", "design"]
+    },
+    {
+      "id": "roger-mak",
+      "name": "Roger Mak",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 2,
+      "pull": "This is the most detailed informational assembly video I have ever seen! Your creations are truly amazing.",
+      "quote_full": "This is the most detailed informational assembly video I have ever seen! Thank you so much for sharing your creations, they are truly amazing! Keep up the great work and much appreciated!",
+      "tags": ["documentation", "video"]
+    },
+    {
+      "id": "michael-caughey",
+      "name": "Michael Caughey",
+      "org": "",
+      "role": "Builder",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "I'm in the middle of the X4 build and it's great. The hands went together great.",
+      "quote_full": "I'm in the middle of the X4 build and its great. The hands went together great.",
+      "tags": ["x4", "build"]
+    },
+    {
+      "id": "pawel-borysewski",
+      "name": "Pawel Borysewski",
+      "org": "Cybernomad",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 2,
+      "pull": "Thank you for your work, these designs are top notch. I'll gladly promote this.",
+      "quote_full": "Thank you for your work, these designs are top notch. I'll promote gladly promote this.",
+      "tags": ["design", "advocacy"]
+    },
+    {
+      "id": "brayan-ipial",
+      "name": "Brayan Ipial",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "The designs are impressive, the information is very well ordered — really good quality content.",
+      "quote_full": "My experience in Youbionic has been very pleasant, the designs they make are impressive, the information is very well ordered, really it is good quality content.",
+      "tags": ["quality", "documentation"]
+    },
+    {
+      "id": "manoj-kumar",
+      "name": "Manoj Kumar",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "The integration of intuitive control appeals deeply to me — it reflects your dream of making robotics accessible and practical.",
+      "quote_full": "I must say, I am impressed to the maximum by the highly elaborate design and functionality of your product. This is because the integration of intuitive control through technology appeals so deeply to me; it reflects your dream of making robotics so accessible and practical. I'm more than excited to dive into its potential and apply it in my projects.",
+      "tags": ["design", "accessibility"]
+    },
+    {
+      "id": "akhil-raj",
+      "name": "Akhil Raj",
+      "org": "",
+      "role": "Maker",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "The advanced design of the Youbionic robots and their potential to bring affordable bionic solutions to a wide range of users is admirable.",
+      "quote_full": "What has impressed me the most is the advanced design of the Youbionic Robots, especially its potential to bring affordable bionic solutions to a wide range of users. The attention to creating an accessible, yet highly functional design is admirable.",
+      "tags": ["design", "affordability"]
+    },
+    {
+      "id": "surinder-kumar",
+      "name": "Surinder Kumar",
+      "org": "",
+      "role": "Robotics enthusiast",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "The ingenuity and dedication reflected in your creations are truly inspiring — they ignited a deeper curiosity within me.",
+      "quote_full": "My name is Surinder Kumar, and I have been following your work on robotics with great admiration. The ingenuity and dedication reflected in your creations are truly inspiring, and they have ignited a deeper curiosity within me to explore this fascinating field. I am particularly fascinated by how you conceptualize and build your robots. Your approach seems innovative and groundbreaking. Thank you so much for your time and for inspiring so many like me.",
+      "tags": ["inspiration"]
+    },
+    {
+      "id": "daniel-ferrer",
+      "name": "Daniel Ferrer",
+      "org": "",
+      "role": "Maker · Teleoperation",
+      "segment": "maker",
+      "priority": 3,
+      "pull": "I see how things are developing, which gives me a lot of ideas to carry out, especially in teleoperated humanoid vehicles.",
+      "quote_full": "Although I have acquired several of your products and I am a follower of the Telegram channel, so far I have not had time to get serious about the use and development of haptic arms, but I am very happy because I see how things are developing, which gives me a lot of ideas to carry out, especially in teleoperated humanoid vehicles. I hope that very soon I can get serious, to manufacture and assemble a pair of arms.",
+      "tags": ["haptic", "teleoperation"]
+    },
+    {
+      "id": "kevin-strunk-2",
+      "name": "Kevin Strunk",
+      "org": "AIkonia",
+      "role": "CEO and Founder",
+      "segment": "prestige",
+      "priority": 3,
+      "pull": "What you've created is truly inspiring and has had a profound impact on makers like me. Your work continues to be a beacon of innovation.",
+      "quote_full": "First of all, I want to express my admiration for your incredible work with Youbionic. What you've created is truly inspiring and has had a profound impact on makers like me. Your vision and dedication are amazing, and I feel honored to be part of this journey by working with the designs you've shared. I also want to congratulate you on your latest idea, 'The Robot Heart Expressing Emotions'. The concept of the Youbionic Heart as a symbol of soul and life is brilliant. Your work continues to be a beacon of innovation.",
+      "tags": ["inspiration", "heart"]
+    }
+  ]
+}
