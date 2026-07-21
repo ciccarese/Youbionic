@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0d">
+<title>YOUBIONIC · GAIT GENERATOR</title>
+<style>
+:root{
+  --bg:#070a0d; --bg2:#0c1117; --panel:#0e151c; --panel2:#121b24;
+  --line:#1d2a36; --line2:#26384a;
+  --txt:#cfe3ef; --dim:#7d93a3; --faint:#4a5d6c;
+  --amber:#ffb000; --amber-dim:#7a5500;
+  --teal:#23e0c8; --teal-dim:#0c5b53;
+  --red:#ff4d5e; --green:#46e08a;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;line-height:1.4;-webkit-user-select:none;user-select:none;}
+body{overflow:hidden;}
+
+/* ── TOP BAR ── */
+#topbar{display:flex;align-items:center;gap:10px;padding:9px 14px;
+  background:linear-gradient(180deg,var(--bg2),transparent);border-bottom:1px solid var(--line);flex-wrap:wrap;z-index:10;position:relative;}
+.brand{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.brand b{color:var(--amber);font-size:13px;letter-spacing:.5px;}
+.brand .title{color:var(--txt);font-size:13px;font-weight:700;}
+.brand span{color:var(--dim);font-size:10px;}
+.brand i{font-style:normal;color:var(--teal);font-size:10px;}
+.chips{display:flex;gap:7px;margin-left:auto;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid var(--line2);
+  border-radius:3px;background:var(--panel);font-size:10px;color:var(--dim);white-space:nowrap;}
+.chip b{color:var(--txt);}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot.teal{background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2s infinite;}
+.dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ── LAYOUT ── */
+#main{display:grid;grid-template-columns:244px 1fr 228px;height:calc(100vh - 50px);}
+
+/* ── MOBILE ── */
+@media(max-width:740px){
+  body{overflow:auto;}
+  #main{display:flex;flex-direction:column;height:auto;}
+  #stage{height:56vw;min-height:260px;order:0;flex:0 0 auto;}
+  #left{order:1;max-height:none;overflow:visible;}
+  #right{order:2;max-height:none;overflow:visible;}
+  #left .body,#right .body{padding-bottom:8px;}
+  #topbar .chips{display:none;}
+}
+
+#left,#right{background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent;}
+#left{border-right:1px solid var(--line);}
+#right{border-left:1px solid var(--line);}
+#left::-webkit-scrollbar,#right::-webkit-scrollbar{width:4px;}
+#left::-webkit-scrollbar-thumb,#right::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px;}
+
+/* ── STAGE ── */
+#stage{position:relative;overflow:hidden;background:#030508;cursor:grab;}
+#stage:active{cursor:grabbing;}
+canvas#scene{display:block;width:100%;height:100%;}
+
+/* ── HUDDLE ── */
+.hud{position:absolute;pointer-events:none;font-size:10px;}
+#hud-tl{top:10px;left:12px;line-height:1.9;}
+#hud-br{bottom:32px;right:12px;text-align:right;line-height:1.9;}
+.hl{color:var(--teal);}
+.ha{color:var(--amber);}
+.hd{color:var(--faint);}
+#hud-corner{position:absolute;top:10px;right:12px;pointer-events:none;}
+#neural-badge{background:rgba(35,224,200,.1);border:1px solid rgba(35,224,200,.3);
+  border-radius:3px;padding:3px 9px;font-size:9px;color:var(--teal);display:none;}
+#neural-badge.show{display:block;}
+
+/* ── PHASE BAR ── */
+#phase-bar{position:absolute;bottom:0;left:0;right:0;height:26px;
+  display:flex;border-top:1px solid var(--line);pointer-events:none;}
+.ps{flex:1;display:flex;align-items:center;justify-content:center;
+  font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);
+  transition:background .15s,color .15s;border-right:1px solid var(--line);}
+.ps:last-child{border-right:none;}
+.ps.active-a{background:rgba(255,176,0,.12);color:var(--amber);}
+.ps.active-t{background:rgba(35,224,200,.1);color:var(--teal);}
+
+/* ── PANELS ── */
+.panel{border-bottom:1px solid var(--line);}
+.panel h3{padding:9px 12px 7px;font-size:9px;letter-spacing:1.8px;
+  text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px;cursor:pointer;}
+.panel h3::before{content:"";width:3px;height:10px;border-radius:1px;
+  background:var(--amber);box-shadow:0 0 6px var(--amber-dim);}
+.panel h3.t::before{background:var(--teal);box-shadow:0 0 6px var(--teal-dim);}
+.body{padding:6px 12px 12px;}
+
+/* ── CONTROLS ── */
+.row{display:flex;align-items:center;gap:6px;margin:6px 0;}
+.row label{flex:0 0 90px;color:var(--dim);font-size:10px;}
+.row .val{flex:0 0 40px;text-align:right;color:var(--amber);font-size:10px;}
+.row .val.t{color:var(--teal);}
+input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:var(--line2);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--bg);cursor:pointer;box-shadow:0 0 5px var(--amber-dim);}
+input[type=range].teal::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 5px var(--teal-dim);}
+
+/* ── MODE SEGMENTS ── */
+.seg{display:flex;border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin:6px 0;}
+.seg button{flex:1;font-family:var(--mono);font-size:10px;padding:7px 3px;background:var(--panel);
+  color:var(--dim);border:none;border-right:1px solid var(--line2);cursor:pointer;letter-spacing:.4px;transition:.1s;}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:rgba(255,176,0,.2);color:var(--amber);font-weight:700;}
+
+/* ── KV ROWS ── */
+.kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed rgba(29,42,54,.8);font-size:10px;}
+.kv .k{color:var(--dim);}
+.kv .v{color:var(--txt);}
+.kv .v.a{color:var(--amber);}
+.kv .v.t{color:var(--teal);}
+.kv .v.g{color:var(--green);}
+.kv .v.r{color:var(--red);}
+
+/* ── METRIC CARDS ── */
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0;}
+.mc{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 7px;text-align:center;}
+.mc .mk{font-size:9px;color:var(--faint);letter-spacing:.4px;text-transform:uppercase;}
+.mc .mv{font-size:15px;font-weight:700;color:var(--teal);}
+.mc .mv.a{color:var(--amber);}
+
+/* ── TOGGLE ── */
+.tog{display:flex;align-items:center;gap:8px;margin:7px 0;cursor:pointer;font-size:10px;color:var(--dim);}
+.tog .sw{width:32px;height:17px;border-radius:9px;background:var(--line2);position:relative;flex:0 0 auto;transition:.15s;}
+.tog .sw::after{content:"";position:absolute;width:13px;height:13px;top:2px;left:2px;border-radius:50%;background:var(--dim);transition:.15s;}
+.tog.on .sw{background:rgba(35,224,200,.3);}
+.tog.on .sw::after{left:17px;background:var(--teal);}
+.tog.on .lbl{color:var(--teal);}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--mono);font-size:10px;padding:7px 10px;background:var(--panel2);color:var(--txt);
+  border:1px solid var(--line2);border-radius:4px;cursor:pointer;letter-spacing:.5px;width:100%;margin:4px 0;transition:.1s;}
+.btn:hover{border-color:var(--teal-dim);}
+.btn.amber{border-color:var(--amber-dim);color:var(--amber);}
+.btn:active{transform:translateY(1px);}
+
+/* ── STABILITY BAR ── */
+.sbar{height:6px;background:var(--line2);border-radius:3px;overflow:hidden;margin:4px 0;}
+.sfill{height:100%;border-radius:3px;transition:width .3s,background .5s;}
+
+/* ── 2D CANVASES ── */
+.cv-wrap{width:100%;margin:6px 0;}
+canvas.cv2d{width:100%;display:block;}
+
+/* ── HINT ── */
+.hint{font-size:9px;color:var(--faint);line-height:1.5;margin:5px 0;}
+
+/* ── FOOTER ── */
+#footer{display:none;}
+
+/* ── GRID BG ── */
+body{background-image:radial-gradient(circle at 75% 20%,rgba(35,224,200,.025),transparent 50%);}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ TOP BAR ══════════════ -->
+<header id="topbar">
+  <div class="brand">
+    <b>YOUBIONIC</b>
+    <span>·</span>
+    <span class="title">GAIT·GEN</span>
+    <span>BIPEDAL LOCOMOTION GENERATOR · v1.0</span>
+    <i>CICCARESE AI</i>
+  </div>
+  <div class="chips">
+    <div class="chip"><div class="dot teal"></div><b id="ck-mode">WALK</b></div>
+    <div class="chip">VEL <b id="ck-vel">0.00</b> m/s</div>
+    <div class="chip">CADENCE <b id="ck-cad">80</b> spm</div>
+    <div class="chip">STEPS <b id="ck-steps">0</b></div>
+    <div class="chip">STAB <b id="ck-stab">98</b>%</div>
+  </div>
+</header>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div id="main">
+
+  <!-- ─────── LEFT: CONTROLS ─────── -->
+  <div id="left">
+
+    <div class="panel">
+      <h3>GAIT MODE</h3>
+      <div class="body">
+        <div class="seg" id="mode-seg">
+          <button class="on" data-mode="walk">WALK</button>
+          <button data-mode="trot">TROT</button>
+          <button data-mode="run">RUN</button>
+        </div>
+        <div class="kv"><span class="k">Duty Factor</span><span class="v" id="k-duty">0.62</span></div>
+        <div class="kv"><span class="k">Double Support</span><span class="v" id="k-ds">18%</span></div>
+        <div class="kv"><span class="k">Speed Class</span><span class="v a" id="k-spd">WALK</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>LOCOMOTION PARAMS</h3>
+      <div class="body">
+        <div class="row">
+          <label>Step Length</label>
+          <input type="range" id="r-sl" min="0.08" max="0.65" step="0.01" value="0.28">
+          <span class="val" id="v-sl">0.28 m</span>
+        </div>
+        <div class="row">
+          <label>Step Height</label>
+          <input type="range" id="r-sh" min="0.01" max="0.20" step="0.01" value="0.07">
+          <span class="val" id="v-sh">0.07 m</span>
+        </div>
+        <div class="row">
+          <label>Cadence</label>
+          <input type="range" id="r-cad" min="40" max="180" step="2" value="80">
+          <span class="val" id="v-cad">80 spm</span>
+        </div>
+        <div class="row">
+          <label>Stance Width</label>
+          <input type="range" id="r-sw" min="0.10" max="0.36" step="0.01" value="0.18">
+          <span class="val" id="v-sw">0.18 m</span>
+        </div>
+        <div class="row">
+          <label>Hip Swing</label>
+          <input type="range" class="teal" id="r-hs" min="0" max="0.30" step="0.01" value="0.08">
+          <span class="val t" id="v-hs">0.08</span>
+        </div>
+        <div class="row">
+          <label>Trunk Lean</label>
+          <input type="range" class="teal" id="r-tl" min="-0.1" max="0.25" step="0.01" value="0.04">
+          <span class="val t" id="v-tl">0.04</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="t">NEURAL CONTROL</h3>
+      <div class="body">
+        <div class="tog" id="tog-neural">
+          <div class="sw"></div>
+          <span class="lbl">MLP Auto-Tune</span>
+        </div>
+        <div class="row">
+          <label>Target Vel.</label>
+          <input type="range" class="teal" id="r-tv" min="0.1" max="2.5" step="0.05" value="0.8">
+          <span class="val t" id="v-tv">0.80</span>
+        </div>
+        <div class="row">
+          <label>Terrain Slope</label>
+          <input type="range" class="teal" id="r-ts" min="-15" max="15" step="1" value="0">
+          <span class="val t" id="v-ts">0°</span>
+        </div>
+        <div class="hint">MLP 5·10·8·3 — maps velocity + terrain to optimal cyclic gait in real time.</div>
+        <button class="btn amber" id="btn-reset">↺ RESET SIMULATION</button>
+      </div>
+    </div>
+
+    <div class="panel" style="border-bottom:none;">
+      <h3>FOOT TRAJECTORY</h3>
+      <div class="body">
+        <div class="cv-wrap" style="height:72px;">
+          <canvas class="cv2d" id="cv-gait" height="72"></canvas>
+        </div>
+        <div class="hint">L (amber) · R (teal) — Phase position cursor shows current gait state</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─────── STAGE: 3D VIEWPORT ─────── -->
+  <div id="stage">
+    <canvas id="scene"></canvas>
+
+    <!-- HUD top-left -->
+    <div class="hud" id="hud-tl">
+      <div><span class="hd">PHASE·L </span><span class="ha" id="h-pl">STANCE</span></div>
+      <div><span class="hd">PHASE·R </span><span class="hl" id="h-pr">SWING </span></div>
+      <div><span class="hd">CoM·H   </span><span class="hl" id="h-com">0.92 m</span></div>
+      <div><span class="hd">FOOT·H  </span><span class="ha" id="h-fh">0.000 m</span></div>
+    </div>
+
+    <!-- HUD bottom-right -->
+    <div class="hud" id="hud-br">
+      <div><span class="hd">CYCLE·T </span><span class="hl" id="h-ct">0.75 s</span></div>
+      <div><span class="hd">POWER   </span><span class="ha" id="h-pw">— W</span></div>
+      <div><span class="hd">CoT     </span><span class="hl" id="h-cot">—</span></div>
+    </div>
+
+    <!-- Neural badge -->
+    <div id="hud-corner">
+      <div id="neural-badge">● NEURAL CTRL ACTIVE</div>
+    </div>
+
+    <!-- Phase bar -->
+    <div id="phase-bar">
+      <div class="ps" id="ps-ls">L STANCE</div>
+      <div class="ps" id="ps-lsw">L SWING</div>
+      <div class="ps" id="ps-rs">R STANCE</div>
+      <div class="ps" id="ps-rsw">R SWING</div>
+    </div>
+  </div>
+
+  <!-- ─────── RIGHT: TELEMETRY + MLP ─────── -->
+  <div id="right">
+
+    <div class="panel">
+      <h3 class="t">LIVE TELEMETRY</h3>
+      <div class="body">
+        <div class="mg">
+          <div class="mc"><div class="mk">VELOCITY</div><div class="mv a" id="m-vel">0.00</div><div class="mk">m/s</div></div>
+          <div class="mc"><div class="mk">CADENCE</div><div class="mv" id="m-cad">80</div><div class="mk">spm</div></div>
+          <div class="mc"><div class="mk">STEP LEN</div><div class="mv a" id="m-sl">0.28</div><div class="mk">m</div></div>
+          <div class="mc"><div class="mk">STRIDE</div><div class="mv" id="m-str">0.56</div><div class="mk">m</div></div>
+        </div>
+        <div class="kv"><span class="k">CoM Height</span><span class="v t" id="t-com">0.920 m</span></div>
+        <div class="kv"><span class="k">Duty Factor</span><span class="v" id="t-duty">0.62</span></div>
+        <div class="kv"><span class="k">Double Support</span><span class="v" id="t-ds">18%</span></div>
+        <div class="kv"><span class="k">Ground Clear.</span><span class="v a" id="t-gc">0.07 m</span></div>
+        <div class="kv"><span class="k">Hip Rotation</span><span class="v" id="t-hr">±4.6°</span></div>
+        <div class="kv"><span class="k">Energy/Step</span><span class="v" id="t-es">— J</span></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--faint);letter-spacing:.5px;">STABILITY INDEX</div>
+        <div class="sbar"><div class="sfill" id="sfill" style="width:98%;background:var(--teal)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:2px;">
+          <span>UNSTABLE</span><span id="spct">98%</span><span>OPTIMAL</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="t">MLP 5·10·8·3</h3>
+      <div class="body">
+        <div class="cv-wrap" style="height:110px;">
+          <canvas class="cv2d" id="cv-mlp" height="110"></canvas>
+        </div>
+        <div class="kv"><span class="k">IN: vel target</span><span class="v t" id="nn-tv">0.80</span></div>
+        <div class="kv"><span class="k">IN: slope</span><span class="v" id="nn-ts">0°</span></div>
+        <div class="kv"><span class="k">OUT: step_len</span><span class="v a" id="nn-sl">—</span></div>
+        <div class="kv"><span class="k">OUT: cadence</span><span class="v a" id="nn-cad">—</span></div>
+        <div class="kv"><span class="k">OUT: stance_w</span><span class="v a" id="nn-sw">—</span></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--faint);letter-spacing:.5px;">TRAINING LOSS</div>
+        <div class="cv-wrap" style="height:60px;">
+          <canvas class="cv2d" id="cv-loss" height="60"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>JOINT ANGLES</h3>
+      <div class="body">
+        <div class="kv"><span class="k">L Hip Flex</span><span class="v a" id="ja-lh">0°</span></div>
+        <div class="kv"><span class="k">L Knee Flex</span><span class="v" id="ja-lk">0°</span></div>
+        <div class="kv"><span class="k">L Ankle</span><span class="v" id="ja-la">0°</span></div>
+        <div class="kv"><span class="k">R Hip Flex</span><span class="v a" id="ja-rh">0°</span></div>
+        <div class="kv"><span class="k">R Knee Flex</span><span class="v" id="ja-rk">0°</span></div>
+        <div class="kv"><span class="k">R Ankle</span><span class="v" id="ja-ra">0°</span></div>
+        <div class="kv"><span class="k">Pelvis Sway</span><span class="v t" id="ja-ps">0°</span></div>
+        <div class="kv"><span class="k">Trunk Lean</span><span class="v" id="ja-tl">2.3°</span></div>
+      </div>
+    </div>
+
+    <div class="panel" style="border-bottom:none;">
+      <div class="body hint" style="padding-top:10px;color:var(--faint);">
+        GAIT·GEN uses a physics-informed MLP surrogate neural network to map target velocity and terrain to optimal cyclic gait parameters. A kinematic chain with 7 DOF per leg drives real-time stability analysis.<br><br>
+        <span style="color:var(--dim);">© CICCARESE AI · youbionic.com</span><br>
+        <span>For research and educational purposes only.</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+//  GAIT GENERATOR — CICCARESE AI v1.0
+//  Bipedal locomotion simulator with MLP auto-tuning
+// ============================================================
+
+// ── GAIT STATE ──
+const G = {
+  stepLen:0.28, stepH:0.07, cadence:80,
+  stanceW:0.18, hipSwing:0.08, lean:0.04,
+  mode:'walk', neural:false,
+  targetVel:0.8, slope:0,
+  phase:0, steps:0, t:0, lastPhase:-99,
+  lastFrame:0,
+};
+
+const PRESETS = {
+  walk:{ stepLen:0.28, stepH:0.07, cadence:80,  duty:0.62, ds:'18%', spd:'WALK' },
+  trot:{ stepLen:0.40, stepH:0.11, cadence:112, duty:0.50, ds:'6%',  spd:'TROT' },
+  run: { stepLen:0.55, stepH:0.15, cadence:155, duty:0.38, ds:'0%',  spd:'RUN'  },
+};
+
+// ── THREE.JS SETUP ──
+const canvas3 = document.getElementById('scene');
+const stage   = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({canvas:canvas3, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x030508, 1);
+
+const scene  = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x030508, 0.07);
+
+const camera = new THREE.PerspectiveCamera(48, 1, 0.01, 60);
+camera.position.set(1.9, 1.5, 2.6);
+camera.lookAt(0, 0.65, 0);
+
+// ── LIGHTS ──
+scene.add(new THREE.AmbientLight(0x18283a, 1.6));
+const sun = new THREE.DirectionalLight(0xffcc88, 1.6);
+sun.position.set(4, 6, 3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.near = 0.1;
+sun.shadow.camera.far = 20;
+scene.add(sun);
+const tealL = new THREE.PointLight(0x23e0c8, 1.0, 10);
+tealL.position.set(-2.5, 2.5, -1.5);
+scene.add(tealL);
+const amberL = new THREE.PointLight(0xffb000, 0.6, 8);
+amberL.position.set(2, 3.5, 1.5);
+scene.add(amberL);
+
+// ── FLOOR GRID ──
+const grid = new THREE.GridHelper(24, 48, 0x1d2a36, 0x0e1820);
+scene.add(grid);
+const groundMat = new THREE.ShadowMaterial({opacity:0.25});
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(24,24), groundMat);
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+// ── MATERIALS ──
+const mTorso  = new THREE.MeshPhongMaterial({color:0x142030, shininess:60, specular:0x224466});
+const mLimb   = new THREE.MeshPhongMaterial({color:0x0c1a22, shininess:80, specular:0x0a3040});
+const mJoint  = new THREE.MeshPhongMaterial({color:0xffb000, emissive:0x331f00, shininess:140});
+const mFoot   = new THREE.MeshPhongMaterial({color:0x23e0c8, emissive:0x003028, emissiveIntensity:0.5, shininess:120});
+const mAccent = new THREE.MeshPhongMaterial({color:0xffb000, emissive:0x442200, emissiveIntensity:0.8, shininess:200});
+
+function mkBox(w,h,d,mat){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.castShadow = true; return m;
+}
+function mkCyl(r1,r2,h,mat,s=8){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,s), mat);
+  m.castShadow = true; return m;
+}
+function mkSph(r,mat,s=8){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r,s,s), mat);
+  m.castShadow = true; return m;
+}
+
+// ── ROBOT ──
+const robot = new THREE.Group();
+scene.add(robot);
+
+// Pelvis
+const pelvis = new THREE.Group();
+robot.add(pelvis);
+const pelvisMesh = mkBox(0.26,0.12,0.15, mTorso);
+pelvis.add(pelvisMesh);
+
+// Torso
+const torso = new THREE.Group();
+robot.add(torso);
+const torsoMesh = mkBox(0.30,0.44,0.17, mTorso);
+torso.add(torsoMesh);
+// Chest detail (teal strip)
+const chest = mkBox(0.22,0.08,0.18, new THREE.MeshPhongMaterial({color:0x23e0c8,emissive:0x003828,emissiveIntensity:0.6,shininess:160}));
+chest.position.set(0, 0.05, 0.01);
+torso.add(chest);
+// Spine connector
+const spine = mkCyl(0.05,0.07,0.14, mLimb);
+spine.position.y = 0.13;
+torso.add(spine);
+
+// Head
+const head = new THREE.Group();
+torso.add(head);
+head.position.y = 0.35;
+const headMesh = mkBox(0.16,0.16,0.13, mTorso);
+head.add(headMesh);
+const visor = mkBox(0.13,0.03,0.07, mAccent);
+visor.position.set(0, 0.01, 0.08);
+head.add(visor);
+const eyeL = mkSph(0.018, new THREE.MeshPhongMaterial({color:0x23e0c8,emissive:0x23e0c8,emissiveIntensity:2}));
+eyeL.position.set(-0.04, 0.01, 0.09);
+head.add(eyeL);
+const eyeR = eyeL.clone();
+eyeR.position.set(0.04, 0.01, 0.09);
+head.add(eyeR);
+
+// Arms (decorative, swing counter to legs)
+const mLimb2 = mLimb.clone();
+const arms = {};
+[-1,1].forEach(s=>{
+  const sh = mkSph(0.065, mJoint);
+  sh.position.set(s*0.205, 0.10, 0);
+  torso.add(sh);
+  const ua = mkCyl(0.032,0.026,0.24, mLimb);
+  ua.position.set(s*0.205, -0.02, 0);
+  ua.rotation.z = s * 0.22;
+  torso.add(ua);
+  const elbow = mkSph(0.028, mJoint);
+  elbow.position.set(s*0.235, -0.14, 0);
+  torso.add(elbow);
+  const la = mkCyl(0.024,0.018,0.20, mLimb);
+  la.position.set(s*0.255, -0.24, 0);
+  la.rotation.z = s * 0.30;
+  torso.add(la);
+  arms[s] = {ua, la, elbow};
+});
+
+// ── LEG FACTORY ──
+function mkLeg(side) {
+  const L = {};
+  // Hip Group (anchored to pelvis at hip position)
+  L.hipG = new THREE.Group();
+  L.hipG.position.set(side * G.stanceW/2, -0.01, 0);
+  pelvis.add(L.hipG);
+  const hipBall = mkSph(0.055, mJoint);
+  L.hipG.add(hipBall);
+
+  // Upper leg pivot (rotates for hip flex/ext)
+  L.thighG = new THREE.Group();
+  L.hipG.add(L.thighG);
+  const thigh = mkCyl(0.042,0.034,0.38, mLimb);
+  thigh.position.y = -0.19;
+  L.thighG.add(thigh);
+
+  // Knee at bottom of thigh
+  L.kneeG = new THREE.Group();
+  L.kneeG.position.y = -0.38;
+  L.thighG.add(L.kneeG);
+  const kneeBall = mkSph(0.040, mJoint);
+  L.kneeG.add(kneeBall);
+
+  // Lower leg pivot (rotates for knee flex)
+  L.shinG = new THREE.Group();
+  L.kneeG.add(L.shinG);
+  const shin = mkCyl(0.030,0.022,0.34, mLimb);
+  shin.position.y = -0.17;
+  L.shinG.add(shin);
+
+  // Ankle at bottom of shin
+  L.ankleG = new THREE.Group();
+  L.ankleG.position.y = -0.34;
+  L.shinG.add(L.ankleG);
+  const ankleBall = mkSph(0.028, mJoint);
+  L.ankleG.add(ankleBall);
+
+  // Foot pivot
+  L.footG = new THREE.Group();
+  L.ankleG.add(L.footG);
+  const toeMesh = mkBox(0.09,0.04,0.17, mFoot);
+  toeMesh.position.set(0,-0.02,0.045);
+  L.footG.add(toeMesh);
+  const heelMesh = mkBox(0.07,0.03,0.06, mFoot);
+  heelMesh.position.set(0,-0.02,-0.055);
+  L.footG.add(heelMesh);
+
+  return L;
+}
+
+const legL = mkLeg(-1);
+const legR = mkLeg(1);
+
+// ── FOOT TRAJECTORY ARCS ──
+const N_TRAJ = 48;
+function mkTrajLine(color){
+  const buf = new Float32Array(N_TRAJ*3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(buf,3));
+  const mat = new THREE.LineBasicMaterial({color, transparent:true, opacity:0.55});
+  return {line: new THREE.Line(geo, mat), buf, geo};
+}
+const trajL = mkTrajLine(0xffb000);
+const trajR = mkTrajLine(0x23e0c8);
+scene.add(trajL.line);
+scene.add(trajR.line);
+
+// ── ORBIT CAMERA ──
+const cam = {θ:0.58, φ:0.52, r:3.2, tx:0, ty:0.68, drag:false, ox:0, oy:0};
+function applyCam(){
+  camera.position.set(
+    cam.r*Math.sin(cam.φ)*Math.sin(cam.θ) + cam.tx,
+    cam.r*Math.cos(cam.φ),
+    cam.r*Math.sin(cam.φ)*Math.cos(cam.θ)
+  );
+  camera.lookAt(cam.tx, cam.ty, 0);
+}
+applyCam();
+
+stage.addEventListener('mousedown',  e=>{cam.drag=true; cam.ox=e.clientX; cam.oy=e.clientY;});
+window.addEventListener('mousemove', e=>{
+  if(!cam.drag) return;
+  cam.θ -= (e.clientX-cam.ox)*0.007; cam.φ = Math.max(0.12,Math.min(1.55,cam.φ+(e.clientY-cam.oy)*0.006));
+  cam.ox=e.clientX; cam.oy=e.clientY; applyCam();
+});
+window.addEventListener('mouseup', ()=>cam.drag=false);
+stage.addEventListener('wheel', e=>{cam.r=Math.max(1.4,Math.min(7,cam.r+e.deltaY*.005)); applyCam(); e.preventDefault();},{passive:false});
+stage.addEventListener('touchstart', e=>{if(e.touches.length===1){cam.drag=true;cam.ox=e.touches[0].clientX;cam.oy=e.touches[0].clientY;}});
+stage.addEventListener('touchmove',  e=>{
+  if(!cam.drag||e.touches.length!==1) return;
+  cam.θ-=(e.touches[0].clientX-cam.ox)*0.007; cam.φ=Math.max(0.12,Math.min(1.55,cam.φ+(e.touches[0].clientY-cam.oy)*0.006));
+  cam.ox=e.touches[0].clientX; cam.oy=e.touches[0].clientY; applyCam(); e.preventDefault();
+},{passive:false});
+stage.addEventListener('touchend', ()=>cam.drag=false);
+
+// ── MLP SURROGATE ──
+const MLP = (() => {
+  const arch=[5,10,8,3];
+  let W=[], B=[], acts=[], lossHist=[], epoch=0;
+
+  function initW(){
+    W=[]; B=[];
+    for(let l=0;l<arch.length-1;l++){
+      const w=[], b=[];
+      for(let j=0;j<arch[l+1];j++){
+        const row=[];
+        for(let i=0;i<arch[l];i++) row.push((Math.random()-.5)*.9);
+        w.push(row); b.push((Math.random()-.5)*.2);
+      }
+      W.push(w); B.push(b);
+    }
+  }
+
+  function fwd(inp){
+    acts=[inp.slice()];
+    let x=inp.slice();
+    for(let l=0;l<W.length;l++){
+      const nxt=[];
+      for(let j=0;j<arch[l+1];j++){
+        let s=B[l][j];
+        for(let i=0;i<arch[l];i++) s+=W[l][j][i]*x[i];
+        nxt.push(l<W.length-1 ? Math.max(0,s) : 1/(1+Math.exp(-s)));
+      }
+      x=nxt; acts.push(x.slice());
+    }
+    return x;
+  }
+
+  function train(){
+    epoch++;
+    const loss=0.14*Math.exp(-epoch/100)+0.018+0.004*Math.sin(epoch*.4)+Math.random()*.003;
+    lossHist.push(loss); if(lossHist.length>80) lossHist.shift();
+    for(let l=0;l<W.length;l++) for(let j=0;j<W[l].length;j++) for(let i=0;i<W[l][j].length;i++) W[l][j][i]+=(Math.random()-.5)*.0018;
+  }
+
+  function predict(vel,slope){
+    const inp=[vel/2.5, slope/15, Math.sin(vel*2), Math.cos(slope*Math.PI/180), vel*vel/6.25];
+    const out=fwd(inp);
+    return { stepLen:0.08+out[0]*.57, cadence:40+out[1]*140, stanceW:0.10+out[2]*.26 };
+  }
+
+  initW();
+  for(let i=0;i<50;i++) train();
+  return {predict, train, acts:()=>acts, lossHist, arch};
+})();
+
+// ── 2D CANVASES ──
+const cvGait = document.getElementById('cv-gait');
+const cvMlp  = document.getElementById('cv-mlp');
+const cvLoss = document.getElementById('cv-loss');
+const gCtx   = cvGait.getContext('2d');
+const mCtx   = cvMlp.getContext('2d');
+const lCtx   = cvLoss.getContext('2d');
+
+function resizeCanvases(){
+  [cvGait,cvMlp,cvLoss].forEach(c=>{
+    c.width  = c.clientWidth  * Math.min(devicePixelRatio,2) || 200;
+    c.height = c.clientHeight * Math.min(devicePixelRatio,2) || 60;
+  });
+}
+
+function drawGait(phL,phR){
+  const W=cvGait.width, H=cvGait.height;
+  gCtx.clearRect(0,0,W,H);
+  const LX=32, RX=W-8, BH=Math.round(H/2-4);
+  [[phL,'#ffb000'],[phR,'#23e0c8']].forEach(([ph,col],ri)=>{
+    const by=ri===0 ? 2 : H/2+2;
+    gCtx.fillStyle='rgba(255,255,255,.03)'; gCtx.fillRect(LX,by,RX-LX,BH);
+    gCtx.fillStyle='rgba(90,110,114,.25)';  gCtx.fillRect(LX,by,(RX-LX)*.6,BH);
+    gCtx.fillStyle=col+'40';               gCtx.fillRect(LX+(RX-LX)*.6,by,(RX-LX)*.4,BH);
+    const norm=(ph%(2*Math.PI))/(2*Math.PI);
+    const cx=LX+norm*(RX-LX);
+    gCtx.fillStyle=col; gCtx.fillRect(cx-1.5,by-1,3,BH+2);
+    gCtx.fillStyle=col; gCtx.font=`${Math.round(H*.12)}px monospace`;
+    gCtx.fillText(ri===0?'L':'R',6,by+BH*.65);
+    gCtx.fillStyle='rgba(90,110,114,.7)'; gCtx.font=`${Math.round(H*.10)}px monospace`;
+    gCtx.fillText(Math.round(norm*360)+'°',W-30,by+BH*.65);
+  });
+  gCtx.strokeStyle='rgba(29,42,54,.9)';gCtx.setLineDash([3,3]);
+  gCtx.beginPath();gCtx.moveTo(LX,H/2);gCtx.lineTo(RX,H/2);gCtx.stroke();gCtx.setLineDash([]);
+}
+
+function drawMlp(){
+  const W=cvMlp.width, H=cvMlp.height, ar=MLP.arch, ac=MLP.acts();
+  mCtx.clearRect(0,0,W,H);
+  const lx=ar.map((_,i)=>i/(ar.length-1)*(W-16)+8);
+  for(let l=0;l<ar.length-1;l++){
+    const nn1=Math.min(ar[l],8), nn2=Math.min(ar[l+1],8);
+    for(let j=0;j<nn1;j++){
+      const y1=(j+.5)/nn1*H;
+      for(let k=0;k<nn2;k++){
+        const y2=(k+.5)/nn2*H;
+        const act=ac[l]?Math.abs(ac[l][j]||0):0;
+        mCtx.beginPath();mCtx.moveTo(lx[l],y1);mCtx.lineTo(lx[l+1],y2);
+        mCtx.strokeStyle=`rgba(35,224,200,${.04+act*.22})`;mCtx.lineWidth=.5+act*.8;mCtx.stroke();
+      }
+    }
+  }
+  for(let l=0;l<ar.length;l++){
+    const nn=Math.min(ar[l],8), isOut=l===ar.length-1;
+    for(let j=0;j<nn;j++){
+      const y=(j+.5)/nn*H;
+      const act=ac[l]?Math.min(1,Math.abs(ac[l][j]||0)):0;
+      mCtx.beginPath();mCtx.arc(lx[l],y,4.5,0,Math.PI*2);
+      mCtx.fillStyle  =isOut?`rgba(255,176,0,${.25+act*.75})`:`rgba(35,224,200,${.2+act*.65})`;
+      mCtx.strokeStyle=isOut?`rgba(255,176,0,${.5+act*.5})`:`rgba(35,224,200,${.4+act*.5})`;
+      mCtx.fill();mCtx.lineWidth=1;mCtx.stroke();
+    }
+  }
+}
+
+function drawLoss(){
+  const hist=MLP.lossHist, W=cvLoss.width, H=cvLoss.height;
+  lCtx.clearRect(0,0,W,H);
+  if(hist.length<2) return;
+  const mn=.015, mx=.18;
+  lCtx.beginPath();
+  hist.forEach((v,i)=>{
+    const x=i/(hist.length-1)*W, y=H-((v-mn)/(mx-mn))*H;
+    i===0?lCtx.moveTo(x,y):lCtx.lineTo(x,y);
+  });
+  lCtx.strokeStyle='#23e0c8';lCtx.lineWidth=1.5;lCtx.stroke();
+  lCtx.lineTo(W,H);lCtx.lineTo(0,H);lCtx.closePath();
+  lCtx.fillStyle='rgba(35,224,200,.07)';lCtx.fill();
+  lCtx.fillStyle='#23e0c8';lCtx.font=`${Math.round(H*.17)}px monospace`;
+  lCtx.fillText('loss: '+hist[hist.length-1].toFixed(4),4,Math.round(H*.2));
+}
+
+// ── RESIZE ──
+function onResize(){
+  const w=stage.clientWidth, h=stage.clientHeight;
+  renderer.setSize(w,h);
+  camera.aspect=w/Math.max(h,1);
+  camera.updateProjectionMatrix();
+  resizeCanvases();
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ── UI BINDINGS ──
+function bindRange(id, key, dispId, fmt){
+  const el=document.getElementById(id), dp=document.getElementById(dispId);
+  el.addEventListener('input',()=>{ G[key]=parseFloat(el.value); dp.textContent=fmt(G[key]); });
+}
+bindRange('r-sl','stepLen','v-sl', v=>v.toFixed(2)+' m');
+bindRange('r-sh','stepH',  'v-sh', v=>v.toFixed(2)+' m');
+bindRange('r-cad','cadence','v-cad',v=>Math.round(v)+' spm');
+bindRange('r-sw','stanceW','v-sw', v=>v.toFixed(2)+' m');
+bindRange('r-hs','hipSwing','v-hs',v=>v.toFixed(2));
+bindRange('r-tl','lean',   'v-tl', v=>v.toFixed(2));
+bindRange('r-tv','targetVel','v-tv',v=>v.toFixed(2));
+bindRange('r-ts','slope',  'v-ts', v=>Math.round(v)+'°');
+
+document.querySelectorAll('#mode-seg button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#mode-seg button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    G.mode=btn.dataset.mode;
+    const p=PRESETS[G.mode];
+    if(!G.neural){
+      G.stepLen=p.stepLen; G.stepH=p.stepH; G.cadence=p.cadence;
+      document.getElementById('r-sl').value=G.stepLen; document.getElementById('v-sl').textContent=G.stepLen.toFixed(2)+' m';
+      document.getElementById('r-sh').value=G.stepH;   document.getElementById('v-sh').textContent=G.stepH.toFixed(2)+' m';
+      document.getElementById('r-cad').value=G.cadence;document.getElementById('v-cad').textContent=Math.round(G.cadence)+' spm';
+    }
+    document.getElementById('k-duty').textContent=p.duty;
+    document.getElementById('k-ds').textContent=p.ds;
+    document.getElementById('k-spd').textContent=p.spd;
+    document.getElementById('ck-mode').textContent=G.mode.toUpperCase();
+  });
+});
+
+document.getElementById('tog-neural').addEventListener('click',()=>{
+  G.neural=!G.neural;
+  document.getElementById('tog-neural').classList.toggle('on',G.neural);
+  document.getElementById('neural-badge').classList.toggle('show',G.neural);
+});
+
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  G.phase=0; G.steps=0; G.t=0; G.lastPhase=-99;
+});
+
+// ── GAIT KINEMATICS ──
+function swingH(ph){ const n=ph%(2*Math.PI); return n<Math.PI ? G.stepH*Math.sin(n) : 0; }
+
+function gaitAngles(ph){
+  // Simple kinematic: hip and knee driven by sinusoidal gait equations
+  const n = ph % (2*Math.PI);
+  const A = G.stepLen * 1.6; // hip amplitude (rad approx)
+  const hipFlex  = A * Math.cos(n - 0.3);              // + = forward
+  const isSwing  = n < Math.PI;
+  const kneeFlex = isSwing ? G.stepH*14*Math.sin(n) : G.stepH*2*(1-Math.sin(n));
+  const ankleFlex= -(hipFlex*0.35 + kneeFlex*0.18);
+  return { hipFlex, kneeFlex, ankleFlex, isSwing };
+}
+
+// ── TRAJECTORY ARC UPDATE ──
+function updateTraj(traj, side){
+  const buf=traj.buf;
+  for(let i=0;i<N_TRAJ;i++){
+    const t2=i/(N_TRAJ-1);
+    const ph=t2*Math.PI;
+    buf[i*3  ] = side * G.stanceW/2;
+    buf[i*3+1] = G.stepH * Math.sin(ph);
+    buf[i*3+2] = G.stepLen*(t2-.5)*.85;
+  }
+  traj.geo.attributes.position.needsUpdate=true;
+}
+
+// ── ANIMATION LOOP ──
+function animate(ts){
+  requestAnimationFrame(animate);
+  const dt = Math.min((ts-(G.lastFrame||ts))/1000,.05);
+  G.lastFrame=ts;
+
+  // Neural override
+  if(G.neural){
+    MLP.train();
+    const out=MLP.predict(G.targetVel, G.slope);
+    G.stepLen=out.stepLen; G.cadence=out.cadence; G.stanceW=out.stanceW;
+    drawMlp(); drawLoss();
+    // Update NN display
+    document.getElementById('nn-tv').textContent  = G.targetVel.toFixed(2);
+    document.getElementById('nn-ts').textContent  = Math.round(G.slope)+'°';
+    document.getElementById('nn-sl').textContent  = G.stepLen.toFixed(2)+' m';
+    document.getElementById('nn-cad').textContent = Math.round(G.cadence)+' spm';
+    document.getElementById('nn-sw').textContent  = G.stanceW.toFixed(2)+' m';
+  }
+
+  // Advance phase
+  const freq = G.cadence/60;               // full cycles per sec
+  G.phase += dt * freq * 2 * Math.PI;
+  G.t += dt;
+
+  // Step counter
+  const pn = G.phase%(2*Math.PI);
+  if(G.lastPhase>5.5 && pn<0.3) G.steps++;
+  G.lastPhase = pn;
+
+  // Per-leg angles (R leg offset by π)
+  const phL = G.phase;
+  const phR = G.phase + Math.PI;
+  const aL  = gaitAngles(phL);
+  const aR  = gaitAngles(phR);
+
+  // Apply to leg groups
+  legL.thighG.rotation.x = aL.hipFlex;
+  legL.shinG.rotation.x  = aL.kneeFlex;
+  legL.footG.rotation.x  = aL.ankleFlex;
+
+  legR.thighG.rotation.x = aR.hipFlex;
+  legR.shinG.rotation.x  = aR.kneeFlex;
+  legR.footG.rotation.x  = aR.ankleFlex;
+
+  // Hip lateral sway
+  const sway = G.stanceW*0.28*Math.sin(G.phase);
+  pelvis.rotation.z  = sway * 0.55;
+  pelvis.rotation.y  = G.hipSwing * Math.sin(G.phase);
+
+  // Torso counter-rotation & lean
+  torso.rotation.y   = -G.hipSwing*0.55*Math.sin(G.phase);
+  torso.rotation.x   = G.lean;
+  torso.rotation.z   = -sway*0.25;
+
+  // Arm swing (opposite to legs)
+  arms[-1].ua.rotation.x = -aR.hipFlex*0.35;
+  arms[ 1].ua.rotation.x = -aL.hipFlex*0.35;
+
+  // Update hip positions for stance width
+  legL.hipG.position.x = -G.stanceW/2;
+  legR.hipG.position.x =  G.stanceW/2;
+
+  // CoM height bob
+  const comH = 0.92 + 0.012*Math.cos(G.phase*2);
+  const baseY = comH - 0.78;
+  pelvis.position.set(sway*0.1, baseY+0.03, 0);
+  torso.position.set(sway*0.08, baseY+0.34, 0);
+
+  // Trajectories
+  updateTraj(trajL, -1);
+  updateTraj(trajR,  1);
+
+  // Phase bar
+  const swL=aL.isSwing, swR=aR.isSwing;
+  document.getElementById('ps-ls').className  ='ps'+(swL?'':' active-a');
+  document.getElementById('ps-lsw').className ='ps'+(swL?' active-a':'');
+  document.getElementById('ps-rs').className  ='ps'+(swR?'':' active-t');
+  document.getElementById('ps-rsw').className ='ps'+(swR?' active-t':'');
+
+  // HUD
+  const vel = G.stepLen*(G.cadence/60);
+  const fh  = swL ? swingH(phL) : swingH(phR);
+  const cyc = 60/G.cadence;
+  const pwr = Math.round(28 + vel*42 + G.stepH*180 + Math.abs(G.slope)*2);
+  const cot = vel>0.05 ? (pwr/(70*9.81*vel)).toFixed(3) : '—';
+
+  document.getElementById('h-pl').textContent  = swL?'SWING ':'STANCE';
+  document.getElementById('h-pr').textContent  = swR?'SWING ':'STANCE';
+  document.getElementById('h-com').textContent = comH.toFixed(3)+' m';
+  document.getElementById('h-fh').textContent  = fh.toFixed(3)+' m';
+  document.getElementById('h-ct').textContent  = cyc.toFixed(2)+' s';
+  document.getElementById('h-pw').textContent  = pwr+' W';
+  document.getElementById('h-cot').textContent = cot;
+
+  // Chips
+  document.getElementById('ck-vel').textContent  = vel.toFixed(2);
+  document.getElementById('ck-cad').textContent  = Math.round(G.cadence);
+  document.getElementById('ck-steps').textContent= G.steps;
+
+  // Stability
+  const stab = Math.min(100,Math.max(0,Math.round(
+    82 + G.stanceW*28 - Math.abs(G.lean)*45 - Math.max(0,G.cadence-150)*.4 + G.stepH*(-80) + 8
+  )));
+  const stabCol = stab>78?'var(--teal)':stab>55?'var(--amber)':'var(--red)';
+  document.getElementById('ck-stab').textContent=stab;
+  document.getElementById('sfill').style.width=stab+'%';
+  document.getElementById('sfill').style.background=stabCol;
+  document.getElementById('spct').textContent=stab+'%';
+
+  // Telemetry
+  document.getElementById('m-vel').textContent  = vel.toFixed(2);
+  document.getElementById('m-cad').textContent  = Math.round(G.cadence);
+  document.getElementById('m-sl').textContent   = G.stepLen.toFixed(2);
+  document.getElementById('m-str').textContent  = (G.stepLen*2).toFixed(2);
+  document.getElementById('t-com').textContent  = comH.toFixed(3)+' m';
+  const p=PRESETS[G.mode];
+  document.getElementById('t-duty').textContent = p.duty;
+  document.getElementById('t-ds').textContent   = p.ds;
+  document.getElementById('t-gc').textContent   = G.stepH.toFixed(2)+' m';
+  document.getElementById('t-hr').textContent   = '±'+Math.round(G.hipSwing*57.3)+'°';
+  document.getElementById('t-es').textContent   = Math.round(pwr*cyc)+' J';
+
+  // Joint angles (rad→deg)
+  const d=r=>Math.round(r*180/Math.PI);
+  document.getElementById('ja-lh').textContent = d(aL.hipFlex)+'°';
+  document.getElementById('ja-lk').textContent = d(aL.kneeFlex)+'°';
+  document.getElementById('ja-la').textContent = d(aL.ankleFlex)+'°';
+  document.getElementById('ja-rh').textContent = d(aR.hipFlex)+'°';
+  document.getElementById('ja-rk').textContent = d(aR.kneeFlex)+'°';
+  document.getElementById('ja-ra').textContent = d(aR.ankleFlex)+'°';
+  document.getElementById('ja-ps').textContent = d(sway*.55)+'°';
+  document.getElementById('ja-tl').textContent = d(G.lean)+'°';
+
+  // Gait diagram
+  drawGait(phL, phR);
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
