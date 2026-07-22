@@ -629,7 +629,7 @@ animate();
 const ARCH=[6,16,16,3];
 
 function initMLP(){
-  W=[]; B=[]; epoch=0; lossHist.length=0; mlpReady=false;
+  W.length=0; B.length=0; epoch=0; lossHist.length=0; mlpReady=false;
   for(let l=0;l<ARCH.length-1;l++){
     const i=ARCH[l], o=ARCH[l+1], sc=Math.sqrt(2/i);
     W.push(Array.from({length:o},()=>Array.from({length:i},()=>(Math.random()*2-1)*sc)));
