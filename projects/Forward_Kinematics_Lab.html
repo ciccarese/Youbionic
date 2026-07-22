@@ -254,6 +254,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
+// GLOBAL STATE (declare first to avoid TDZ issues)
+// ═══════════════════════════════════════════════════
+let mlpRunning=false, mlpReady=false, mlpInterval=null, epoch=0;
+const lossHist=[];
+const W=[], B=[];
+const wsPts=[];
+const trailPts=[];
+const MAX_TRAIL=150;
+
+// ═══════════════════════════════════════════════════
 // DH PARAMETERS  [theta_offset, d, a, alpha]  (mm, rad)
 // ═══════════════════════════════════════════════════
 const DH_PARAMS = [
@@ -386,8 +396,6 @@ const eeGlow = new THREE.Mesh(
 scene.add(eeGlow);
 
 // Trail
-const trailPts=[];
-const MAX_TRAIL=150;
 const trailGeo = new THREE.BufferGeometry();
 const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({color:0x23e0c8,transparent:true,opacity:0.45}));
 scene.add(trailLine);
@@ -619,8 +627,6 @@ animate();
 // MLP — vanilla JS  6 inputs → 3 outputs (xyz)
 // ═══════════════════════════════════════════════════
 const ARCH=[6,16,16,3];
-let W=[], B=[], mlpRunning=false, mlpReady=false, mlpInterval=null, epoch=0;
-const lossHist=[];
 
 function initMLP(){
   W=[]; B=[]; epoch=0; lossHist.length=0; mlpReady=false;
@@ -722,7 +728,6 @@ function toggleMLP(){
 // ═══════════════════════════════════════════════════
 // WORKSPACE COMPUTATION
 // ═══════════════════════════════════════════════════
-const wsPts=[];
 function computeWorkspace(){
   wsPts.length=0;
   for(let s=0;s<2000;s++){
