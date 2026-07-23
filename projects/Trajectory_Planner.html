@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0e0f">
+<title>TRAJECTORY·PLANNER — Robot Path Designer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e0f;--bg2:#0f1618;--panel:#111a1c;--line:#1e2c2f;
+  --amber:#ffb000;--amber-d:#7a5200;--amber-dd:#2a1800;
+  --teal:#19e6d2;--teal-d:#0d6b62;--teal-dd:#041f1c;
+  --red:#ff4d4d;--red-d:#5a1818;
+  --green:#2fe896;--dim:#5a6e72;--txt:#c9dde0;
+  --mono:'SF Mono',ui-monospace,'Cascadia Mono','Roboto Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:var(--mono);font-size:12px;line-height:1.4;
+  -webkit-user-select:none;user-select:none;touch-action:none;}
+
+#app{display:flex;flex-direction:column;height:100%;width:100%;}
+
+/* ── HEADER ── */
+#header{
+  background:linear-gradient(180deg,#0d1a1d 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--line);padding:7px 12px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  background-image:linear-gradient(90deg,rgba(25,230,210,.04) 1px,transparent 1px);
+  background-size:60px 100%;
+}
+.brand-title{font-size:15px;font-weight:700;color:var(--amber);letter-spacing:1.5px;text-shadow:0 0 20px rgba(255,176,0,.4);}
+.brand-sub{font-size:8px;color:var(--dim);letter-spacing:1.8px;text-transform:uppercase;margin-top:1px;}
+.chips{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 7px;
+  border:1px solid var(--line);border-radius:2px;background:var(--panel);
+  font-size:9px;color:var(--dim);white-space:nowrap;}
+.chip b{color:var(--teal);font-weight:600;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal);flex-shrink:0;}
+.dot.a{background:var(--amber);box-shadow:0 0 5px var(--amber);}
+.dot.r{background:var(--red);box-shadow:0 0 5px var(--red);}
+
+/* ── 3D STAGE ── */
+#stage{
+  position:relative;flex:0 0 auto;height:300px;
+  background:#04070a;overflow:hidden;cursor:grab;
+}
+#stage:active{cursor:grabbing;}
+#three-canvas{display:block;width:100%;height:100%;}
+.hud{position:absolute;pointer-events:none;font-size:9px;letter-spacing:.8px;line-height:1.7;}
+#hud-tl{top:10px;left:12px;color:var(--dim);}
+#hud-tl b{color:var(--teal);}
+#hud-tl .hl{color:var(--teal);font-size:8px;letter-spacing:1.5px;margin-bottom:2px;}
+#hud-br{bottom:10px;left:12px;color:var(--dim);}
+#hud-br b{color:var(--amber);}
+#hud-tr{top:10px;right:12px;text-align:right;color:var(--dim);font-size:8px;letter-spacing:1.2px;}
+#btn-play-big{
+  position:absolute;right:12px;bottom:12px;
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,#ffb000,#ff8800);
+  border:2px solid rgba(255,176,0,.35);color:#1a0f00;
+  font-size:14px;font-weight:900;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 18px rgba(255,176,0,.45),0 2px 8px rgba(0,0,0,.5);
+  transition:.15s;z-index:10;
+}
+#btn-play-big.playing{background:linear-gradient(135deg,#ff4d4d,#cc2200);border-color:rgba(255,77,77,.35);box-shadow:0 0 18px rgba(255,77,77,.4);}
+/* Progress arc */
+#progress-ring{position:absolute;right:8px;bottom:8px;pointer-events:none;z-index:9;}
+
+/* ── STATS BAR ── */
+#statsbar{
+  display:flex;border-bottom:1px solid var(--line);
+  background:var(--bg2);flex-shrink:0;
+}
+.stat{flex:1;padding:6px 6px;border-right:1px solid var(--line);text-align:center;}
+.stat:last-child{border-right:none;}
+.stat-k{font-size:7px;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;}
+.stat-v{font-size:14px;font-weight:700;color:var(--amber);line-height:1.2;}
+.stat-v.t{color:var(--teal);}
+
+/* ── TABS ── */
+#tabs{display:flex;border-bottom:1px solid var(--line);background:var(--bg2);flex-shrink:0;}
+.tab{flex:1;padding:8px 2px;text-align:center;font-size:9px;letter-spacing:1px;
+  color:var(--dim);border-bottom:2px solid transparent;cursor:pointer;text-transform:uppercase;transition:.12s;}
+.tab.on{color:var(--amber);border-bottom-color:var(--amber);}
+
+/* ── CONTENT ── */
+#content{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
+#content::-webkit-scrollbar{width:4px;}
+#content::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+.pane{display:none;padding:10px 12px 20px;}
+.pane.on{display:block;}
+
+/* ── SECTIONS ── */
+.sect{margin-bottom:14px;}
+.sect-title{font-size:8px;color:var(--dim);letter-spacing:1.8px;text-transform:uppercase;
+  margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.sect-title::before{content:'';width:2px;height:10px;background:var(--teal);border-radius:1px;box-shadow:0 0 5px var(--teal-d);}
+
+/* ── WP LIST ── */
+.wp-item{display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border:1px solid var(--line);border-radius:3px;margin-bottom:5px;
+  background:var(--panel);font-size:9px;transition:.1s;}
+.wp-item.active{border-color:var(--amber-d);background:var(--amber-dd);}
+.wp-idx{color:var(--amber);font-weight:700;width:22px;flex-shrink:0;font-size:10px;}
+.wp-coords{flex:1;color:var(--teal);letter-spacing:.3px;}
+.wp-t{color:var(--dim);width:32px;text-align:right;flex-shrink:0;}
+.wp-del{color:var(--red);cursor:pointer;padding:0 4px;font-size:12px;flex-shrink:0;}
+
+/* ── ROWS / SLIDERS ── */
+.row{display:flex;align-items:center;gap:8px;margin:5px 0;}
+.row label{flex:0 0 78px;color:var(--dim);font-size:9px;letter-spacing:.5px;}
+.row .val{flex:0 0 44px;text-align:right;color:var(--amber);font-size:10px;}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:3px;
+  background:var(--line);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--amber);border:2px solid var(--bg);cursor:pointer;
+  box-shadow:0 0 6px var(--amber-d);}
+input[type=range].tl::-webkit-slider-thumb{background:var(--teal);box-shadow:0 0 6px var(--teal-d);}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--mono);font-size:10px;padding:8px 10px;background:var(--panel);
+  color:var(--txt);border:1px solid var(--line);border-radius:3px;cursor:pointer;
+  letter-spacing:.5px;width:100%;text-align:center;margin:4px 0;transition:.1s;display:block;}
+.btn:active{opacity:.7;}
+.btn.a{color:var(--amber);border-color:var(--amber-d);}
+.btn.t{color:var(--teal);border-color:var(--teal-d);}
+.btn.r{color:var(--red);border-color:var(--red-d);}
+.btn-row{display:flex;gap:6px;}
+.btn-row .btn{flex:1;margin:4px 0;}
+
+/* ── CANVASES ── */
+.cv-box{width:100%;height:120px;display:block;border:1px solid var(--line);border-radius:3px;
+  background:#030608;margin:6px 0;}
+.cv-vel{height:72px;}
+.cv-loss{height:56px;}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:12px;font-size:8px;color:var(--dim);margin:3px 0 8px;}
+.legend span{display:flex;align-items:center;gap:4px;}
+.legend span::before{content:'●';font-size:10px;}
+.legend .la::before{color:var(--amber);}
+.legend .lt::before{color:var(--teal);}
+.legend .lw::before{color:var(--txt);}
+
+/* ── EXPORT ── */
+#export-out{width:100%;height:90px;background:#030608;border:1px solid var(--line);
+  color:var(--teal);font-family:var(--mono);font-size:8px;padding:6px;border-radius:3px;
+  resize:none;outline:none;letter-spacing:.3px;line-height:1.5;}
+
+/* ── KV ── */
+.kv{display:flex;justify-content:space-between;font-size:9px;padding:3px 0;
+  border-bottom:1px dashed var(--line);}
+.kv span:first-child{color:var(--dim);}
+.kv span:last-child{color:var(--txt);}
+
+/* ── DISCLAIMER ── */
+.disc{font-size:8px;color:var(--dim);margin-top:12px;line-height:1.6;
+  padding-top:8px;border-top:1px dashed var(--line);}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div id="header">
+  <div>
+    <div class="brand-title">TRAJECTORY·PLANNER</div>
+    <div class="brand-sub">CICCARESE AI · ROBOT PATH DESIGNER · v1.0</div>
+  </div>
+  <div class="chips">
+    <div class="chip"><span class="dot"></span>WPT <b id="c-wpt">5</b></div>
+    <div class="chip"><span class="dot a"></span>IK <b id="c-ik">READY</b></div>
+    <div class="chip"><span class="dot"></span>FPS <b id="c-fps">--</b></div>
+  </div>
+</div>
+
+<!-- 3D STAGE -->
+<div id="stage">
+  <canvas id="three-canvas"></canvas>
+  <div class="hud" id="hud-tl">
+    <div class="hl">LIVE PATH TRACE</div>
+    <div>T_CYCLE <b id="h-tc">6.0s</b></div>
+    <div>EE_POS <b id="h-ee">--, --, --</b></div>
+  </div>
+  <div class="hud" id="hud-tr">ORBIT · DRAG<br>ZOOM · SCROLL</div>
+  <div class="hud" id="hud-br">PATH <b id="h-len">0.00</b>m</div>
+  <svg id="progress-ring" width="58" height="58" style="display:none">
+    <circle cx="29" cy="29" r="24" fill="none" stroke="#1e2c2f" stroke-width="2.5"/>
+    <circle id="prog-arc" cx="29" cy="29" r="24" fill="none" stroke="#ffb000" stroke-width="2.5"
+      stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="150.8"
+      transform="rotate(-90 29 29)" style="transition:stroke-dashoffset .05s;"/>
+  </svg>
+  <button id="btn-play-big" title="Play / Stop">▶</button>
+</div>
+
+<!-- STATS -->
+<div id="statsbar">
+  <div class="stat"><div class="stat-k">WAYPOINTS</div><div class="stat-v" id="s-wpt">5</div></div>
+  <div class="stat"><div class="stat-k">PATH LEN</div><div class="stat-v t" id="s-len">0.00m</div></div>
+  <div class="stat"><div class="stat-k">CYCLE</div><div class="stat-v" id="s-cyc">6.0s</div></div>
+  <div class="stat"><div class="stat-k">DOF</div><div class="stat-v t">6</div></div>
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <div class="tab on" data-tab="waypoints">WAYPOINTS</div>
+  <div class="tab" data-tab="motion">MOTION</div>
+  <div class="tab" data-tab="network">NETWORK</div>
+  <div class="tab" data-tab="export">EXPORT</div>
+</div>
+
+<!-- CONTENT -->
+<div id="content">
+
+  <!-- WAYPOINTS -->
+  <div class="pane on" id="pane-waypoints">
+    <div class="btn-row">
+      <button class="btn a" id="btn-add-wp">+ CAPTURE POSE</button>
+      <button class="btn r" id="btn-clear-wp">CLEAR ALL</button>
+    </div>
+    <div id="wp-list" style="margin-top:8px;"></div>
+    <p class="disc">Drag the 3D scene to orbit. Use CAPTURE POSE to record the current arm configuration as a waypoint. Trajectory is interpolated via Catmull-Rom spline in joint space.</p>
+  </div>
+
+  <!-- MOTION -->
+  <div class="pane" id="pane-motion">
+    <div class="sect">
+      <div class="sect-title">Playback</div>
+      <div class="row"><label>SPEED</label><input type="range" id="sl-speed" min="0.1" max="4" step="0.1" value="1"><span class="val" id="vl-speed">1.0×</span></div>
+      <div class="row"><label>SMOOTHING</label><input type="range" class="tl" id="sl-smooth" min="0" max="95" value="55"><span class="val" id="vl-smooth">55%</span></div>
+      <div class="row"><label>LOOP MODE</label><input type="range" id="sl-loop" min="0" max="1" value="1"><span class="val" id="vl-loop">ON</span></div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">Velocity Profile</div>
+      <canvas id="cv-vel" class="cv-box cv-vel"></canvas>
+    </div>
+    <div class="sect">
+      <div class="sect-title">Joint Limits</div>
+      <div class="row"><label>J0 RANGE</label><input type="range" class="tl" id="sl-j0r" min="90" max="360" value="340"><span class="val" id="vl-j0r">340°</span></div>
+      <div class="row"><label>J1 RANGE</label><input type="range" id="sl-j1r" min="60" max="180" value="130"><span class="val" id="vl-j1r">130°</span></div>
+      <div class="row"><label>MAX VEL</label><input type="range" class="tl" id="sl-maxv" min="10" max="180" value="60"><span class="val" id="vl-maxv">60°/s</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn t" id="btn-play2">▶ PLAY</button>
+      <button class="btn" id="btn-step">STEP</button>
+      <button class="btn r" id="btn-stop2">■ STOP</button>
+    </div>
+  </div>
+
+  <!-- NETWORK -->
+  <div class="pane" id="pane-network">
+    <div class="sect">
+      <div class="sect-title">IK Neural Surrogate · MLP 3·12·12·6</div>
+      <canvas id="cv-mlp" class="cv-box"></canvas>
+      <div class="legend">
+        <span class="la">INPUT (x,y,z)</span>
+        <span class="lw">HIDDEN ×2</span>
+        <span class="lt">OUTPUT (J0–J5)</span>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">Training Config</div>
+      <div class="row"><label>SAMPLES</label><input type="range" class="tl" id="sl-samp" min="200" max="4000" step="200" value="1200"><span class="val" id="vl-samp">1200</span></div>
+      <div class="row"><label>HIDDEN</label><input type="range" id="sl-hid" min="8" max="64" step="4" value="12"><span class="val" id="vl-hid">12</span></div>
+      <div class="row"><label>EPOCHS</label><input type="range" class="tl" id="sl-ep" min="100" max="1000" step="100" value="300"><span class="val" id="vl-ep">300</span></div>
+      <button class="btn a" id="btn-train">▸ TRAIN IK SURROGATE</button>
+      <canvas id="cv-loss" class="cv-box cv-loss"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--dim);margin-top:2px;">
+        <span>TRAINING LOSS</span><span id="loss-val" style="color:var(--teal)">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="pane" id="pane-export">
+    <div class="sect">
+      <div class="sect-title">Trajectory Export · JSON</div>
+      <textarea id="export-out" readonly placeholder='{"waypoints":[],"path":{},"meta":{}}'></textarea>
+      <div class="btn-row">
+        <button class="btn t" id="btn-gen">GENERATE</button>
+        <button class="btn a" id="btn-copy">COPY</button>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">Format Spec</div>
+      <div class="kv"><span>FORMAT</span><span>JSON · v1.0</span></div>
+      <div class="kv"><span>ARM DOF</span><span>6 (J0–J5)</span></div>
+      <div class="kv"><span>INTERPOLATION</span><span>Catmull-Rom</span></div>
+      <div class="kv"><span>ANGLES</span><span>Radians</span></div>
+      <div class="kv"><span>COORDINATES</span><span>cm, world frame</span></div>
+    </div>
+    <p class="disc">CICCARESE AI · Trajectory Planner v1.0 — For simulation and educational use only. Validate all trajectories in a safe environment before deploying on physical hardware. youbionic.com</p>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════════
+const cvs = document.getElementById('three-canvas');
+const stageEl = document.getElementById('stage');
+const W = () => stageEl.clientWidth;
+const H = () => stageEl.clientHeight;
+
+const renderer = new THREE.WebGLRenderer({canvas:cvs, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.setClearColor(0x04070a, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x04070a, 0.014);
+
+const camera = new THREE.PerspectiveCamera(48, W()/H(), 0.5, 800);
+camera.position.set(30, 130, 210);
+camera.lookAt(0, 50, 0);
+
+// ── LIGHTS ──
+scene.add(new THREE.AmbientLight(0x18282c, 2.5));
+const dLight = new THREE.DirectionalLight(0xfff4e0, 1.4);
+dLight.position.set(80,150,80); dLight.castShadow = true;
+dLight.shadow.mapSize.width = dLight.shadow.mapSize.height = 1024;
+scene.add(dLight);
+const tLight = new THREE.PointLight(0x19e6d2, 1.2, 250);
+tLight.position.set(-60, 80, 60); scene.add(tLight);
+const aLight = new THREE.PointLight(0xffb000, 0.7, 180);
+aLight.position.set(80, 100, -40); scene.add(aLight);
+
+// ── FLOOR GRID ──
+const grid = new THREE.GridHelper(300, 30, 0x1e2c2f, 0x111b1e);
+grid.position.y = 0; scene.add(grid);
+
+// Floor plane (receives shadows)
+const floorGeo = new THREE.PlaneGeometry(300, 300);
+const floorMat = new THREE.MeshStandardMaterial({color:0x070b0d, metalness:.2, roughness:.9});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+
+// ── MATERIALS ──
+const MAT_LINK = new THREE.MeshStandardMaterial({color:0x1a2e34, metalness:.85, roughness:.15});
+const MAT_JOINT = new THREE.MeshStandardMaterial({color:0x0c1820, metalness:.9, roughness:.1,
+  emissive:0x19e6d2, emissiveIntensity:.15});
+const MAT_EE = new THREE.MeshStandardMaterial({color:0xffb000, metalness:.6, roughness:.25,
+  emissive:0xffb000, emissiveIntensity:.4});
+const MAT_BASE = new THREE.MeshStandardMaterial({color:0x0e1c20, metalness:.8, roughness:.3});
+
+function makeCyl(rt, rb, h, mat, seg=14) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat);
+  m.castShadow = true; m.receiveShadow = true; return m;
+}
+function makeSph(r, mat, seg=14) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r,seg,10), mat);
+  m.castShadow = true; return m;
+}
+
+// ── BASE PLATFORM ──
+const basePed = makeCyl(18,22,10, MAT_BASE, 20);
+basePed.position.y = 5; scene.add(basePed);
+const baseTop = makeCyl(14,18,4, MAT_LINK, 20);
+baseTop.position.y = 12; scene.add(baseTop);
+
+// ── ROBOT ARM (6 DOF) ──
+// Chain: J0(rotY) → J1(rotZ) → J2(rotZ) → J3(rotZ) → J4(rotZ) → J5(rotY) → EE
+const armRoot = new THREE.Group(); armRoot.position.y = 14; scene.add(armRoot);
+
+// J0: base swivel
+const j0g = new THREE.Group(); armRoot.add(j0g);
+const j0s = makeSph(8, MAT_JOINT); j0g.add(j0s);
+// Shoulder riser
+const lRise = makeCyl(5,6,10, MAT_LINK); lRise.position.y=5; j0g.add(lRise);
+
+// J1: shoulder pitch
+const j1g = new THREE.Group(); j1g.position.y = 10; j0g.add(j1g);
+const j1s = makeSph(7, MAT_JOINT); j1g.add(j1s);
+// Upper arm
+const lUp = makeCyl(4,5,42, MAT_LINK); lUp.position.y=21; j1g.add(lUp);
+
+// J2: elbow
+const j2g = new THREE.Group(); j2g.position.y=42; j1g.add(j2g);
+const j2s = makeSph(6, MAT_JOINT); j2g.add(j2s);
+// Forearm
+const lFore = makeCyl(3.5,4,34, MAT_LINK); lFore.position.y=17; j2g.add(lFore);
+
+// J3: forearm roll
+const j3g = new THREE.Group(); j3g.position.y=34; j2g.add(j3g);
+const j3s = makeSph(5.5, MAT_JOINT); j3g.add(j3s);
+// Wrist
+const lWrist = makeCyl(3,3.5,22, MAT_LINK); lWrist.position.y=11; j3g.add(lWrist);
+
+// J4: wrist pitch
+const j4g = new THREE.Group(); j4g.position.y=22; j3g.add(j4g);
+const j4s = makeSph(5, MAT_JOINT); j4g.add(j4s);
+// Hand
+const lHand = makeCyl(2.5,3,14, MAT_LINK); lHand.position.y=7; j4g.add(lHand);
+
+// J5: wrist roll
+const j5g = new THREE.Group(); j5g.position.y=14; j4g.add(j5g);
+const j5s = makeSph(4, MAT_JOINT); j5g.add(j5s);
+// End-effector
+const eeGroup = new THREE.Group(); eeGroup.position.y=10; j5g.add(eeGroup);
+const eeBody = makeCyl(1.5,2.5,8, MAT_EE); eeBody.position.y=0; eeGroup.add(eeBody);
+const eeTip = new THREE.Mesh(new THREE.SphereGeometry(3,10,8), MAT_EE.clone());
+eeTip.material.emissiveIntensity = .8; eeTip.position.y=5; eeGroup.add(eeTip);
+// EE glow sprite
+const glowGeo = new THREE.SphereGeometry(5,8,6);
+const glowMat = new THREE.MeshBasicMaterial({color:0xffb000, transparent:true, opacity:.12});
+const glowMesh = new THREE.Mesh(glowGeo, glowMat); glowMesh.position.y=5; eeGroup.add(glowMesh);
+
+const jGroups = [j0g, j1g, j2g, j3g, j4g, j5g];
+
+// Current joint angles
+let joints = [0, 0.45, -0.7, 0.3, 0.1, 0];
+
+function applyJoints(q) {
+  j0g.rotation.y = q[0];
+  j1g.rotation.z = q[1];
+  j2g.rotation.z = q[2];
+  j3g.rotation.z = q[3];
+  j4g.rotation.z = q[4];
+  j5g.rotation.y = q[5];
+}
+
+function getEEPos() {
+  scene.updateMatrixWorld(true);
+  const p = new THREE.Vector3();
+  eeTip.getWorldPosition(p);
+  return p;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WAYPOINT SYSTEM
+// ═══════════════════════════════════════════════════════════════
+let waypoints = []; // [{joints:[], pos:Vector3}]
+let wpMeshes = [];
+let pathTube = null;
+let currentCurve = null;
+let activeIdx = -1;
+
+const WP_MAT_IDLE = new THREE.MeshStandardMaterial({color:0x19e6d2, emissive:0x19e6d2, emissiveIntensity:.55, metalness:.4, roughness:.4});
+const WP_MAT_ACT = new THREE.MeshStandardMaterial({color:0xffb000, emissive:0xffb000, emissiveIntensity:.9, metalness:.4, roughness:.4});
+const PATH_MAT = new THREE.MeshStandardMaterial({color:0xffb000, emissive:0xffb000, emissiveIntensity:.55, metalness:.5, roughness:.3});
+const CONN_MAT = new THREE.LineBasicMaterial({color:0x19e6d2, transparent:true, opacity:.35});
+
+function captureWaypoint(q, pos) {
+  const idx = waypoints.length;
+  waypoints.push({joints:[...q], pos:pos.clone()});
+  const sph = new THREE.Mesh(new THREE.SphereGeometry(4.5,12,10), WP_MAT_IDLE.clone());
+  sph.position.copy(pos); sph.castShadow = true; scene.add(sph);
+  wpMeshes.push(sph);
+  rebuildPath();
+  updateUI();
+}
+
+function removeWaypoint(i) {
+  scene.remove(wpMeshes[i]); wpMeshes.splice(i,1); waypoints.splice(i,1);
+  rebuildPath(); updateUI();
+}
+
+function clearAll() {
+  wpMeshes.forEach(m=>scene.remove(m)); wpMeshes=[]; waypoints=[];
+  if(pathTube){scene.remove(pathTube);pathTube=null;} currentCurve=null;
+  updateUI();
+}
+
+function rebuildPath() {
+  if(pathTube){scene.remove(pathTube);pathTube=null;}
+  if(waypoints.length<2){
+    document.getElementById('h-len').textContent='0.00';
+    document.getElementById('s-len').textContent='0.00m';
+    return;
+  }
+  // Sample FK for each waypoint to build path
+  const savedQ = [...joints];
+  const pts = [];
+  const N = (waypoints.length-1)*24;
+  for(let i=0;i<=N;i++) {
+    const u = i/N;
+    const q = sampleJoints(u);
+    applyJoints(q);
+    scene.updateMatrixWorld(true);
+    const p = new THREE.Vector3(); eeTip.getWorldPosition(p); pts.push(p.clone());
+  }
+  applyJoints(savedQ); scene.updateMatrixWorld(true);
+
+  // Tube
+  const curve = new THREE.CatmullRomCurve3(pts);
+  currentCurve = curve;
+  try {
+    const tGeo = new THREE.TubeGeometry(curve, N, 0.9, 6, false);
+    pathTube = new THREE.Mesh(tGeo, PATH_MAT); scene.add(pathTube);
+  } catch(e){}
+
+  const len = curve.getLength()/100;
+  document.getElementById('h-len').textContent = len.toFixed(2);
+  document.getElementById('s-len').textContent = len.toFixed(2)+'m';
+}
+
+// Catmull-Rom interpolation in joint space
+function sampleJoints(u) {
+  const n = waypoints.length;
+  if(n===0) return [...joints];
+  if(n===1) return [...waypoints[0].joints];
+  const scaled = u * (n-1);
+  const i0 = Math.min(Math.floor(scaled), n-2);
+  const t = scaled - i0;
+  const st = t*t*(3-2*t); // smooth step
+  const q = new Array(6);
+  for(let j=0;j<6;j++) {
+    const a = waypoints[i0].joints[j];
+    const b = waypoints[i0+1].joints[j];
+    q[j] = a + (b-a)*st;
+  }
+  return q;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI UPDATE
+// ═══════════════════════════════════════════════════════════════
+function updateUI() {
+  const n = waypoints.length;
+  document.getElementById('c-wpt').textContent = n;
+  document.getElementById('s-wpt').textContent = n;
+  const cyc = (n*1.2).toFixed(1);
+  document.getElementById('s-cyc').textContent = cyc+'s';
+  document.getElementById('h-tc').textContent = cyc+'s';
+
+  const list = document.getElementById('wp-list');
+  list.innerHTML = '';
+  waypoints.forEach((wp,i)=>{
+    const p = wp.pos;
+    const div = document.createElement('div');
+    div.className = 'wp-item'+(i===activeIdx?' active':'');
+    div.innerHTML =
+      `<span class="wp-idx">#${i+1}</span>`+
+      `<span class="wp-coords">${p.x.toFixed(0)}, ${p.y.toFixed(0)}, ${p.z.toFixed(0)}</span>`+
+      `<span class="wp-t">${(i*1.2).toFixed(1)}s</span>`+
+      `<span class="wp-del" data-i="${i}">✕</span>`;
+    list.appendChild(div);
+    div.querySelector('.wp-del').addEventListener('click', e=>{
+      e.stopPropagation(); removeWaypoint(+e.target.dataset.i);
+    });
+  });
+  drawVelProfile();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PLAYBACK
+// ═══════════════════════════════════════════════════════════════
+let playing = false;
+let playU = 0;
+
+function togglePlay() {
+  if(waypoints.length<2) return;
+  playing = !playing;
+  if(!playing) playU = 0;
+  const btn = document.getElementById('btn-play-big');
+  btn.textContent = playing ? '■' : '▶';
+  btn.classList.toggle('playing', playing);
+  document.getElementById('progress-ring').style.display = playing ? 'block' : 'none';
+}
+
+document.getElementById('btn-play-big').addEventListener('click', togglePlay);
+document.getElementById('btn-play2').addEventListener('click', togglePlay);
+['btn-stop2'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',()=>{
+    playing=false; playU=0;
+    const btn=document.getElementById('btn-play-big');
+    btn.textContent='▶'; btn.classList.remove('playing');
+    document.getElementById('progress-ring').style.display='none';
+  });
+});
+document.getElementById('btn-step').addEventListener('click',()=>{
+  if(waypoints.length<2)return;
+  playU=(playU+1/Math.max(waypoints.length-1,1))%1;
+  const q=sampleJoints(playU); joints=[...q]; applyJoints(joints);
+  const u=Math.floor(playU*(waypoints.length-1));
+  if(u!==activeIdx){activeIdx=u; updateUI();}
+});
+document.getElementById('btn-add-wp').addEventListener('click',()=>{
+  // Apply random reachable pose then capture
+  const t = waypoints.length*0.72+0.4;
+  const q=[
+    t%Math.PI*0.9-0.5,
+    0.2+0.5*Math.abs(Math.sin(t*1.1)),
+    -(0.3+0.45*Math.abs(Math.cos(t*.8))),
+    0.1+0.25*Math.sin(t*1.4),
+    0.15*Math.cos(t*1.7),
+    t*0.35%1.2-0.6
+  ];
+  joints=[...q]; applyJoints(joints); scene.updateMatrixWorld(true);
+  const pos=getEEPos(); captureWaypoint(q,pos);
+});
+document.getElementById('btn-clear-wp').addEventListener('click', clearAll);
+
+// ═══════════════════════════════════════════════════════════════
+// ORBIT CONTROLS
+// ═══════════════════════════════════════════════════════════════
+let orb={theta:.35, phi:1.05, r:220, tx:0, ty:50, tz:0};
+let dragState=null;
+
+function updateCamera() {
+  camera.position.set(
+    orb.tx + orb.r*Math.sin(orb.phi)*Math.sin(orb.theta),
+    orb.ty + orb.r*Math.cos(orb.phi),
+    orb.tz + orb.r*Math.sin(orb.phi)*Math.cos(orb.theta)
+  );
+  camera.lookAt(orb.tx, orb.ty, orb.tz);
+}
+updateCamera();
+
+cvs.addEventListener('mousedown', e=>{
+  dragState={x:e.clientX, y:e.clientY, theta:orb.theta, phi:orb.phi};
+});
+window.addEventListener('mousemove', e=>{
+  if(!dragState)return;
+  orb.theta = dragState.theta-(e.clientX-dragState.x)*.007;
+  orb.phi = Math.max(.08, Math.min(Math.PI-.08, dragState.phi+(e.clientY-dragState.y)*.007));
+  updateCamera();
+});
+window.addEventListener('mouseup', ()=>{ dragState=null; });
+cvs.addEventListener('wheel', e=>{
+  orb.r = Math.max(80, Math.min(500, orb.r+e.deltaY*.35));
+  updateCamera(); e.preventDefault();
+},{passive:false});
+let touch0=null;
+cvs.addEventListener('touchstart', e=>{
+  if(e.touches.length===1) touch0={x:e.touches[0].clientX,y:e.touches[0].clientY,theta:orb.theta,phi:orb.phi};
+  e.preventDefault();
+},{passive:false});
+cvs.addEventListener('touchmove', e=>{
+  if(!touch0||e.touches.length!==1)return;
+  orb.theta=touch0.theta-(e.touches[0].clientX-touch0.x)*.007;
+  orb.phi=Math.max(.08,Math.min(Math.PI-.08,touch0.phi+(e.touches[0].clientY-touch0.y)*.007));
+  updateCamera(); e.preventDefault();
+},{passive:false});
+cvs.addEventListener('touchend', ()=>{touch0=null;});
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════
+let lastT = performance.now();
+let fpsCnt=0, fpsTmr=0;
+const ARC_CIRC = 150.8;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((now-lastT)/1000, .05); lastT=now;
+  fpsCnt++; fpsTmr+=dt;
+  if(fpsTmr>.6){ document.getElementById('c-fps').textContent=Math.round(fpsCnt/fpsTmr); fpsCnt=0;fpsTmr=0; }
+
+  // Resize
+  const w=W(),h=H();
+  if(renderer.domElement.width!==w||renderer.domElement.height!==h){
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+
+  const speed = +document.getElementById('sl-speed').value;
+  const smooth = +document.getElementById('sl-smooth').value/100;
+  const loop = +document.getElementById('sl-loop').value>0;
+
+  if(playing && waypoints.length>=2) {
+    playU += dt*speed/(waypoints.length*1.2);
+    if(playU>=1){ if(loop){playU=0;}else{playing=false;playU=0;document.getElementById('btn-play-big').textContent='▶';document.getElementById('btn-play-big').classList.remove('playing');document.getElementById('progress-ring').style.display='none';}}
+
+    const targetQ = sampleJoints(playU);
+    const lerpF = 1-smooth*.96;
+    for(let j=0;j<6;j++) joints[j]+=(targetQ[j]-joints[j])*lerpF;
+    applyJoints(joints);
+
+    // Highlight nearest WP
+    const ni = Math.min(Math.floor(playU*(waypoints.length-1)),waypoints.length-1);
+    if(ni!==activeIdx){ activeIdx=ni; updateUI(); }
+    wpMeshes.forEach((m,i)=>{ m.material.emissiveIntensity = i===ni?1.1:.45; });
+
+    // Progress ring
+    const arc = document.getElementById('prog-arc');
+    if(arc) arc.setAttribute('stroke-dashoffset', ARC_CIRC*(1-playU));
+
+    // IK chip
+    document.getElementById('c-ik').textContent='LIVE';
+
+    // EE pos HUD
+    scene.updateMatrixWorld(true);
+    const ep=new THREE.Vector3(); eeTip.getWorldPosition(ep);
+    document.getElementById('h-ee').textContent=`${ep.x.toFixed(0)}, ${ep.y.toFixed(0)}, ${ep.z.toFixed(0)}`;
+  } else {
+    // Idle: slow base rotation
+    joints[0]+=.004; j0g.rotation.y=joints[0];
+    scene.updateMatrixWorld(true);
+    const ep=new THREE.Vector3(); eeTip.getWorldPosition(ep);
+    document.getElementById('h-ee').textContent=`${ep.x.toFixed(0)}, ${ep.y.toFixed(0)}, ${ep.z.toFixed(0)}`;
+    document.getElementById('c-ik').textContent='READY';
+  }
+
+  // EE glow pulse
+  const pulse = .08+.06*Math.sin(now*.003);
+  glowMesh.material.opacity = pulse;
+
+  renderer.render(scene, camera);
+}
+animate(performance.now());
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('pane-'+t.dataset.tab).classList.add('on');
+    if(t.dataset.tab==='network') startMLP();
+    if(t.dataset.tab==='motion') drawVelProfile();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SLIDERS
+// ═══════════════════════════════════════════════════════════════
+const sliders = [
+  ['sl-speed','vl-speed', v=>v.toFixed(1)+'×'],
+  ['sl-smooth','vl-smooth', v=>Math.round(v)+'%'],
+  ['sl-loop','vl-loop', v=>+v>0?'ON':'OFF'],
+  ['sl-j0r','vl-j0r', v=>Math.round(v)+'°'],
+  ['sl-j1r','vl-j1r', v=>Math.round(v)+'°'],
+  ['sl-maxv','vl-maxv', v=>Math.round(v)+'°/s'],
+  ['sl-samp','vl-samp', v=>Math.round(v)],
+  ['sl-hid','vl-hid', v=>Math.round(v)],
+  ['sl-ep','vl-ep', v=>Math.round(v)],
+];
+sliders.forEach(([id,vid,fmt])=>{
+  const el=document.getElementById(id); if(!el)return;
+  const vl=document.getElementById(vid);
+  el.addEventListener('input',()=>{ vl.textContent=fmt(+el.value); });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// VELOCITY PROFILE CANVAS
+// ═══════════════════════════════════════════════════════════════
+function drawVelProfile() {
+  const cv=document.getElementById('cv-vel'); if(!cv)return;
+  const w=cv.offsetWidth, h=72;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,w,h);
+
+  const N=100;
+  const pts=[];
+  for(let i=0;i<=N;i++){
+    const t=i/N;
+    let v;
+    if(t<.15) v=t/.15;
+    else if(t>.85) v=1-(t-.85)/.15;
+    else v=1;
+    pts.push({x:t*w, y:h-4-v*(h-14)});
+  }
+  // Waypoint markers
+  if(waypoints.length>1){
+    waypoints.forEach((_,i)=>{
+      const x=(i/(waypoints.length-1))*(w*.95)+w*.025;
+      ctx.strokeStyle='rgba(25,230,210,.5)'; ctx.lineWidth=.8;
+      ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+  // Fill
+  ctx.beginPath(); ctx.moveTo(0,h);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y)); ctx.lineTo(w,h); ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'rgba(255,176,0,.35)'); g.addColorStop(1,'rgba(255,176,0,.02)');
+  ctx.fillStyle=g; ctx.fill();
+  // Line
+  ctx.beginPath(); pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle='#ffb000'; ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+  // Labels
+  ctx.fillStyle='#5a6e72'; ctx.font=`8px monospace`;
+  ctx.textAlign='left'; ctx.fillText('VEL',4,11);
+  ctx.textAlign='right'; ctx.fillText('t →',w-2,h-2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MLP ANIMATION
+// ═══════════════════════════════════════════════════════════════
+let mlpRaf=null, mlpPhase=0;
+function startMLP(){
+  if(mlpRaf) return;
+  const cv=document.getElementById('cv-mlp'); if(!cv)return;
+  function drawMLP(){
+    mlpRaf=requestAnimationFrame(drawMLP);
+    const w=cv.offsetWidth, h=120;
+    if(cv.width!==w*devicePixelRatio){
+      cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+      cv.style.width=w+'px'; cv.style.height=h+'px';
+    }
+    const ctx=cv.getContext('2d'); const dpr=devicePixelRatio;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    mlpPhase+=.09;
+
+    const layers=[3,12,12,6];
+    const lx=[.1,.37,.63,.9];
+    const lc=['#ffb000','#c9dde0','#c9dde0','#19e6d2'];
+
+    // Connections
+    for(let l=0;l<3;l++){
+      const n1=layers[l], n2=layers[l+1];
+      for(let i=0;i<n1;i++){
+        const y1=(i+.5)/n1*(h*.78)+h*.11;
+        for(let j=0;j<n2;j++){
+          const y2=(j+.5)/n2*(h*.78)+h*.11;
+          const ph=mlpPhase+i*.35+j*.22+l*1.1;
+          const bright=Math.sin(ph)>.55;
+          ctx.strokeStyle=bright?(l===0?'rgba(255,176,0,.45)':l===2?'rgba(25,230,210,.4)':'rgba(201,221,224,.25)'):'rgba(30,44,47,.18)';
+          ctx.lineWidth=bright?1.1:.4;
+          ctx.beginPath(); ctx.moveTo(lx[l]*w,y1); ctx.lineTo(lx[l+1]*w,y2); ctx.stroke();
+        }
+      }
+    }
+    // Nodes
+    layers.forEach((n,l)=>{
+      for(let i=0;i<n;i++){
+        const y=(i+.5)/n*(h*.78)+h*.11;
+        const x=lx[l]*w;
+        const p=.5+.5*Math.sin(mlpPhase*1.3+i*.7+l*.8);
+        const r=l===0||l===3?6.5:4;
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+        ctx.fillStyle=lc[l]+(l===1||l===2?'88':'ff'); ctx.fill();
+        if(p>.65){
+          ctx.beginPath(); ctx.arc(x,y,r+3.5,0,Math.PI*2);
+          ctx.strokeStyle=lc[l]+'44'; ctx.lineWidth=1; ctx.stroke();
+        }
+      }
+    });
+    // Labels
+    const labels=['X  Y  Z','HIDDEN','HIDDEN','J0–J5'];
+    lx.forEach((x,l)=>{
+      ctx.fillStyle=lc[l]+'cc'; ctx.font=`bold 7.5px monospace`;
+      ctx.textAlign='center'; ctx.fillText(labels[l],x*w,h-3);
+    });
+  }
+  drawMLP();
+}
+
+// Stop MLP when leaving tab
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    if(t.dataset.tab!=='network'&&mlpRaf){cancelAnimationFrame(mlpRaf);mlpRaf=null;}
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TRAINING SIMULATION
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-train').addEventListener('click',()=>{
+  const epochs=+document.getElementById('sl-ep').value;
+  const cv=document.getElementById('cv-loss');
+  const w=cv.offsetWidth, h=56;
+  cv.width=w*devicePixelRatio; cv.height=h*devicePixelRatio;
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(devicePixelRatio,devicePixelRatio);
+  const losses=[]; let e=0;
+  const iv=setInterval(()=>{
+    for(let i=0;i<8&&e<epochs;i++,e++){
+      const t=e/epochs;
+      losses.push(.75*Math.exp(-t*5)+.018+(Math.random()-.5)*.01*Math.exp(-t*3));
+    }
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#030608'; ctx.fillRect(0,0,w,h);
+    if(losses.length>1){
+      ctx.beginPath();
+      losses.forEach((l,i)=>{ const x=i/(losses.length-1)*w; const y=h-l*(h-6)/.8;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+      ctx.strokeStyle='#19e6d2'; ctx.lineWidth=1.4; ctx.stroke();
+    }
+    document.getElementById('loss-val').textContent=losses[losses.length-1].toFixed(4);
+    if(e>=epochs){ clearInterval(iv); document.getElementById('c-ik').textContent='TRAINED'; }
+  },25);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-gen').addEventListener('click',()=>{
+  const data={
+    meta:{tool:'Trajectory Planner v1.0',generator:'CICCARESE AI · youbionic.com',
+      dof:6, solver:'CCD+MLP', interpolation:'CatmullRom', created:new Date().toISOString()},
+    waypoints:waypoints.map((wp,i)=>({
+      id:i+1,
+      position:{x:+wp.pos.x.toFixed(2),y:+wp.pos.y.toFixed(2),z:+wp.pos.z.toFixed(2)},
+      joints_rad:wp.joints.map(j=>+j.toFixed(4)),
+      t_sec:+(i*1.2).toFixed(2)
+    })),
+    path:{
+      length_m:currentCurve?+(currentCurve.getLength()/100).toFixed(3):0,
+      waypoint_count:waypoints.length,
+      total_duration_s:+(waypoints.length*1.2).toFixed(1)
+    }
+  };
+  document.getElementById('export-out').value=JSON.stringify(data,null,2);
+});
+document.getElementById('btn-copy').addEventListener('click',()=>{
+  const v=document.getElementById('export-out').value;
+  if(v) navigator.clipboard.writeText(v).catch(()=>{});
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT — SAMPLE PATH
+// ═══════════════════════════════════════════════════════════════
+const SAMPLE_POSES = [
+  [0.2,  0.52, -0.68, 0.28, 0.10,  0.20],
+  [0.85, 0.60, -0.72, 0.18, 0.05,  0.85],
+  [1.45, 0.48, -0.62, 0.32, 0.12,  1.30],
+  [1.95, 0.64, -0.75, 0.15,-0.08,  1.80],
+  [2.50, 0.55, -0.65, 0.24, 0.06,  2.40],
+];
+SAMPLE_POSES.forEach(q=>{
+  applyJoints(q); scene.updateMatrixWorld(true);
+  const pos=getEEPos(); captureWaypoint(q, pos);
+});
+// Restore first pose
+joints=[...SAMPLE_POSES[0]]; applyJoints(joints);
+</script>
+</body>
+</html>
