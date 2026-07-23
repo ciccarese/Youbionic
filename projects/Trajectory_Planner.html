@@ -309,7 +309,7 @@ const stageEl = document.getElementById('stage');
 const W = () => stageEl.clientWidth;
 const H = () => stageEl.clientHeight;
 
-const renderer = new THREE.WebGLRenderer({canvas:cvs, antialias:true, alpha:false});
+const renderer = new THREE.WebGLRenderer({canvas:cvs, antialias:true, alpha:false, preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.setClearColor(0x04070a, 1);
@@ -656,8 +656,8 @@ function animate(now) {
 
   // Resize
   const w=W(),h=H();
-  if(renderer.domElement.width!==w||renderer.domElement.height!==h){
-    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  if(Math.abs(renderer.domElement.width - w*devicePixelRatio) > 1 || Math.abs(renderer.domElement.height - h*devicePixelRatio) > 1){
+    renderer.setSize(w,h,true); camera.aspect=w/h; camera.updateProjectionMatrix();
   }
 
   const speed = +document.getElementById('sl-speed').value;
