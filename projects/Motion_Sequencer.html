@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Motion Sequencer — Youbionic</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:     #070a0d;
+    --bg2:    #0d1318;
+    --bg3:    #111820;
+    --amber:  #ffb000;
+    --teal:   #23e0c8;
+    --txt:    #eaf6f8;
+    --dim:    #7d93a3;
+    --faint:  #2a3a47;
+    --border: #1e3040;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--txt); font-family: var(--mono); overflow-x: hidden; }
+
+  /* HEADER */
+  #header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #header .brand { color: var(--amber); font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
+  #header .sep   { color: var(--teal); font-weight: bold; }
+  #header .title { color: var(--txt); font-size: 0.95rem; }
+  #header .tag   { background: var(--faint); color: var(--teal); font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--teal); letter-spacing: 1px; }
+
+  /* LAYOUT */
+  #app { display: flex; flex-direction: column; height: calc(100vh - 52px); }
+
+  /* 3D CANVAS */
+  #viewport {
+    position: relative;
+    background: #050709;
+    flex: 0 0 340px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
+  #viewport .overlay-info {
+    position: absolute;
+    top: 8px; left: 10px;
+    font-size: 0.58rem;
+    color: var(--dim);
+    line-height: 1.5;
+    pointer-events: none;
+  }
+  #viewport .playhead-label {
+    position: absolute;
+    top: 8px; right: 10px;
+    font-size: 0.7rem;
+    color: var(--amber);
+    background: rgba(7,10,13,0.8);
+    padding: 3px 8px;
+    border: 1px solid var(--faint);
+    border-radius: 4px;
+  }
+
+  /* DOF PANEL */
+  #dof-panel {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px;
+    flex: 0 0 auto;
+  }
+  .dof-label { font-size: 0.6rem; color: var(--dim); letter-spacing: 1px; margin-bottom: 6px; }
+  .dof-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .dof-row label { font-size: 0.65rem; color: var(--teal); width: 32px; flex-shrink: 0; }
+  .dof-row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--faint);
+    border-radius: 2px;
+    outline: none;
+  }
+  .dof-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--amber);
+    cursor: pointer;
+  }
+  .dof-row .dof-val { font-size: 0.6rem; color: var(--amber); width: 36px; text-align: right; }
+
+  /* BUTTONS */
+  .btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--txt);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: border-color .2s, color .2s;
+    letter-spacing: 0.5px;
+  }
+  .btn:hover { border-color: var(--amber); color: var(--amber); }
+  .btn.primary { border-color: var(--amber); color: var(--amber); background: rgba(255,176,0,0.07); }
+  .btn.teal    { border-color: var(--teal);  color: var(--teal);  background: rgba(35,224,200,0.07); }
+  .btn.danger  { border-color: #e05050; color: #e05050; background: rgba(224,80,80,0.07); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* SEQUENCER */
+  #seq-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  #seq-controls {
+    display: flex;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #seq-controls .label { font-size: 0.6rem; color: var(--dim); letter-spacing: 1px; flex: 0 0 100%; margin-bottom: 2px; }
+  #speed-wrap { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  #speed-wrap label { font-size: 0.6rem; color: var(--dim); }
+  #speed-wrap input[type=range] {
+    width: 60px;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--faint);
+    border-radius: 2px;
+    outline: none;
+  }
+  #speed-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+  }
+
+  /* KEYFRAMES LIST */
+  #kf-scroll { flex: 1; overflow-y: auto; }
+  #kf-list { padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .kf-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .kf-item.active { border-color: var(--amber); background: rgba(255,176,0,0.06); }
+  .kf-item:hover:not(.active) { border-color: var(--teal); }
+  .kf-num { font-size: 0.6rem; color: var(--dim); width: 20px; flex-shrink: 0; }
+  .kf-angles { flex: 1; font-size: 0.58rem; color: var(--txt); line-height: 1.4; }
+  .kf-angles span { color: var(--teal); }
+  .kf-del { font-size: 0.65rem; color: var(--faint); cursor: pointer; padding: 2px 5px; border-radius: 3px; }
+  .kf-del:hover { color: #e05050; background: rgba(224,80,80,0.1); }
+
+  #empty-msg {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--dim);
+    font-size: 0.7rem;
+    line-height: 1.8;
+  }
+  #empty-msg strong { color: var(--amber); }
+
+  /* GRID DOTS background */
+  #viewport::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--teal)15 1px, transparent 1px),
+      linear-gradient(90deg, rgba(35,224,200,.07) 1px, transparent 1px);
+    background-size: 34px 34px;
+    pointer-events: none;
+    opacity: .3;
+  }
+
+  /* PLAYBACK PROGRESS */
+  #progress-bar {
+    height: 3px;
+    background: var(--faint);
+    position: relative;
+  }
+  #progress-fill {
+    height: 100%;
+    background: var(--amber);
+    width: 0%;
+    transition: width .1s linear;
+  }
+
+  @media (max-width: 740px) {
+    #viewport { flex: 0 0 280px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <span class="brand">YOUBIONIC</span>
+  <span class="sep">//</span>
+  <span class="title">MOTION SEQUENCER</span>
+  <span class="tag">3D · 6-DOF</span>
+</div>
+
+<div id="app">
+  <!-- 3D VIEWPORT -->
+  <div id="viewport">
+    <div class="overlay-info">
+      DRAG — orbit<br>
+      PINCH — zoom
+    </div>
+    <div class="playhead-label" id="playhead-label">FRAME —</div>
+  </div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+
+  <!-- DOF SLIDERS -->
+  <div id="dof-panel">
+    <div class="dof-label">JOINT ANGLES  //  CURRENT POSE</div>
+    <div class="dof-row"><label>J1</label><input type="range" id="s0" min="-180" max="180" value="0"><span class="dof-val" id="v0">0°</span></div>
+    <div class="dof-row"><label>J2</label><input type="range" id="s1" min="-90"  max="90"  value="0"><span class="dof-val" id="v1">0°</span></div>
+    <div class="dof-row"><label>J3</label><input type="range" id="s2" min="-120" max="120" value="0"><span class="dof-val" id="v2">0°</span></div>
+    <div class="dof-row"><label>J4</label><input type="range" id="s3" min="-180" max="180" value="0"><span class="dof-val" id="v3">0°</span></div>
+    <div class="dof-row"><label>J5</label><input type="range" id="s4" min="-90"  max="90"  value="0"><span class="dof-val" id="v4">0°</span></div>
+    <div class="dof-row"><label>J6</label><input type="range" id="s5" min="-180" max="180" value="0"><span class="dof-val" id="v5">0°</span></div>
+  </div>
+
+  <!-- SEQUENCER PANEL -->
+  <div id="seq-panel">
+    <div id="seq-controls">
+      <span class="label">SEQUENCE  //  KEYFRAMES</span>
+      <button class="btn primary" id="btn-add">+ ADD KEYFRAME</button>
+      <button class="btn teal"    id="btn-play">▶ PLAY</button>
+      <button class="btn"         id="btn-reset">⏮ RESET</button>
+      <button class="btn"         id="btn-export">↓ JSON</button>
+      <div id="speed-wrap">
+        <label>SPD</label>
+        <input type="range" id="speed-slider" min="0.2" max="3" step="0.1" value="1">
+      </div>
+    </div>
+    <div id="kf-scroll">
+      <div id="kf-list">
+        <div id="empty-msg">
+          No keyframes yet.<br>
+          Pose the arm with the sliders above,<br>
+          then tap <strong>+ ADD KEYFRAME</strong>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── THREE.JS SCENE ────────────────────────────────────────────────────────
+const AMBER = 0xffb000, TEAL = 0x23e0c8, DIM = 0x2a3a47;
+const viewEl = document.getElementById('viewport');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+viewEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0.6, 0.7, 1.1);
+camera.lookAt(0, 0.3, 0);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xeaf6f8, 0.35));
+const dirL = new THREE.DirectionalLight(0xffb000, 0.7);
+dirL.position.set(1.5, 2, 1);
+scene.add(dirL);
+const fillL = new THREE.DirectionalLight(0x23e0c8, 0.25);
+fillL.position.set(-1, 0.5, -1);
+scene.add(fillL);
+
+// Grid
+const gridHelper = new THREE.GridHelper(2, 20, 0x1e3040, 0x111820);
+scene.add(gridHelper);
+
+// Materials
+const matBase   = () => new THREE.MeshStandardMaterial({ color: 0x111820, roughness: 0.6, metalness: 0.8 });
+const matJoint  = () => new THREE.MeshStandardMaterial({ color: AMBER, roughness: 0.4, metalness: 0.9, emissive: AMBER, emissiveIntensity: 0.12 });
+const matLink   = () => new THREE.MeshStandardMaterial({ color: 0x0d1318, roughness: 0.5, metalness: 0.7 });
+const matTCP    = () => new THREE.MeshStandardMaterial({ color: TEAL, roughness: 0.3, metalness: 0.9, emissive: TEAL, emissiveIntensity: 0.3 });
+const matGrid   = () => new THREE.MeshStandardMaterial({ color: DIM, roughness: 1, metalness: 0, wireframe: true });
+
+// Arm geometry helpers
+function makeCylinder(rT, rB, h, mat) {
+  return new THREE.Mesh(new THREE.CylinderGeometry(rT, rB, h, 16), mat);
+}
+function makeBox(w, h, d, mat) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+}
+function makeSphere(r, mat) {
+  return new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), mat);
+}
+
+// Build arm hierarchy
+const armRoot = new THREE.Group(); scene.add(armRoot);
+
+// Base platform
+const basePlat = makeCylinder(0.09, 0.11, 0.04, matBase());
+basePlat.position.y = 0.02;
+armRoot.add(basePlat);
+
+// J1 — yaw (about Y)
+const j1g = new THREE.Group(); j1g.position.y = 0.04; armRoot.add(j1g);
+j1g.add(makeSphere(0.05, matJoint()));
+// Link 1
+const link1g = new THREE.Group(); j1g.add(link1g);
+const link1mesh = makeCylinder(0.025, 0.03, 0.22, matLink()); link1mesh.position.y = 0.11; link1g.add(link1mesh);
+
+// J2 — pitch
+const j2g = new THREE.Group(); j2g.position.y = 0.22; link1g.add(j2g);
+j2g.add(makeSphere(0.04, matJoint()));
+// Link 2
+const link2g = new THREE.Group(); j2g.add(link2g);
+const link2mesh = makeCylinder(0.02, 0.025, 0.20, matLink()); link2mesh.position.y = 0.10; link2g.add(link2mesh);
+
+// J3 — elbow pitch
+const j3g = new THREE.Group(); j3g.position.y = 0.20; link2g.add(j3g);
+j3g.add(makeSphere(0.035, matJoint()));
+// Link 3
+const link3g = new THREE.Group(); j3g.add(link3g);
+const link3mesh = makeCylinder(0.016, 0.02, 0.16, matLink()); link3mesh.position.y = 0.08; link3g.add(link3mesh);
+
+// J4 — wrist yaw
+const j4g = new THREE.Group(); j4g.position.y = 0.16; link3g.add(j4g);
+j4g.add(makeSphere(0.028, matJoint()));
+const link4g = new THREE.Group(); j4g.add(link4g);
+const link4mesh = makeCylinder(0.013, 0.016, 0.12, matLink()); link4mesh.position.y = 0.06; link4g.add(link4mesh);
+
+// J5 — wrist pitch
+const j5g = new THREE.Group(); j5g.position.y = 0.12; link4g.add(j5g);
+j5g.add(makeSphere(0.022, matJoint()));
+const link5g = new THREE.Group(); j5g.add(link5g);
+const link5mesh = makeCylinder(0.010, 0.013, 0.09, matLink()); link5mesh.position.y = 0.045; link5g.add(link5mesh);
+
+// J6 — end-effector roll
+const j6g = new THREE.Group(); j6g.position.y = 0.09; link5g.add(j6g);
+j6g.add(makeSphere(0.018, matJoint()));
+// TCP (gripper)
+const tcpG = new THREE.Group(); j6g.add(tcpG);
+const tcpBody = makeBox(0.03, 0.06, 0.015, matTCP()); tcpBody.position.y = 0.03; tcpG.add(tcpBody);
+// gripper fingers
+[-0.01, 0.01].forEach(dx => {
+  const f = makeBox(0.008, 0.03, 0.006, matTCP()); f.position.set(dx, 0.075, 0); tcpG.add(f);
+});
+
+// Trajectory line
+const trajGeo = new THREE.BufferGeometry();
+const trajMat = new THREE.LineBasicMaterial({ color: TEAL, opacity: 0.5, transparent: true });
+const trajLine = new THREE.Line(trajGeo, trajMat);
+scene.add(trajLine);
+
+// Joint groups & axes
+const joints = [
+  { g: j1g,    axis: 'y', link: link1g },
+  { g: j2g,    axis: 'z', link: link2g },
+  { g: j3g,    axis: 'z', link: link3g },
+  { g: j4g,    axis: 'y', link: link4g },
+  { g: j5g,    axis: 'z', link: link5g },
+  { g: j6g,    axis: 'y', link: tcpG   },
+];
+
+// Orbit controls (manual — no OrbitControls import needed)
+let isDragging = false, lastX = 0, lastY = 0;
+let phi = 0.6, theta = 0.5, radius = 1.4;
+function updateCamera() {
+  camera.position.x = radius * Math.sin(theta) * Math.cos(phi);
+  camera.position.y = 0.35 + radius * Math.sin(phi);
+  camera.position.z = radius * Math.cos(theta) * Math.cos(phi);
+  camera.lookAt(0, 0.35, 0);
+}
+updateCamera();
+
+viewEl.addEventListener('mousedown',  e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+viewEl.addEventListener('mousemove',  e => {
+  if (!isDragging) return;
+  theta -= (e.clientX - lastX) * 0.008;
+  phi   -= (e.clientY - lastY) * 0.006;
+  phi = Math.max(-0.3, Math.min(1.2, phi));
+  lastX = e.clientX; lastY = e.clientY;
+  updateCamera();
+});
+document.addEventListener('mouseup', () => isDragging = false);
+viewEl.addEventListener('wheel', e => {
+  radius = Math.max(0.5, Math.min(3, radius + e.deltaY * 0.002));
+  updateCamera(); e.preventDefault();
+}, { passive: false });
+
+// Touch
+let lastTD = 0;
+viewEl.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+  if (e.touches.length === 2) { lastTD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+}, { passive: true });
+viewEl.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && isDragging) {
+    theta -= (e.touches[0].clientX - lastX) * 0.008;
+    phi   -= (e.touches[0].clientY - lastY) * 0.006;
+    phi = Math.max(-0.3, Math.min(1.2, phi));
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    updateCamera();
+  }
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    radius = Math.max(0.5, Math.min(3, radius - (d - lastTD) * 0.005));
+    lastTD = d; updateCamera();
+  }
+}, { passive: true });
+viewEl.addEventListener('touchend', () => isDragging = false, { passive: true });
+
+// Apply joint angles
+function applyPose(angles) {
+  const ax = { x: new THREE.Vector3(1,0,0), y: new THREE.Vector3(0,1,0), z: new THREE.Vector3(0,0,1) };
+  angles.forEach((deg, i) => {
+    const r = deg * Math.PI / 180;
+    const j = joints[i];
+    j.g.rotation.set(0, 0, 0);
+    if (j.axis === 'y') j.g.rotation.y = r;
+    if (j.axis === 'z') j.g.rotation.z = r;
+    if (j.axis === 'x') j.g.rotation.x = r;
+  });
+}
+
+// Get TCP world position
+function getTCPPosition() {
+  const pos = new THREE.Vector3();
+  tcpG.getWorldPosition(pos);
+  return pos.clone();
+}
+
+// ─── SEQUENCER ─────────────────────────────────────────────────────────────
+let keyframes = [];
+let currentAngles = [0,0,0,0,0,0];
+let playInterval = null;
+let playing = false;
+let currentFrame = -1;
+
+const sliders = Array.from({length:6}, (_,i) => document.getElementById('s'+i));
+const vals    = Array.from({length:6}, (_,i) => document.getElementById('v'+i));
+
+sliders.forEach((s, i) => {
+  s.addEventListener('input', () => {
+    currentAngles[i] = parseFloat(s.value);
+    vals[i].textContent = currentAngles[i] + '°';
+    applyPose(currentAngles);
+    if (!playing) highlightCurrentKF(-1);
+  });
+});
+
+function setPose(angles) {
+  angles.forEach((a, i) => {
+    currentAngles[i] = a;
+    sliders[i].value = a;
+    vals[i].textContent = a + '°';
+  });
+  applyPose(currentAngles);
+}
+
+// Trajectory
+function updateTrajectory() {
+  if (keyframes.length < 2) { trajGeo.setFromPoints([]); return; }
+  const pts = [];
+  const saved = [...currentAngles];
+  keyframes.forEach(kf => { applyPose(kf); pts.push(getTCPPosition()); });
+  applyPose(saved);
+  trajGeo.setFromPoints(pts);
+}
+
+// Keyframe UI
+function renderKFList() {
+  const list = document.getElementById('kf-list');
+  const empty = document.getElementById('empty-msg');
+  list.innerHTML = '';
+  if (keyframes.length === 0) { list.appendChild(empty); return; }
+  keyframes.forEach((kf, idx) => {
+    const div = document.createElement('div');
+    div.className = 'kf-item' + (idx === currentFrame ? ' active' : '');
+    div.innerHTML = `
+      <span class="kf-num">#${idx+1}</span>
+      <span class="kf-angles">
+        <span>J1</span>${kf[0]}°  <span>J2</span>${kf[1]}°  <span>J3</span>${kf[2]}°<br>
+        <span>J4</span>${kf[3]}°  <span>J5</span>${kf[4]}°  <span>J6</span>${kf[5]}°
+      </span>
+      <span class="kf-del" data-idx="${idx}" title="Delete">✕</span>
+    `;
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('kf-del')) return;
+      if (!playing) { currentFrame = idx; setPose(keyframes[idx]); renderKFList(); updateLabel(); }
+    });
+    div.querySelector('.kf-del').addEventListener('click', e => {
+      e.stopPropagation();
+      keyframes.splice(idx, 1);
+      if (currentFrame >= keyframes.length) currentFrame = keyframes.length - 1;
+      renderKFList(); updateTrajectory(); updateLabel();
+    });
+    list.appendChild(div);
+  });
+  // scroll to active
+  const active = list.querySelector('.active');
+  if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function highlightCurrentKF(idx) {
+  currentFrame = idx;
+  document.querySelectorAll('.kf-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+}
+
+function updateLabel() {
+  document.getElementById('playhead-label').textContent =
+    currentFrame >= 0 ? `FRAME ${currentFrame + 1}/${keyframes.length}` : 'FRAME —';
+  const pct = keyframes.length > 1 ? (currentFrame / (keyframes.length - 1)) * 100 : 0;
+  document.getElementById('progress-fill').style.width = (currentFrame >= 0 ? pct : 0) + '%';
+}
+
+// Add keyframe
+document.getElementById('btn-add').addEventListener('click', () => {
+  keyframes.push([...currentAngles]);
+  currentFrame = keyframes.length - 1;
+  renderKFList();
+  updateTrajectory();
+  updateLabel();
+});
+
+// Playback
+function lerp(a, b, t) { return a + (b - a) * t; }
+function lerpPose(p1, p2, t) { return p1.map((v, i) => Math.round(lerp(v, p2[i], t) * 10) / 10); }
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (keyframes.length < 2) return;
+  if (playing) { stopPlayback(); return; }
+  startPlayback();
+});
+
+let playT = 0;
+let playFrom = 0;
+let animID = null;
+
+function startPlayback() {
+  playing = true;
+  document.getElementById('btn-play').textContent = '■ STOP';
+  document.getElementById('btn-play').classList.add('teal');
+  playFrom = 0; playT = 0;
+  animPlay();
+}
+
+function stopPlayback() {
+  playing = false;
+  if (animID) cancelAnimationFrame(animID);
+  animID = null;
+  document.getElementById('btn-play').textContent = '▶ PLAY';
+  document.getElementById('btn-play').classList.remove('teal');
+}
+
+let lastAnimTime = null;
+function animPlay(ts) {
+  if (!playing) return;
+  if (!lastAnimTime) lastAnimTime = ts;
+  const dt = (ts - lastAnimTime) / 1000;
+  lastAnimTime = ts;
+  const speed = parseFloat(document.getElementById('speed-slider').value);
+  playT += dt * speed;
+  if (playT >= 1) { playT = 0; playFrom++; if (playFrom >= keyframes.length - 1) { stopPlayback(); setPose(keyframes[keyframes.length - 1]); currentFrame = keyframes.length - 1; renderKFList(); updateLabel(); return; } }
+  const pose = lerpPose(keyframes[playFrom], keyframes[playFrom + 1], playT);
+  setPose(pose);
+  currentFrame = playFrom;
+  updateLabel();
+  document.querySelectorAll('.kf-item').forEach((el, i) => el.classList.toggle('active', i === playFrom));
+  animID = requestAnimationFrame(animPlay);
+}
+function animPlay(ts) {
+  if (!playing) return;
+  const speed = parseFloat(document.getElementById('speed-slider').value);
+  playT += 0.016 * speed;
+  if (playT >= 1) {
+    playT = 0; playFrom++;
+    if (playFrom >= keyframes.length - 1) {
+      stopPlayback();
+      if (keyframes.length > 0) { setPose(keyframes[keyframes.length - 1]); currentFrame = keyframes.length - 1; renderKFList(); updateLabel(); }
+      return;
+    }
+  }
+  const pose = lerpPose(keyframes[playFrom], keyframes[playFrom + 1], playT);
+  setPose(pose);
+  currentFrame = playFrom;
+  updateLabel();
+  document.querySelectorAll('.kf-item').forEach((el, i) => el.classList.toggle('active', i === playFrom));
+  animID = requestAnimationFrame(animPlay);
+}
+
+// Reset
+document.getElementById('btn-reset').addEventListener('click', () => {
+  stopPlayback();
+  currentFrame = 0;
+  if (keyframes.length > 0) { setPose(keyframes[0]); renderKFList(); }
+  else { setPose([0,0,0,0,0,0]); }
+  updateLabel();
+});
+
+// Export JSON
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = { tool: 'Youbionic Motion Sequencer', version: '1.0', keyframes: keyframes.map((kf, i) => ({ frame: i + 1, joints: { J1: kf[0], J2: kf[1], J3: kf[2], J4: kf[3], J5: kf[4], J6: kf[5] } })) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'motion_sequence.json'; a.click();
+});
+
+// Load preset demo
+function loadPreset() {
+  const demo = [
+    [0, 0, 0, 0, 0, 0],
+    [45, -30, 20, 90, 0, 0],
+    [90, -60, 40, 0, 30, 45],
+    [45, -80, 60, -45, -20, 90],
+    [-30, -40, 30, 90, 45, -45],
+    [0, 0, 0, 0, 0, 0],
+  ];
+  keyframes = demo;
+  currentFrame = 0;
+  setPose(keyframes[0]);
+  renderKFList();
+  updateTrajectory();
+  updateLabel();
+}
+loadPreset();
+
+// ─── RENDER LOOP ───────────────────────────────────────────────────────────
+function resizeRenderer() {
+  const w = viewEl.clientWidth, h = viewEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  resizeRenderer();
+  // Subtle joint glow pulse
+  const t = performance.now() * 0.001;
+  [j1g, j2g, j3g, j4g, j5g, j6g].forEach((jg, i) => {
+    const sphere = jg.children[0];
+    if (sphere && sphere.material) {
+      sphere.material.emissiveIntensity = 0.08 + 0.06 * Math.sin(t * 1.5 + i * 0.8);
+    }
+  });
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
