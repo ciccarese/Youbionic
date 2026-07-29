@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>YOUBIONIC — 3D Robot Arm Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0a0a;
+  --s1:#111;
+  --s2:#1a1a1a;
+  --s3:#252525;
+  --border:#2a2a2a;
+  --text:#ffffff;
+  --muted:#777;
+  --accent:#EDEBE7;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,sans-serif}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100dvh;height:100vh}
+#header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+#canvas-wrap{flex:1;position:relative;min-height:0;overflow:hidden}
+canvas{display:block;width:100%!important;height:100%!important;touch-action:none}
+#ee-label{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.75);border:1px solid var(--border);
+  padding:4px 14px;font-size:10px;letter-spacing:.12em;color:var(--muted);
+  pointer-events:none;white-space:nowrap
+}
+#panel{flex-shrink:0;border-top:1px solid var(--border);display:flex;flex-direction:column;height:264px}
+
+/* ── HEADER ── */
+.logo{font-size:11px;font-weight:800;letter-spacing:.35em;color:var(--accent);text-transform:uppercase}
+.app-name{font-size:10px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}
+
+/* ── TABS ── */
+#tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{
+  flex:1;padding:9px 2px;font-size:9px;font-weight:700;letter-spacing:.15em;
+  text-transform:uppercase;text-align:center;cursor:pointer;color:var(--muted);
+  background:none;border:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s
+}
+.tab.on{color:var(--text);border-bottom-color:var(--text)}
+
+/* ── TAB CONTENT ── */
+.tc{display:none;flex:1;overflow-y:auto;padding:12px 16px}
+.tc.on{display:block}
+
+/* ── SLIDERS ── */
+.jrow{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.jlabel{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;width:72px;flex-shrink:0}
+input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:2px;background:var(--border);outline:none;cursor:pointer;border-radius:1px
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;
+  background:var(--text);border-radius:50%;cursor:pointer;box-shadow:0 0 0 3px var(--bg)
+}
+input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;background:var(--text);border-radius:50%;
+  cursor:pointer;border:none;box-shadow:0 0 0 3px var(--bg)
+}
+.jval{font-size:11px;font-weight:700;color:var(--accent);width:38px;text-align:right;flex-shrink:0}
+
+/* ── BUTTONS ── */
+.brow{display:flex;gap:7px;margin-top:8px}
+.btn{
+  flex:1;padding:8px 4px;font-size:9px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;background:var(--s2);color:var(--text);
+  border:1px solid var(--border);cursor:pointer;transition:background .12s,color .12s
+}
+.btn:hover,.btn:active{background:var(--text);color:var(--bg)}
+.btn.prime{background:var(--text);color:var(--bg)}
+.btn.prime:hover{background:var(--accent);color:var(--bg)}
+.btn:disabled{opacity:.35;pointer-events:none}
+
+/* ── MEMORY LIST ── */
+.mitem{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 0;border-bottom:1px solid var(--border)
+}
+.mitem:last-child{border-bottom:none}
+.mname{flex:1;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.06em}
+.mangles{font-size:9px;color:var(--muted);flex-shrink:0}
+.mbtn{
+  padding:3px 9px;font-size:9px;font-weight:700;letter-spacing:.1em;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  cursor:pointer;text-transform:uppercase;transition:all .12s
+}
+.mbtn:hover{border-color:var(--text);color:var(--text)}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;color:var(--muted);font-size:10px;padding:22px 0;letter-spacing:.06em;line-height:1.8}
+
+/* ── MOTION CONTROLS ── */
+#motion-btns{display:flex;gap:7px;padding:10px 0 4px;flex-shrink:0}
+
+/* ── NEURAL NET ── */
+.nn-label{font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.xyz-row{display:flex;gap:8px;margin-bottom:9px}
+.xyz-col{flex:1;display:flex;flex-direction:column;gap:4px}
+.xyz-axis{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.1em}
+.xyz-in{
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  padding:7px 6px;font-size:13px;width:100%;outline:none;text-align:center;
+  transition:border-color .15s
+}
+.xyz-in:focus{border-color:var(--text)}
+.prog{height:2px;background:var(--border);margin:6px 0 8px;overflow:hidden}
+.prog-fill{height:100%;background:var(--text);width:0%;transition:width .08s}
+.nn-status{font-size:10px;color:var(--muted);text-align:center;min-height:16px;letter-spacing:.05em}
+
+/* ── TARGET MARKER (corner) ── */
+#target-badge{
+  position:absolute;top:10px;right:10px;
+  background:rgba(0,0,0,.8);border:1px solid var(--border);
+  padding:4px 10px;font-size:9px;letter-spacing:.1em;color:var(--muted);
+  pointer-events:none;display:none
+}
+
+@media(min-width:600px){
+  #panel{height:240px}
+  .jrow{margin-bottom:7px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="header">
+    <span class="logo">YOUBIONIC</span>
+    <span class="app-name">3D Robot Arm Simulator</span>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="ee-label">END EFFECTOR — X: 0.000  Y: 0.000  Z: 0.000</div>
+    <div id="target-badge">TARGET: —</div>
+  </div>
+
+  <div id="panel">
+    <div id="tabs">
+      <button class="tab on" onclick="switchTab('joints')">JOINTS</button>
+      <button class="tab" onclick="switchTab('memory')">MEMORY</button>
+      <button class="tab" onclick="switchTab('motion')">MOTION</button>
+      <button class="tab" onclick="switchTab('neural')">NEURAL NET</button>
+    </div>
+
+    <!-- JOINTS -->
+    <div class="tc on" id="tc-joints">
+      <div class="jrow"><span class="jlabel">BASE ROT</span><input type="range" id="s0" min="-180" max="180" value="0"   oninput="onSlider(0,+this.value)"><span class="jval" id="v0">0°</span></div>
+      <div class="jrow"><span class="jlabel">SHOULDER</span><input type="range" id="s1" min="0"    max="150" value="30"  oninput="onSlider(1,+this.value)"><span class="jval" id="v1">30°</span></div>
+      <div class="jrow"><span class="jlabel">ELBOW</span>   <input type="range" id="s2" min="0"    max="150" value="60"  oninput="onSlider(2,+this.value)"><span class="jval" id="v2">60°</span></div>
+      <div class="jrow"><span class="jlabel">WRIST P.</span><input type="range" id="s3" min="-90"  max="90"  value="0"   oninput="onSlider(3,+this.value)"><span class="jval" id="v3">0°</span></div>
+      <div class="jrow"><span class="jlabel">WRIST R.</span><input type="range" id="s4" min="-180" max="180" value="0"   oninput="onSlider(4,+this.value)"><span class="jval" id="v4">0°</span></div>
+      <div class="brow">
+        <button class="btn" onclick="resetArm()">RESET</button>
+        <button class="btn prime" onclick="savePos()">SAVE POSITION</button>
+      </div>
+    </div>
+
+    <!-- MEMORY -->
+    <div class="tc" id="tc-memory">
+      <div id="mem-list"><div class="empty">NO SAVED POSITIONS YET<br>JOINTS → SAVE POSITION</div></div>
+    </div>
+
+    <!-- MOTION -->
+    <div class="tc" id="tc-motion" style="display:none;flex-direction:column;padding-bottom:0">
+      <div id="seq-list" style="flex:1;overflow-y:auto;padding:12px 16px 0">
+        <div class="empty" id="seq-empty">ADD POSITIONS FROM MEMORY<br>TO BUILD A MOTION SEQUENCE</div>
+      </div>
+      <div id="motion-btns" style="padding:8px 16px;border-top:1px solid var(--border)">
+        <button class="btn" onclick="clearSeq()">CLEAR</button>
+        <button class="btn" id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+        <button class="btn" id="btn-loop" onclick="toggleLoop()">⟳ LOOP: OFF</button>
+        <button class="btn" onclick="exportSeq()">EXPORT JSON</button>
+      </div>
+    </div>
+
+    <!-- NEURAL NET -->
+    <div class="tc" id="tc-neural">
+      <div class="nn-label">IK TARGET POSITION (meters)</div>
+      <div class="xyz-row">
+        <div class="xyz-col"><span class="xyz-axis">X</span><input type="number" class="xyz-in" id="nn-x" value="0.20" step="0.01"></div>
+        <div class="xyz-col"><span class="xyz-axis">Y</span><input type="number" class="xyz-in" id="nn-y" value="0.35" step="0.01"></div>
+        <div class="xyz-col"><span class="xyz-axis">Z</span><input type="number" class="xyz-in" id="nn-z" value="0.10" step="0.01"></div>
+      </div>
+      <div class="brow" style="margin-bottom:6px">
+        <button class="btn" id="btn-train" onclick="trainNN()">⚡ TRAIN 2000 POSES</button>
+        <button class="btn prime" id="btn-solve" onclick="solveIK()" disabled>SOLVE IK</button>
+      </div>
+      <div class="prog"><div class="prog-fill" id="pfill"></div></div>
+      <div class="nn-status" id="nn-status">MODEL NOT TRAINED — PRESS ⚡ TRAIN FIRST</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  YOUBIONIC — 3D Robot Arm Simulator
+//  Single-file · Three.js r128 · TensorFlow.js 4.10
+// ═══════════════════════════════════════════════════════
+
+// ── ARM GEOMETRY ────────────────────────────────────────
+const L = { base:0.08, upper:0.26, forearm:0.22, hand:0.13 };
+
+// ── JOINT STATE ─────────────────────────────────────────
+let J = [0, 30, 60, 0, 0]; // degrees
+const LIMITS = [[-180,180],[0,150],[0,150],[-90,90],[-180,180]];
+
+// ── THREE.JS ─────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x0a0a0a);
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0a0a0a, 2.5, 5);
+
+const cam = new THREE.PerspectiveCamera(42, 1, 0.005, 50);
+
+// Lights
+const amb = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(amb);
+const dir1 = new THREE.DirectionalLight(0xffffff, 0.9);
+dir1.position.set(1, 2, 2); dir1.castShadow = true;
+scene.add(dir1);
+const dir2 = new THREE.DirectionalLight(0x888888, 0.4);
+dir2.position.set(-1,-1,-1);
+scene.add(dir2);
+
+// Grid
+const grid = new THREE.GridHelper(1.4, 14, 0x1e1e1e, 0x161616);
+scene.add(grid);
+
+// Ground plane (shadow receiver)
+const groundMat = new THREE.ShadowMaterial({ opacity:0.25 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(4,4), groundMat);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+scene.add(ground);
+
+// ── MATERIALS ────────────────────────────────────────────
+const mLink  = new THREE.MeshPhongMaterial({ color:0xcccccc, shininess:60 });
+const mJoint = new THREE.MeshPhongMaterial({ color:0xffffff, shininess:120 });
+const mBase  = new THREE.MeshPhongMaterial({ color:0x1c1c1c, shininess:20 });
+const mEE    = new THREE.MeshPhongMaterial({ color:0xEDEBE7, shininess:200 });
+const mTarget= new THREE.MeshPhongMaterial({ color:0x888888, wireframe:true, transparent:true, opacity:0.5 });
+
+// helpers
+const cyl = (r1,r2,h,seg=14) => new THREE.CylinderGeometry(r1,r2,h,seg);
+const sph = (r,seg=14)       => new THREE.SphereGeometry(r,seg,10);
+
+// ── BUILD ARM ────────────────────────────────────────────
+const root = new THREE.Group();
+scene.add(root);
+
+// Base pedestal
+const baseMesh = new THREE.Mesh(cyl(0.055,0.075,L.base,20), mBase);
+baseMesh.position.y = L.base/2; baseMesh.castShadow=true;
+root.add(baseMesh);
+
+// Pivot 0 — base rotation (Y axis)
+const p0 = new THREE.Group(); p0.position.y = L.base; root.add(p0);
+p0.add(new THREE.Mesh(sph(0.028), mJoint));
+
+// Pivot 1 — shoulder (Z axis)
+const p1 = new THREE.Group(); p0.add(p1);
+const uArm = new THREE.Mesh(cyl(0.016,0.020,L.upper), mLink);
+uArm.position.y = L.upper/2; uArm.castShadow=true;
+p1.add(uArm);
+
+// Pivot 2 — elbow (Z axis)
+const p2 = new THREE.Group(); p2.position.y = L.upper; p1.add(p2);
+p2.add(new THREE.Mesh(sph(0.024), mJoint));
+const fArm = new THREE.Mesh(cyl(0.013,0.016,L.forearm), mLink);
+fArm.position.y = L.forearm/2; fArm.castShadow=true;
+p2.add(fArm);
+
+// Pivot 3 — wrist pitch (Z axis)
+const p3 = new THREE.Group(); p3.position.y = L.forearm; p2.add(p3);
+p3.add(new THREE.Mesh(sph(0.020), mJoint));
+const hand = new THREE.Mesh(cyl(0.010,0.013,L.hand), mLink);
+hand.position.y = L.hand/2; hand.castShadow=true;
+p3.add(hand);
+
+// Pivot 4 — wrist roll (Y axis)
+const p4 = new THREE.Group(); p4.position.y = L.hand; p3.add(p4);
+const eeMesh = new THREE.Mesh(sph(0.016), mEE); eeMesh.castShadow=true;
+p4.add(eeMesh);
+// Gripper fingers
+[[-0.016,0],[0.016,0]].forEach(([ox])=>{
+  const f = new THREE.Mesh(cyl(0.005,0.005,0.038,8), mLink);
+  f.position.set(ox,0.022,0); p4.add(f);
+});
+
+// ── IK TARGET SPHERE ─────────────────────────────────────
+const targetSph = new THREE.Mesh(sph(0.015), mTarget);
+targetSph.visible = false;
+scene.add(targetSph);
+
+// IK target axis helper
+const axisHelper = new THREE.AxesHelper(0.04);
+axisHelper.visible = false;
+scene.add(axisHelper);
+
+// ── APPLY JOINTS TO ARM ──────────────────────────────────
+function applyJoints() {
+  const d = THREE.MathUtils.degToRad;
+  p0.rotation.y =  d(J[0]);
+  p1.rotation.z = -d(J[1]);
+  p2.rotation.z =  d(J[2]);
+  p3.rotation.z = -d(J[3]);
+  p4.rotation.y =  d(J[4]);
+}
+
+// ── FORWARD KINEMATICS ───────────────────────────────────
+function fk(j) {
+  const r = x => x * Math.PI / 180;
+  const s1=Math.sin(r(j[1])), c1=Math.cos(r(j[1]));
+  const a12 = r(j[1])-r(j[2]);
+  const a123 = a12+r(j[3]);
+  const radial  = L.upper*s1 + L.forearm*Math.sin(a12) + L.hand*Math.sin(a123);
+  const height  = L.base + L.upper*c1 + L.forearm*Math.cos(a12) + L.hand*Math.cos(a123);
+  const c0=Math.cos(r(j[0])), s0=Math.sin(r(j[0]));
+  return { x: radial*c0, y: height, z: radial*s0 };
+}
+
+function getEEWorldPos() {
+  p4.updateWorldMatrix(true, false);
+  return new THREE.Vector3().setFromMatrixPosition(p4.matrixWorld);
+}
+
+// ── ORBIT CONTROLS ────────────────────────────────────────
+let theta=0.8, phi=0.95, radius=0.95;
+let orb={on:false, lx:0, ly:0};
+
+function setCamera(){
+  cam.position.set(
+    radius*Math.sin(phi)*Math.sin(theta),
+    radius*Math.cos(phi),
+    radius*Math.sin(phi)*Math.cos(theta)
+  );
+  cam.lookAt(0, 0.22, 0);
+}
+setCamera();
+
+canvas.addEventListener('mousedown', e=>{orb.on=true;orb.lx=e.clientX;orb.ly=e.clientY});
+addEventListener('mouseup',  ()=>orb.on=false);
+addEventListener('mousemove', e=>{
+  if(!orb.on)return;
+  theta -= (e.clientX-orb.lx)*0.005;
+  phi    = Math.max(0.08, Math.min(1.52, phi+(e.clientY-orb.ly)*0.005));
+  orb.lx=e.clientX; orb.ly=e.clientY; setCamera();
+});
+canvas.addEventListener('wheel', e=>{
+  radius = Math.max(0.35, Math.min(2.2, radius+e.deltaY*0.0008));
+  setCamera();
+},{passive:true});
+
+// Touch orbit + pinch-zoom
+let lastPinch=0;
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){orb.on=true;orb.lx=e.touches[0].clientX;orb.ly=e.touches[0].clientY;}
+  if(e.touches.length===2){orb.on=false;lastPinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+},{passive:true});
+canvas.addEventListener('touchmove', e=>{
+  if(e.touches.length===1&&orb.on){
+    theta -= (e.touches[0].clientX-orb.lx)*0.006;
+    phi    = Math.max(0.08, Math.min(1.52, phi+(e.touches[0].clientY-orb.ly)*0.006));
+    orb.lx=e.touches[0].clientX; orb.ly=e.touches[0].clientY; setCamera();
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    radius=Math.max(0.35,Math.min(2.2,radius-(d-lastPinch)*0.003));
+    lastPinch=d; setCamera();
+  }
+},{passive:true});
+canvas.addEventListener('touchend',()=>orb.on=false);
+
+// ── RESIZE ────────────────────────────────────────────────
+const ro = new ResizeObserver(()=>{
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  renderer.setSize(w,h,false);
+  cam.aspect=w/h; cam.updateProjectionMatrix();
+});
+ro.observe(canvas);
+
+// ── RENDER LOOP ───────────────────────────────────────────
+(function animate(){
+  requestAnimationFrame(animate);
+  const ee = getEEWorldPos();
+  document.getElementById('ee-label').textContent =
+    `EE  X:${ee.x.toFixed(3)}  Y:${ee.y.toFixed(3)}  Z:${ee.z.toFixed(3)}`;
+  renderer.render(scene, cam);
+})();
+
+// ── UI HELPERS ────────────────────────────────────────────
+function switchTab(name){
+  ['joints','memory','motion','neural'].forEach(n=>{
+    document.querySelector(`.tab:nth-child(${['joints','memory','motion','neural'].indexOf(n)+1})`).classList.toggle('on',n===name);
+    const tc = document.getElementById('tc-'+n);
+    if(n==='motion'){
+      tc.style.display = n===name ? 'flex' : 'none';
+    } else {
+      tc.classList.toggle('on', n===name);
+    }
+  });
+}
+
+function onSlider(i, val){
+  J[i]=val;
+  document.getElementById(`v${i}`).textContent = val+'°';
+  applyJoints();
+}
+
+function resetArm(){
+  const def=[0,30,60,0,0];
+  def.forEach((v,i)=>{
+    J[i]=v;
+    document.getElementById(`s${i}`).value=v;
+    document.getElementById(`v${i}`).textContent=v+'°';
+  });
+  applyJoints();
+}
+
+// ── MEMORY SYSTEM ─────────────────────────────────────────
+let saved = [];
+
+function savePos(){
+  const idx = saved.length;
+  const name = prompt('Position name:', `POS ${idx+1}`) || `POS ${idx+1}`;
+  saved.push({ name, j:[...J] });
+  renderMem();
+  switchTab('memory');
+}
+
+function renderMem(){
+  const el = document.getElementById('mem-list');
+  if(!saved.length){
+    el.innerHTML='<div class="empty">NO SAVED POSITIONS YET<br>JOINTS → SAVE POSITION</div>';
+    return;
+  }
+  el.innerHTML = saved.map((p,i)=>`
+    <div class="mitem">
+      <span class="mname">${p.name}</span>
+      <span class="mangles">${p.j.map(v=>Math.round(v)+'°').join(' ')}</span>
+      <button class="mbtn" onclick="recallPos(${i})">GO</button>
+      <button class="mbtn" onclick="addToSeq(${i})">+SEQ</button>
+      <button class="mbtn" onclick="deletePos(${i})">✕</button>
+    </div>`).join('');
+}
+
+function recallPos(i){
+  animateTo(saved[i].j, 500, ()=>{});
+  switchTab('joints');
+}
+
+function deletePos(i){
+  saved.splice(i,1);
+  renderMem();
+}
+
+// ── MOTION SEQUENCE ───────────────────────────────────────
+let seq=[], playing=false, looping=false, playIdx=0, playTimer=null;
+
+function addToSeq(i){
+  seq.push(i);
+  renderSeq();
+  switchTab('motion');
+}
+
+function renderSeq(){
+  const el = document.getElementById('seq-list');
+  if(!seq.length){
+    el.innerHTML='<div class="empty" id="seq-empty">ADD POSITIONS FROM MEMORY<br>TO BUILD A MOTION SEQUENCE</div>';
+    return;
+  }
+  el.innerHTML = seq.map((posIdx,si)=>{
+    const p = saved[posIdx];
+    return `<div class="mitem">
+      <span style="font-size:10px;color:#444;width:18px">${si+1}</span>
+      <span class="mname">${p?p.name:'[deleted]'}</span>
+      <button class="mbtn" onclick="removeFromSeq(${si})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function removeFromSeq(i){ seq.splice(i,1); renderSeq(); }
+
+function clearSeq(){ seq=[]; stopPlay(); renderSeq(); }
+
+function togglePlay(){
+  if(playing) stopPlay();
+  else        startPlay();
+}
+
+function startPlay(){
+  if(seq.length<1) return;
+  playing=true; playIdx=0;
+  document.getElementById('btn-play').textContent='■ STOP';
+  playStep();
+}
+
+function stopPlay(){
+  playing=false; clearTimeout(playTimer);
+  document.getElementById('btn-play').textContent='▶ PLAY';
+}
+
+function playStep(){
+  if(!playing) return;
+  if(playIdx>=seq.length){
+    if(looping){ playIdx=0; } else { stopPlay(); return; }
+  }
+  const p = saved[seq[playIdx]];
+  if(p){
+    animateTo(p.j, 700, ()=>{ playIdx++; playTimer=setTimeout(playStep, 150); });
+  } else { playIdx++; playStep(); }
+}
+
+function toggleLoop(){
+  looping=!looping;
+  document.getElementById('btn-loop').textContent=`⟳ LOOP: ${looping?'ON':'OFF'}`;
+}
+
+function exportSeq(){
+  const data = { arm:'YOUBIONIC 3D Robot Arm Simulator', sequence:seq.map(i=>saved[i]) };
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(data,null,2));
+  a.download = 'youbionic-motion.json'; a.click();
+}
+
+// ── SMOOTH ANIMATION ─────────────────────────────────────
+function animateTo(target, ms, cb){
+  const start=[...J], t0=performance.now();
+  function step(t){
+    let a = Math.min((t-t0)/ms, 1);
+    a = a<0.5 ? 2*a*a : -1+(4-2*a)*a; // easeInOut
+    J = start.map((s,i)=>s+(target[i]-s)*a);
+    J.forEach((v,i)=>{
+      document.getElementById(`s${i}`).value=v;
+      document.getElementById(`v${i}`).textContent=Math.round(v)+'°';
+    });
+    applyJoints();
+    if(a<1) requestAnimationFrame(step);
+    else { J=[...target]; if(cb) cb(); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ── NEURAL NETWORK (TF.js) ────────────────────────────────
+let model=null, trained=false;
+
+const POS_SCALE = 0.65;
+const JR = LIMITS.map(([lo,hi])=>({lo, range:hi-lo}));
+
+const normPos   = p => [p.x/POS_SCALE, p.y/POS_SCALE, p.z/POS_SCALE];
+const normJ     = j => j.map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
+const denormJ   = n => n.map((v,i)=>{
+  const c=Math.max(-1,Math.min(1,v));
+  return JR[i].lo+((c+1)/2)*JR[i].range;
+});
+
+function buildModel(){
+  model = tf.sequential({ layers:[
+    tf.layers.dense({ inputShape:[3], units:256, activation:'relu' }),
+    tf.layers.batchNormalization(),
+    tf.layers.dense({ units:256, activation:'relu' }),
+    tf.layers.dense({ units:128, activation:'relu' }),
+    tf.layers.dense({ units:64,  activation:'relu' }),
+    tf.layers.dense({ units:5,   activation:'tanh' })
+  ]});
+  model.compile({ optimizer:tf.train.adam(0.0008), loss:'meanSquaredError' });
+}
+
+function genData(n=2000){
+  const xs=[], ys=[];
+  for(let i=0;i<n;i++){
+    const j = LIMITS.map(([lo,hi])=>lo+Math.random()*(hi-lo));
+    const pos = fk(j);
+    xs.push(normPos(pos));
+    ys.push(normJ(j));
+  }
+  return { xs:tf.tensor2d(xs), ys:tf.tensor2d(ys) };
+}
+
+async function trainNN(){
+  const btn=document.getElementById('btn-train');
+  const stat=document.getElementById('nn-status');
+  const fill=document.getElementById('pfill');
+  const solveBtn=document.getElementById('btn-solve');
+  btn.disabled=true;
+  stat.textContent='GENERATING 2000 TRAINING POSES...';
+  fill.style.width='4%';
+  await tf.nextFrame();
+
+  buildModel();
+  const {xs,ys} = genData(2000);
+
+  stat.textContent='TRAINING NEURAL NETWORK...';
+  const EPOCHS=120;
+  await model.fit(xs,ys,{
+    epochs:EPOCHS, batchSize:64, shuffle:true, validationSplit:0.1,
+    callbacks:{
+      onEpochEnd:async(ep,logs)=>{
+        fill.style.width=Math.round(((ep+1)/EPOCHS)*100)+'%';
+        stat.textContent=`EPOCH ${ep+1}/${EPOCHS} · LOSS ${logs.loss.toFixed(5)} · VAL ${(logs.val_loss||0).toFixed(5)}`;
+        await tf.nextFrame();
+      }
+    }
+  });
+
+  xs.dispose(); ys.dispose();
+  trained=true; btn.disabled=false; solveBtn.disabled=false;
+  fill.style.width='100%';
+  stat.textContent='✓ TRAINED — READY TO SOLVE INVERSE KINEMATICS';
+}
+
+async function solveIK(){
+  if(!trained||!model)return;
+  const tx=parseFloat(document.getElementById('nn-x').value);
+  const ty=parseFloat(document.getElementById('nn-y').value);
+  const tz=parseFloat(document.getElementById('nn-z').value);
+
+  const inp = tf.tensor2d([normPos({x:tx,y:ty,z:tz})]);
+  const out  = model.predict(inp);
+  const raw  = (await out.array())[0];
+  inp.dispose(); out.dispose();
+
+  const predicted = denormJ(raw).map((v,i)=>
+    Math.max(LIMITS[i][0],Math.min(LIMITS[i][1],v))
+  );
+
+  // Show target
+  targetSph.position.set(tx,ty,tz);
+  targetSph.visible=true;
+  axisHelper.position.set(tx,ty,tz);
+  axisHelper.visible=true;
+  const badge=document.getElementById('target-badge');
+  badge.style.display='block';
+  badge.textContent=`TARGET  X:${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
+
+  animateTo(predicted, 900, ()=>{
+    const ee=getEEWorldPos();
+    const err=Math.sqrt((ee.x-tx)**2+(ee.y-ty)**2+(ee.z-tz)**2)*1000;
+    document.getElementById('nn-status').textContent=
+      `IK SOLVED · POSITION ERROR: ${err.toFixed(1)} mm`;
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────
+applyJoints();
+</script>
+</body>
+</html>
