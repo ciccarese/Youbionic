@@ -535,9 +535,9 @@ function renderMem(){
   el.innerHTML = saved.map((p,i)=>`
     <div class="mitem">
       <span class="mname">${p.name}</span>
-      <span class="mangles">${p.j.map(v=>Math.round(v))+'°').join(' ')}</span>
+      <span class="mangles">${p.j.map(v=>Math.round(v)+'\u00b0').join(' ')}</span>
       <button class="mbtn" onclick="recallPos(${i})">GO</button>
-      <button class="mbtn" onclick="addToSeq(${i})">+SEQ </button>
+      <button class="mbtn" onclick="addToSeq(${i})">+SEQ</button>
       <button class="mbtn" onclick="deletePos(${i})">✕</button>
     </div>`).join('');
 }
@@ -552,7 +552,7 @@ function deletePos(i){
   renderMem();
 }
 
-// ── MOTION SEQUENCE ────────────────────────────────────────
+// ── MOTION SEQUECE ───────────────────────────────────────
 let seq=[], playing=false, looping=false, playIdx=0, playTimer=null;
 
 function addToSeq(i){
@@ -577,9 +577,9 @@ function renderSeq(){
   }).join('');
 }
 
-function removeFromSeq(i) { seq.splice(i,1); renderSeq(); }
+function removeFromSeq(i){ seq.splice(i,1); renderSeq(); }
 
-function clearSeq() { seq=[]; stopPlay(); renderSeq(); }
+function clearSeq(){ seq=[]; stopPlay(); renderSeq(); }
 
 function togglePlay(){
   if(playing) stopPlay();
@@ -617,7 +617,7 @@ function toggleLoop(){
 function exportSeq(){
   const data = { arm:'YOUBIONIC 3D Robot Arm Simulator', sequence:seq.map(i=>saved[i]) };
   const a = document.createElement('a');
-  a.href = 'data:application/json, ' + encodeURIComponent(JSON.stringify(data,null,2));
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(data,null,2));
   a.download = 'youbionic-motion.json'; a.click();
 }
 
@@ -646,7 +646,7 @@ const POS_SCALE = 0.65;
 const JR = LIMITS.map(([lo,hi])=>({lo, range:hi-lo}));
 
 const normPos   = p => [p.x/POS_SCALE, p.y/POS_SCALE, p.z/POS_SCALE];
-const normJ     = j => j. map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
+const normJ     = j => j.map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
 const denormJ   = n => n.map((v,i)=>{
   const c=Math.max(-1,Math.min(1,v));
   return JR[i].lo+((c+1)/2)*JR[i].range;
@@ -729,7 +729,7 @@ async function solveIK(){
   axisHelper.visible=true;
   const badge=document.getElementById('target-badge');
   badge.style.display='block';
-  badge.textContent=`TARGET Q�${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
+  badge.textContent=`TARGET  X:${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
 
   animateTo(predicted, 900, ()=>{
     const ee=getEEWorldPos();
