@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>YOUBIONIC â 3D Robot Arm Simulator</title>
+<title>YOUBIONIC — 3D Robot Arm Simulator</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
@@ -18,7 +18,7 @@
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,sans-serif}
 
-/* ââ LAYOUT ââ */
+/* ── LAYOUT ── */
 #app{display:flex;flex-direction:column;height:100dvh;height:100vh}
 #header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
 #canvas-wrap{flex:1;position:relative;min-height:0;overflow:hidden}
@@ -31,11 +31,11 @@ canvas{display:block;width:100%!important;height:100%!important;touch-action:non
 }
 #panel{flex-shrink:0;border-top:1px solid var(--border);display:flex;flex-direction:column;height:264px}
 
-/* ââ HEADER ââ */
+/* ── HEADER ── */
 .logo{font-size:11px;font-weight:800;letter-spacing:.35em;color:var(--accent);text-transform:uppercase}
 .app-name{font-size:10px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}
 
-/* ââ TABS ââ */
+/* ── TABS ── */
 #tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
 .tab{
   flex:1;padding:9px 2px;font-size:9px;font-weight:700;letter-spacing:.15em;
@@ -44,11 +44,11 @@ canvas{display:block;width:100%!important;height:100%!important;touch-action:non
 }
 .tab.on{color:var(--text);border-bottom-color:var(--text)}
 
-/* ââ TAB CONTENT ââ */
+/* ── TAB CONTENT ── */
 .tc{display:none;flex:1;overflow-y:auto;padding:12px 16px}
 .tc.on{display:block}
 
-/* ââ SLIDERS ââ */
+/* ── SLIDERS ── */
 .jrow{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .jlabel{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;width:72px;flex-shrink:0}
 input[type=range]{
@@ -65,7 +65,7 @@ input[type=range]::-moz-range-thumb{
 }
 .jval{font-size:11px;font-weight:700;color:var(--accent);width:38px;text-align:right;flex-shrink:0}
 
-/* ââ BUTTONS ââ */
+/* ── BUTTONS ── */
 .brow{display:flex;gap:7px;margin-top:8px}
 .btn{
   flex:1;padding:8px 4px;font-size:9px;font-weight:700;letter-spacing:.14em;
@@ -77,7 +77,7 @@ input[type=range]::-moz-range-thumb{
 .btn.prime:hover{background:var(--accent);color:var(--bg)}
 .btn:disabled{opacity:.35;pointer-events:none}
 
-/* ââ MEMORY LIST ââ */
+/* ── MEMORY LIST ── */
 .mitem{
   display:flex;align-items:center;gap:8px;
   padding:7px 0;border-bottom:1px solid var(--border)
@@ -92,13 +92,13 @@ input[type=range]::-moz-range-thumb{
 }
 .mbtn:hover{border-color:var(--text);color:var(--text)}
 
-/* ââ EMPTY STATE ââ */
+/* ── EMPTY STATE ── */
 .empty{text-align:center;color:var(--muted);font-size:10px;padding:22px 0;letter-spacing:.06em;line-height:1.8}
 
-/* ââ MOTION CONTROLS ââ */
+/* ── MOTION CONTROLS ── */
 #motion-btns{display:flex;gap:7px;padding:10px 0 4px;flex-shrink:0}
 
-/* ââ NEURAL NET ââ */
+/* ── NEURAL NET ── */
 .nn-label{font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
 .xyz-row{display:flex;gap:8px;margin-bottom:9px}
 .xyz-col{flex:1;display:flex;flex-direction:column;gap:4px}
@@ -113,7 +113,7 @@ input[type=range]::-moz-range-thumb{
 .prog-fill{height:100%;background:var(--text);width:0%;transition:width .08s}
 .nn-status{font-size:10px;color:var(--muted);text-align:center;min-height:16px;letter-spacing:.05em}
 
-/* ââ TARGET MARKER (corner) ââ */
+/* ── TARGET MARKER (corner) ── */
 #target-badge{
   position:absolute;top:10px;right:10px;
   background:rgba(0,0,0,.8);border:1px solid var(--border);
@@ -137,8 +137,8 @@ input[type=range]::-moz-range-thumb{
 
   <div id="canvas-wrap">
     <canvas id="c"></canvas>
-    <div id="ee-label">END EFFECTOR â X: 0.000  Y: 0.000  Z: 0.000</div>
-    <div id="target-badge">TARGET: â</div>
+    <div id="ee-label">END EFFECTOR — X: 0.000  Y: 0.000  Z: 0.000</div>
+    <div id="target-badge">TARGET: —</div>
   </div>
 
   <div id="panel">
@@ -151,11 +151,11 @@ input[type=range]::-moz-range-thumb{
 
     <!-- JOINTS -->
     <div class="tc on" id="tc-joints">
-      <div class="jrow"><span class="jlabel">BASE ROT</span><input type="range" id="s0" min="-180" max="180" value="0"   oninput="onSlider(0,+this.value)"><span class="jval" id="v0">0Â°</span></div>
-      <div class="jrow"><span class="jlabel">SHOULDER</span><input type="range" id="s1" min="0"    max="150" value="30"  oninput="onSlider(1,+this.value)"><span class="jval" id="v1">30Â°</span></div>
-      <div class="jrow"><span class="jlabel">ELBOW</span>   <input type="range" id="s2" min="0"    max="150" value="60"  oninput="onSlider(2,+this.value)"><span class="jval" id="v2">60Â°</span></div>
-      <div class="jrow"><span class="jlabel">WRIST P.</span><input type="range" id="s3" min="-90"  max="90"  value="0"   oninput="onSlider(3,+this.value)"><span class="jval" id="v3">0Â°</span></div>
-      <div class="jrow"><span class="jlabel">WRIST R.</span><input type="range" id="s4" min="-180" max="180" value="0"   oninput="onSlider(4,+this.value)"><span class="jval" id="v4">0Â°</span></div>
+      <div class="jrow"><span class="jlabel">BASE ROT</span><input type="range" id="s0" min="-180" max="180" value="0"   oninput="onSlider(0,+this.value)"><span class="jval" id="v0">0°</span></div>
+      <div class="jrow"><span class="jlabel">SHOULDER</span><input type="range" id="s1" min="0"    max="150" value="30"  oninput="onSlider(1,+this.value)"><span class="jval" id="v1">30°</span></div>
+      <div class="jrow"><span class="jlabel">ELBOW</span>   <input type="range" id="s2" min="0"    max="150" value="60"  oninput="onSlider(2,+this.value)"><span class="jval" id="v2">60°</span></div>
+      <div class="jrow"><span class="jlabel">WRIST P.</span><input type="range" id="s3" min="-90"  max="90"  value="0"   oninput="onSlider(3,+this.value)"><span class="jval" id="v3">0°</span></div>
+      <div class="jrow"><span class="jlabel">WRIST R.</span><input type="range" id="s4" min="-180" max="180" value="0"   oninput="onSlider(4,+this.value)"><span class="jval" id="v4">0°</span></div>
       <div class="brow">
         <button class="btn" onclick="resetArm()">RESET</button>
         <button class="btn prime" onclick="savePos()">SAVE POSITION</button>
@@ -164,7 +164,7 @@ input[type=range]::-moz-range-thumb{
 
     <!-- MEMORY -->
     <div class="tc" id="tc-memory">
-      <div id="mem-list"><div class="empty">NO SAVED POSITIONS YET<br>JOINTS â SAVE POSITION</div></div>
+      <div id="mem-list"><div class="empty">NO SAVED POSITIONS YET<br>JOINTS → SAVE POSITION</div></div>
     </div>
 
     <!-- MOTION -->
@@ -174,8 +174,8 @@ input[type=range]::-moz-range-thumb{
       </div>
       <div id="motion-btns" style="padding:8px 16px;border-top:1px solid var(--border)">
         <button class="btn" onclick="clearSeq()">CLEAR</button>
-        <button class="btn" id="btn-play" onclick="togglePlay()">â¶ PLAY</button>
-        <button class="btn" id="btn-loop" onclick="toggleLoop()">â³ LOOP: OFF</button>
+        <button class="btn" id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+        <button class="btn" id="btn-loop" onclick="toggleLoop()">⟳ LOOP: OFF</button>
         <button class="btn" onclick="exportSeq()">EXPORT JSON</button>
       </div>
     </div>
@@ -189,11 +189,11 @@ input[type=range]::-moz-range-thumb{
         <div class="xyz-col"><span class="xyz-axis">Z</span><input type="number" class="xyz-in" id="nn-z" value="0.10" step="0.01"></div>
       </div>
       <div class="brow" style="margin-bottom:6px">
-        <button class="btn" id="btn-train" onclick="trainNN()">â¡ TRAIN 2000 POSES</button>
+        <button class="btn" id="btn-train" onclick="trainNN()">⚡ TRAIN 2000 POSES</button>
         <button class="btn prime" id="btn-solve" onclick="solveIK()" disabled>SOLVE IK</button>
       </div>
       <div class="prog"><div class="prog-fill" id="pfill"></div></div>
-      <div class="nn-status" id="nn-status">MODEL NOT TRAINED â PRESS â¡ TRAIN FIRST</div>
+      <div class="nn-status" id="nn-status">MODEL NOT TRAINED — PRESS ⚡ TRAIN FIRST</div>
     </div>
   </div>
 </div>
@@ -201,19 +201,19 @@ input[type=range]::-moz-range-thumb{
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script>
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  YOUBIONIC â 3D Robot Arm Simulator
-//  Single-file Â· Three.js r128 Â· TensorFlow.js 4.10
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════
+//  YOUBIONIC — 3D Robot Arm Simulator
+//  Single-file · Three.js r128 · TensorFlow.js 4.10
+// ═══════════════════════════════════════════════════════
 
-// ââ ARM GEOMETRY ââââââââââââââââââââââââââââââââââââââââ
+// ── ARM GEOMETRY ────────────────────────────────────────
 const L = { base:0.08, upper:0.26, forearm:0.22, hand:0.13 };
 
-// ââ JOINT STATE âââââââââââââââââââââââââââââââââââââââââ
+// ── JOINT STATE ─────────────────────────────────────────
 let J = [0, 30, 60, 0, 0]; // degrees
 const LIMITS = [[-180,180],[0,150],[0,150],[-90,90],[-180,180]];
 
-// ââ THREE.JS RENDERER ââââââââââââââââââââââââââââââââââââ
+// ── THREE.JS RENDERER ────────────────────────────────────
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -224,7 +224,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const cam = new THREE.PerspectiveCamera(40, 1, 0.005, 30);
 
-// ââ LIGHTS âââââââââââââââââââââââââââââââââââââââââââââââ
+// ── LIGHTS ───────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.42));
 
 const key = new THREE.DirectionalLight(0xffffff, 1.10);
@@ -248,8 +248,8 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ââ MATERIALS ââââââââââââââââââââââââââââââââââââââââââââ
-// 4 named materials â easy to restyle in the future
+// ── MATERIALS ────────────────────────────────────────────
+// 4 named materials — easy to restyle in the future
 const M = {
   body:  new THREE.MeshStandardMaterial({ color: 0x1d2026, metalness: 0.20, roughness: 0.60 }),
   joint: new THREE.MeshStandardMaterial({ color: 0x4c525e, metalness: 0.15, roughness: 0.55 }),
@@ -258,11 +258,11 @@ const M = {
   tgt:   new THREE.MeshBasicMaterial({ color: 0xEDEBE7, wireframe: true, transparent: true, opacity: 0.40 }),
 };
 
-// ââ GEOMETRY PRIMITIVES ââââââââââââââââââââââââââââââââââ
+// ── GEOMETRY PRIMITIVES ──────────────────────────────────
 const gCyl = (rTop, rBot, h, seg = 16) => new THREE.CylinderGeometry(rTop, rBot, h, seg);
 const gSph = (r, seg = 16)             => new THREE.SphereGeometry(r, seg, 12);
 
-// ââ ARM BUILD FUNCTIONS ââââââââââââââââââââââââââââââââââ
+// ── ARM BUILD FUNCTIONS ──────────────────────────────────
 
 // Tapered link tube going +Y from parent origin
 function buildLink(parent, length, rTop, rBot, mat = M.body) {
@@ -280,7 +280,7 @@ function buildJointZ(parent, r, h, mat = M.joint) {
   body.rotation.x = Math.PI / 2;   // tilt so axis = Z
   body.castShadow = true;
   parent.add(body);
-  // collar flanges on Â±Z faces
+  // collar flanges on ±Z faces
   [-1, 1].forEach(s => {
     const f = new THREE.Mesh(gCyl(r * 1.18, r * 1.18, 0.006, 24), mat);
     f.rotation.x = Math.PI / 2;
@@ -295,7 +295,7 @@ function buildJointY(parent, r, h, mat = M.joint) {
   const body = new THREE.Mesh(gCyl(r, r, h, 24), mat);
   body.castShadow = true;
   parent.add(body);
-  // collar flanges on Â±Y faces
+  // collar flanges on ±Y faces
   [-1, 1].forEach(s => {
     const f = new THREE.Mesh(gCyl(r * 1.18, r * 1.18, 0.006, 24), mat);
     f.position.y = s * (h / 2 + 0.003);
@@ -313,11 +313,11 @@ function buildBolts(parent, n, radius, y, mat = M.joint) {
   }
 }
 
-// ââ BUILD ARM ââââââââââââââââââââââââââââââââââââââââââââ
+// ── BUILD ARM ────────────────────────────────────────────
 const root = new THREE.Group();
 scene.add(root);
 
-// âââ BASE ââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── BASE ────────────────────────────────────────────────
 const basePlate = new THREE.Mesh(gCyl(0.088, 0.088, 0.008, 32), M.base);
 basePlate.position.y = 0.004;
 basePlate.castShadow = true;
@@ -332,33 +332,33 @@ const baseCollar = new THREE.Mesh(gCyl(0.050, 0.050, 0.010, 24), M.joint);
 baseCollar.position.y = 0.083;
 root.add(baseCollar);
 
-// âââ PIVOT 0 â BASE ROTATION (Y axis) âââââââââââââââââââ
+// ─── PIVOT 0 — BASE ROTATION (Y axis) ───────────────────
 const p0 = new THREE.Group();
 p0.position.y = L.base;
 root.add(p0);
 buildJointY(p0, 0.036, 0.030);
 
-// âââ PIVOT 1 â SHOULDER (Z axis) ââââââââââââââââââââââââ
+// ─── PIVOT 1 — SHOULDER (Z axis) ────────────────────────
 const p1 = new THREE.Group();
 p0.add(p1);
 buildJointZ(p1, 0.030, 0.064);
 buildLink(p1, L.upper, 0.014, 0.022);
 
-// âââ PIVOT 2 â ELBOW (Z axis) ââââââââââââââââââââââââââââ
+// ─── PIVOT 2 — ELBOW (Z axis) ────────────────────────────
 const p2 = new THREE.Group();
 p2.position.y = L.upper;
 p1.add(p2);
 buildJointZ(p2, 0.025, 0.054);
 buildLink(p2, L.forearm, 0.011, 0.018);
 
-// âââ PIVOT 3 â WRIST PITCH (Z axis) âââââââââââââââââââââ
+// ─── PIVOT 3 — WRIST PITCH (Z axis) ─────────────────────
 const p3 = new THREE.Group();
 p3.position.y = L.forearm;
 p2.add(p3);
 buildJointZ(p3, 0.019, 0.040);
 buildLink(p3, L.hand, 0.009, 0.013);
 
-// âââ PIVOT 4 â WRIST ROLL (Y axis) + END EFFECTOR âââââââ
+// ─── PIVOT 4 — WRIST ROLL (Y axis) + END EFFECTOR ───────
 const p4 = new THREE.Group();
 p4.position.y = L.hand;
 p3.add(p4);
@@ -372,7 +372,7 @@ const eeTip = new THREE.Mesh(gSph(0.010, 16), M.ee);
 eeTip.position.y = 0.018;
 eeTip.castShadow = true;
 p4.add(eeTip);
-// Gripper â parallel jaws
+// Gripper — parallel jaws
 [-0.018, 0.018].forEach(ox => {
   const jaw = new THREE.Mesh(gCyl(0.0042, 0.005, 0.040, 8), M.body);
   jaw.position.set(ox, 0.030, 0);
@@ -387,7 +387,7 @@ crossbar.rotation.z = Math.PI / 2;
 crossbar.position.set(0, 0.025, 0);
 p4.add(crossbar);
 
-// ââ IK TARGET SPHERE âââââââââââââââââââââââââââââââââââââ
+// ── IK TARGET SPHERE ─────────────────────────────────────
 const targetSph = new THREE.Mesh(gSph(0.014, 12), M.tgt);
 targetSph.visible = false;
 scene.add(targetSph);
@@ -395,7 +395,7 @@ const axisHelper = new THREE.AxesHelper(0.04);
 axisHelper.visible = false;
 scene.add(axisHelper);
 
-// ââ APPLY JOINTS TO ARM ââââââââââââââââââââââââââââââââââ
+// ── APPLY JOINTS TO ARM ──────────────────────────────────
 function applyJoints() {
   const d = THREE.MathUtils.degToRad;
   p0.rotation.y =  d(J[0]);
@@ -405,7 +405,7 @@ function applyJoints() {
   p4.rotation.y =  d(J[4]);
 }
 
-// ââ FORWARD KINEMATICS âââââââââââââââââââââââââââââââââââ
+// ── FORWARD KINEMATICS ───────────────────────────────────
 function fk(j) {
   const r = x => x * Math.PI / 180;
   const s1=Math.sin(r(j[1])), c1=Math.cos(r(j[1]));
@@ -422,7 +422,7 @@ function getEEWorldPos() {
   return new THREE.Vector3().setFromMatrixPosition(p4.matrixWorld);
 }
 
-// ââ ORBIT CONTROLS ââââââââââââââââââââââââââââââââââââââââ
+// ── ORBIT CONTROLS ────────────────────────────────────────
 let theta=0.8, phi=0.95, radius=0.95;
 let orb={on:false, lx:0, ly:0};
 
@@ -469,7 +469,7 @@ canvas.addEventListener('touchmove', e=>{
 },{passive:true});
 canvas.addEventListener('touchend',()=>orb.on=false);
 
-// ââ RESIZE ââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── RESIZE ────────────────────────────────────────────────
 const ro = new ResizeObserver(()=>{
   const w=canvas.clientWidth, h=canvas.clientHeight;
   renderer.setSize(w,h,false);
@@ -477,7 +477,7 @@ const ro = new ResizeObserver(()=>{
 });
 ro.observe(canvas);
 
-// ââ RENDER LOOP âââââââââââââââââââââââââââââââââââââââââââ
+// ── RENDER LOOP ───────────────────────────────────────────
 (function animate(){
   requestAnimationFrame(animate);
   const ee = getEEWorldPos();
@@ -486,7 +486,7 @@ ro.observe(canvas);
   renderer.render(scene, cam);
 })();
 
-// ââ UI HELPERS ââââââââââââââââââââââââââââââââââââââââââââ
+// ── UI HELPERS ────────────────────────────────────────────
 function switchTab(name){
   ['joints','memory','motion','neural'].forEach(n=>{
     document.querySelector(`.tab:nth-child(${['joints','memory','motion','neural'].indexOf(n)+1})`).classList.toggle('on',n===name);
@@ -501,7 +501,7 @@ function switchTab(name){
 
 function onSlider(i, val){
   J[i]=val;
-  document.getElementById(`v${i}`).textContent = val+'Â°';
+  document.getElementById(`v${i}`).textContent = val+'°';
   applyJoints();
 }
 
@@ -510,12 +510,12 @@ function resetArm(){
   def.forEach((v,i)=>{
     J[i]=v;
     document.getElementById(`s${i}`).value=v;
-    document.getElementById(`v${i}`).textContent=v+'Â°';
+    document.getElementById(`v${i}`).textContent=v+'°';
   });
   applyJoints();
 }
 
-// ââ MEMORY SYSTEM âââââââââââââââââââââââââââââââââââââââââ
+// ── MEMORY SYSTEM ─────────────────────────────────────────
 let saved = [];
 
 function savePos(){
@@ -529,16 +529,16 @@ function savePos(){
 function renderMem(){
   const el = document.getElementById('mem-list');
   if(!saved.length){
-    el.innerHTML='<div class="empty">NO SAVED POSITIONS YET<br>JOINTS â SAVE POSITION</div>';
+    el.innerHTML='<div class="empty">NO SAVED POSITIONS YET<br>JOINTS → SAVE POSITION</div>';
     return;
   }
   el.innerHTML = saved.map((p,i)=>`
     <div class="mitem">
       <span class="mname">${p.name}</span>
-      <span class="mangles">${p.j.map(v=>Math.round(v))+'Â°').join(' ')}</span>
+      <span class="mangles">${p.j.map(v=>Math.round(v))+'°').join(' ')}</span>
       <button class="mbtn" onclick="recallPos(${i})">GO</button>
-      <button class="mbtn" onclick="addToSeq(${i})">+SEQ</button>
-      <button class="mbtn" onclick="deletePos(${i})">â</button>
+      <button class="mbtn" onclick="addToSeq(${i})">+SEQ </button>
+      <button class="mbtn" onclick="deletePos(${i})">✕</button>
     </div>`).join('');
 }
 
@@ -552,8 +552,8 @@ function deletePos(i){
   renderMem();
 }
 
-// ââ MOTION SEQUENCE âââââââââââââââââââââââââââââââââââââââ
-const seq=[], playing=false, looping=false, playIdx=0, playTimer=null;
+// ── MOTION SEQUENCE ────────────────────────────────────────
+let seq=[], playing=false, looping=false, playIdx=0, playTimer=null;
 
 function addToSeq(i){
   seq.push(i);
@@ -572,14 +572,14 @@ function renderSeq(){
     return `<div class="mitem">
       <span style="font-size:10px;color:#444;width:18px">${si+1}</span>
       <span class="mname">${p?p.name:'[deleted]'}</span>
-      <button class="mbtn" onclick="removeFromSeq(${si})">â</button>
+      <button class="mbtn" onclick="removeFromSeq(${si})">✕</button>
     </div>`;
   }).join('');
 }
 
-function removeFromSeq(i){ seq.splice(i,1); renderSeq(); }
+function removeFromSeq(i) { seq.splice(i,1); renderSeq(); }
 
-function clearSeq(){ seq=[]; stopPlay(); renderSeq(); }
+function clearSeq() { seq=[]; stopPlay(); renderSeq(); }
 
 function togglePlay(){
   if(playing) stopPlay();
@@ -589,13 +589,13 @@ function togglePlay(){
 function startPlay(){
   if(seq.length<1) return;
   playing=true; playIdx=0;
-  document.getElementById('btn-play').textContent='â  STOP';
+  document.getElementById('btn-play').textContent='■ STOP';
   playStep();
 }
 
 function stopPlay(){
   playing=false; clearTimeout(playTimer);
-  document.getElementById('btn-play').textContent='â¶ PLAY';
+  document.getElementById('btn-play').textContent='▶ PLAY';
 }
 
 function playStep(){
@@ -611,17 +611,17 @@ function playStep(){
 
 function toggleLoop(){
   looping=!looping;
-  document.getElementById('btn-loop').textContent=`â³ LOOP: ${looping?'ON':'OFF'}`;
+  document.getElementById('btn-loop').textContent=`⟳ LOOP: ${looping?'ON':'OFF'}`;
 }
 
 function exportSeq(){
   const data = { arm:'YOUBIONIC 3D Robot Arm Simulator', sequence:seq.map(i=>saved[i]) };
   const a = document.createElement('a');
-  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(data,null,2));
+  a.href = 'data:application/json, ' + encodeURIComponent(JSON.stringify(data,null,2));
   a.download = 'youbionic-motion.json'; a.click();
 }
 
-// ââ SMOOTH ANIMATION âââââââââââââââââââââââââââââââââââââ
+// ── SMOOTH ANIMATION ─────────────────────────────────────
 function animateTo(target, ms, cb){
   const start=[...J], t0=performance.now();
   function step(t){
@@ -630,7 +630,7 @@ function animateTo(target, ms, cb){
     J = start.map((s,i)=>s+(target[i]-s)*a);
     J.forEach((v,i)=>{
       document.getElementById(`s${i}`).value=v;
-      document.getElementById(`v${i}`).textContent=Math.round(v)+'Â°';
+      document.getElementById(`v${i}`).textContent=Math.round(v)+'°';
     });
     applyJoints();
     if(a<1) requestAnimationFrame(step);
@@ -639,14 +639,14 @@ function animateTo(target, ms, cb){
   requestAnimationFrame(step);
 }
 
-// ââ NEURAL NETWORK (TF.js) ââââââââââââââââââââââââââââââââ
+// ── NEURAL NETWORK (TF.js) ────────────────────────────────
 let model=null, trained=false;
 
 const POS_SCALE = 0.65;
 const JR = LIMITS.map(([lo,hi])=>({lo, range:hi-lo}));
 
 const normPos   = p => [p.x/POS_SCALE, p.y/POS_SCALE, p.z/POS_SCALE];
-const normJ     = j => j.map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
+const normJ     = j => j. map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
 const denormJ   = n => n.map((v,i)=>{
   const c=Math.max(-1,Math.min(1,v));
   return JR[i].lo+((c+1)/2)*JR[i].range;
@@ -695,7 +695,7 @@ async function trainNN(){
     callbacks:{
       onEpochEnd:async(ep,logs)=>{
         fill.style.width=Math.round(((ep+1)/EPOCHS)*100)+'%';
-        stat.textContent=`EPOCH ${ep+1}/${EPOCHS} Â· LOSS ${logs.loss.toFixed(5)} Â· VAL ${(logs.val_loss||0).toFixed(5)}`;
+        stat.textContent=`EPOCH ${ep+1}/${EPOCHS} · LOSS ${logs.loss.toFixed(5)} · VAL ${(logs.val_loss||0).toFixed(5)}`;
         await tf.nextFrame();
       }
     }
@@ -704,7 +704,7 @@ async function trainNN(){
   xs.dispose(); ys.dispose();
   trained=true; btn.disabled=false; solveBtn.disabled=false;
   fill.style.width='100%';
-  stat.textContent='â TRAINED â READY TO SOLVE INVERSE KINEMATICS';
+  stat.textContent='✓ TRAINED — READY TO SOLVE INVERSE KINEMATICS';
 }
 
 async function solveIK(){
@@ -729,17 +729,17 @@ async function solveIK(){
   axisHelper.visible=true;
   const badge=document.getElementById('target-badge');
   badge.style.display='block';
-  badge.textContent=`TARGET  X:${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
+  badge.textContent=`TARGET Q�${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
 
   animateTo(predicted, 900, ()=>{
     const ee=getEEWorldPos();
     const err=Math.sqrt((ee.x-tx)**2+(ee.y-ty)**2+(ee.z-tz)**2)*1000;
     document.getElementById('nn-status').textContent=
-      `IK SOLVED Â· POSITION ERROR: ${err.toFixed(1)} mm`;
+      `IK SOLVED · POSITION ERROR: ${err.toFixed(1)} mm`;
   });
 }
 
-// ââ INIT ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── INIT ──────────────────────────────────────────────────
 applyJoints();
 </script>
 </body>
