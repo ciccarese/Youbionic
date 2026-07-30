@@ -213,232 +213,184 @@ const L = { base:0.08, upper:0.26, forearm:0.22, hand:0.13 };
 let J = [0, 30, 60, 0, 0]; // degrees
 const LIMITS = [[-180,180],[0,150],[0,150],[-90,90],[-180,180]];
 
-// ââ THREE.JS âââââââââââââââââââââââââââââââââââââââââââââ
+// ââ THREE.JS RENDERER ââââââââââââââââââââââââââââââââââââ
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setClearColor(0x0a0a0a);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
-renderer.outputEncoding = THREE.sRGBEncoding;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x0a0a0a, 2.5, 5);
-
-const cam = new THREE.PerspectiveCamera(42, 1, 0.005, 50);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.005, 30);
 
 // ââ LIGHTS âââââââââââââââââââââââââââââââââââââââââââââââ
-// Sky / ground hemisphere â cool sky, warm ground bounce
-const hemi = new THREE.HemisphereLight(0x3a4a60, 0x1a1208, 0.7);
-scene.add(hemi);
+scene.add(new THREE.AmbientLight(0xffffff, 0.42));
 
-// Key light â sharp main shadow
-const key = new THREE.DirectionalLight(0xffffff, 1.5);
-key.position.set(1.5, 3.0, 2.0);
+const key = new THREE.DirectionalLight(0xffffff, 1.10);
+key.position.set(1.2, 2.5, 1.8);
 key.castShadow = true;
-key.shadow.mapSize.width  = 2048;
-key.shadow.mapSize.height = 2048;
-key.shadow.bias = -0.0005;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.bias = -0.001;
 scene.add(key);
 
-// Cool blue fill from camera-left
-const fill = new THREE.DirectionalLight(0x7799cc, 0.32);
+const fill = new THREE.DirectionalLight(0x99aacc, 0.28);
 fill.position.set(-2, 0.5, -1);
 scene.add(fill);
 
-// Warm amber rim from behind
-const rim = new THREE.DirectionalLight(0xffcc88, 0.52);
-rim.position.set(0, 2.5, -3);
-scene.add(rim);
-
-// Warm accent point â industrial lamp feel
-const accent = new THREE.PointLight(0xff9944, 0.28, 1.3);
-accent.position.set(0.3, 0.55, 0.25);
-scene.add(accent);
-
-// Grid
-const grid = new THREE.GridHelper(1.4, 14, 0x1e1e1e, 0x161616);
-scene.add(grid);
-
-// Ground plane (shadow receiver)
-const groundMat = new THREE.ShadowMaterial({ opacity:0.32 });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(4,4), groundMat);
-ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+// Grid + shadow ground
+scene.add(new THREE.GridHelper(1.4, 14, 0x1e1e1e, 0x161616));
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(4, 4),
+  new THREE.ShadowMaterial({ opacity: 0.22 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
 scene.add(ground);
 
-// ââ MATERIALS (PBR) ââââââââââââââââââââââââââââââââââââââ
-const mLink  = new THREE.MeshStandardMaterial({ color:0x2c3038, metalness:0.85, roughness:0.25 });
-const mJoint = new THREE.MeshStandardMaterial({ color:0xe2e0db, metalness:0.90, roughness:0.12 });
-const mBase  = new THREE.MeshStandardMaterial({ color:0x101215, metalness:0.65, roughness:0.50 });
-const mEE    = new THREE.MeshStandardMaterial({ color:0xEDEBE7, metalness:0.40, roughness:0.40 });
-const mFlange= new THREE.MeshStandardMaterial({ color:0x3d4148, metalness:0.88, roughness:0.22 });
-const mBolt  = new THREE.MeshStandardMaterial({ color:0x909090, metalness:0.95, roughness:0.18 });
-const mCable = new THREE.MeshStandardMaterial({ color:0x0c0c0c, metalness:0.00, roughness:0.92 });
-const mTarget= new THREE.MeshBasicMaterial({ color:0xEDEBE7, wireframe:true, transparent:true, opacity:0.35 });
+// ââ MATERIALS ââââââââââââââââââââââââââââââââââââââââââââ
+// 4 named materials â easy to restyle in the future
+const M = {
+  body:  new THREE.MeshStandardMaterial({ color: 0x1d2026, metalness: 0.20, roughness: 0.60 }),
+  joint: new THREE.MeshStandardMaterial({ color: 0x4c525e, metalness: 0.15, roughness: 0.55 }),
+  base:  new THREE.MeshStandardMaterial({ color: 0x101214, metalness: 0.15, roughness: 0.70 }),
+  ee:    new THREE.MeshStandardMaterial({ color: 0xEDEBE7, metalness: 0.05, roughness: 0.35 }),
+  tgt:   new THREE.MeshBasicMaterial({ color: 0xEDEBE7, wireframe: true, transparent: true, opacity: 0.40 }),
+};
 
-// ââ GEOMETRY HELPERS âââââââââââââââââââââââââââââââââââââ
-const cyl = (r1,r2,h,seg=20) => new THREE.CylinderGeometry(r1,r2,h,seg);
-const sph = (r,seg=20)       => new THREE.SphereGeometry(r,seg,12);
+// ââ GEOMETRY PRIMITIVES ââââââââââââââââââââââââââââââââââ
+const gCyl = (rTop, rBot, h, seg = 16) => new THREE.CylinderGeometry(rTop, rBot, h, seg);
+const gSph = (r, seg = 16)             => new THREE.SphereGeometry(r, seg, 12);
 
-// Ring of bolt heads
-function bolts(parent, n, radius, y, mat=mBolt){
-  for(let i=0;i<n;i++){
-    const a=(i/n)*Math.PI*2;
-    const b=new THREE.Mesh(cyl(0.0028,0.0028,0.008,6),mat);
-    b.position.set(Math.cos(a)*radius, y, Math.sin(a)*radius);
-    parent.add(b);
-  }
+// ââ ARM BUILD FUNCTIONS ââââââââââââââââââââââââââââââââââ
+
+// Tapered link tube going +Y from parent origin
+function buildLink(parent, length, rTop, rBot, mat = M.body) {
+  const m = new THREE.Mesh(gCyl(rTop, rBot, length), mat);
+  m.position.y = length / 2;
+  m.castShadow = true;
+  parent.add(m);
+  return m;
 }
 
-// Joint hub: sphere + equatorial torus ring
-function jointHub(parent, r, mat=mJoint){
-  parent.add(new THREE.Mesh(sph(r), mat));
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(r*1.18, r*0.10, 8, 24), mFlange);
-  ring.rotation.x=Math.PI/2;
-  parent.add(ring);
+// Motor housing for Z-rotation joint:
+// cylinder whose long axis = Z (so its circular face shows the rotation plane)
+function buildJointZ(parent, r, h, mat = M.joint) {
+  const body = new THREE.Mesh(gCyl(r, r, h, 24), mat);
+  body.rotation.x = Math.PI / 2;   // tilt so axis = Z
+  body.castShadow = true;
+  parent.add(body);
+  // collar flanges on Â±Z faces
+  [-1, 1].forEach(s => {
+    const f = new THREE.Mesh(gCyl(r * 1.18, r * 1.18, 0.006, 24), mat);
+    f.rotation.x = Math.PI / 2;
+    f.position.z = s * (h / 2 + 0.003);
+    parent.add(f);
+  });
+}
+
+// Motor housing for Y-rotation joint:
+// cylinder whose long axis = Y (upright)
+function buildJointY(parent, r, h, mat = M.joint) {
+  const body = new THREE.Mesh(gCyl(r, r, h, 24), mat);
+  body.castShadow = true;
+  parent.add(body);
+  // collar flanges on Â±Y faces
+  [-1, 1].forEach(s => {
+    const f = new THREE.Mesh(gCyl(r * 1.18, r * 1.18, 0.006, 24), mat);
+    f.position.y = s * (h / 2 + 0.003);
+    parent.add(f);
+  });
+}
+
+// Small bolt ring
+function buildBolts(parent, n, radius, y, mat = M.joint) {
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const b = new THREE.Mesh(gCyl(0.003, 0.003, 0.007, 6), mat);
+    b.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+    parent.add(b);
+  }
 }
 
 // ââ BUILD ARM ââââââââââââââââââââââââââââââââââââââââââââ
 const root = new THREE.Group();
 scene.add(root);
 
-// âââ BASE âââââââââââââââââââââââââââââââââââââââââââââââ
-// Wide mounting plate
-const bPlate=new THREE.Mesh(cyl(0.090,0.090,0.007,32),mBase);
-bPlate.position.y=0.0035; bPlate.castShadow=true; bPlate.receiveShadow=true;
-root.add(bPlate);
-// Decorative bolt ring on plate
-bolts(root, 8, 0.074, 0.0075);
-// Torus accent on plate edge
-const bTorus=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.0022,8,32),mFlange);
-bTorus.rotation.x=Math.PI/2; bTorus.position.y=0.007;
-root.add(bTorus);
-// Main housing body (tapered)
-const bHousing=new THREE.Mesh(cyl(0.050,0.068,0.064,28),mBase);
-bHousing.position.y=0.039; bHousing.castShadow=true;
-root.add(bHousing);
-// Mid-housing rib ring
-const bRib=new THREE.Mesh(cyl(0.072,0.072,0.006,28),mFlange);
-bRib.position.y=0.038;
-root.add(bRib);
-// Top collar
-const bCollar=new THREE.Mesh(cyl(0.044,0.050,0.012,24),mFlange);
-bCollar.position.y=0.077;
-root.add(bCollar);
+// âââ BASE ââââââââââââââââââââââââââââââââââââââââââââââââ
+const basePlate = new THREE.Mesh(gCyl(0.088, 0.088, 0.008, 32), M.base);
+basePlate.position.y = 0.004;
+basePlate.castShadow = true;
+basePlate.receiveShadow = true;
+root.add(basePlate);
+buildBolts(root, 6, 0.072, 0.010);
+const baseBody = new THREE.Mesh(gCyl(0.046, 0.068, 0.074, 24), M.base);
+baseBody.position.y = 0.041;
+baseBody.castShadow = true;
+root.add(baseBody);
+const baseCollar = new THREE.Mesh(gCyl(0.050, 0.050, 0.010, 24), M.joint);
+baseCollar.position.y = 0.083;
+root.add(baseCollar);
 
-// âââ PIVOT 0 â BASE ROTATION (Y) ââââââââââââââââââââââââ
-const p0=new THREE.Group(); p0.position.y=L.base; root.add(p0);
-// Shoulder motor housing
-const j0H=new THREE.Mesh(cyl(0.036,0.038,0.032,24),mJoint);
-p0.add(j0H);
-jointHub(p0, 0.022);
-// Top + bottom flanges
-const j0Fl1=new THREE.Mesh(cyl(0.046,0.046,0.005,24),mFlange);
-j0Fl1.position.y=0.019; p0.add(j0Fl1);
-const j0Fl2=new THREE.Mesh(cyl(0.046,0.046,0.005,24),mFlange);
-j0Fl2.position.y=-0.019; p0.add(j0Fl2);
-bolts(p0, 6, 0.038, 0.021);
+// âââ PIVOT 0 â BASE ROTATION (Y axis) âââââââââââââââââââ
+const p0 = new THREE.Group();
+p0.position.y = L.base;
+root.add(p0);
+buildJointY(p0, 0.036, 0.030);
 
-// âââ PIVOT 1 â SHOULDER (Z) ââââââââââââââââââââââââââââââ
-const p1=new THREE.Group(); p0.add(p1);
-// Upper arm â tapered tube
-const uArm=new THREE.Mesh(cyl(0.014,0.022,L.upper,20),mLink);
-uArm.position.y=L.upper/2; uArm.castShadow=true;
-p1.add(uArm);
-// Mid rib
-const uRib=new THREE.Mesh(cyl(0.025,0.025,0.009,20),mFlange);
-uRib.position.y=L.upper*0.5;
-p1.add(uRib);
-// Cable conduit alongside arm
-const cU=new THREE.Mesh(cyl(0.005,0.006,L.upper*0.86,8),mCable);
-cU.position.set(0.026, L.upper*0.43+0.015, 0.009);
-p1.add(cU);
-// Cable clamp at midpoint
-const clamp1=new THREE.Mesh(cyl(0.010,0.010,0.007,8),mFlange);
-clamp1.rotation.z=Math.PI/2;
-clamp1.position.set(0.020, L.upper*0.5, 0.008);
-p1.add(clamp1);
+// âââ PIVOT 1 â SHOULDER (Z axis) ââââââââââââââââââââââââ
+const p1 = new THREE.Group();
+p0.add(p1);
+buildJointZ(p1, 0.030, 0.064);
+buildLink(p1, L.upper, 0.014, 0.022);
 
-// âââ PIVOT 2 â ELBOW (Z) âââââââââââââââââââââââââââââââââ
-const p2=new THREE.Group(); p2.position.y=L.upper; p1.add(p2);
-const j2H=new THREE.Mesh(cyl(0.028,0.030,0.028,24),mJoint);
-p2.add(j2H);
-jointHub(p2, 0.019);
-const j2Fl1=new THREE.Mesh(cyl(0.040,0.040,0.005,24),mFlange);
-j2Fl1.position.y=0.016; p2.add(j2Fl1);
-const j2Fl2=new THREE.Mesh(cyl(0.040,0.040,0.005,24),mFlange);
-j2Fl2.position.y=-0.016; p2.add(j2Fl2);
-bolts(p2, 6, 0.032, 0.018);
-// Forearm â tapered tube
-const fArm=new THREE.Mesh(cyl(0.011,0.016,L.forearm,20),mLink);
-fArm.position.y=L.forearm/2; fArm.castShadow=true;
-p2.add(fArm);
-// Forearm mid rib
-const fRib=new THREE.Mesh(cyl(0.019,0.019,0.007,20),mFlange);
-fRib.position.y=L.forearm*0.5;
-p2.add(fRib);
-// Forearm cable
-const cF=new THREE.Mesh(cyl(0.004,0.005,L.forearm*0.84,8),mCable);
-cF.position.set(0.019, L.forearm*0.42+0.012, 0.007);
-p2.add(cF);
+// âââ PIVOT 2 â ELBOW (Z axis) ââââââââââââââââââââââââââââ
+const p2 = new THREE.Group();
+p2.position.y = L.upper;
+p1.add(p2);
+buildJointZ(p2, 0.025, 0.054);
+buildLink(p2, L.forearm, 0.011, 0.018);
 
-// âââ PIVOT 3 â WRIST PITCH (Z) âââââââââââââââââââââââââââ
-const p3=new THREE.Group(); p3.position.y=L.forearm; p2.add(p3);
-const j3H=new THREE.Mesh(cyl(0.024,0.025,0.024,24),mJoint);
-p3.add(j3H);
-jointHub(p3, 0.016);
-const j3Fl=new THREE.Mesh(cyl(0.032,0.032,0.005,24),mFlange);
-j3Fl.position.y=0.014; p3.add(j3Fl);
-bolts(p3, 4, 0.025, 0.015);
-// Hand tube
-const handMesh=new THREE.Mesh(cyl(0.008,0.012,L.hand,20),mLink);
-handMesh.position.y=L.hand/2; handMesh.castShadow=true;
-p3.add(handMesh);
+// âââ PIVOT 3 â WRIST PITCH (Z axis) âââââââââââââââââââââ
+const p3 = new THREE.Group();
+p3.position.y = L.forearm;
+p2.add(p3);
+buildJointZ(p3, 0.019, 0.040);
+buildLink(p3, L.hand, 0.009, 0.013);
 
-// âââ PIVOT 4 â WRIST ROLL (Y) + END EFFECTOR âââââââââââââ
-const p4=new THREE.Group(); p4.position.y=L.hand; p3.add(p4);
-// Wrist roll disc
-const j4Disc=new THREE.Mesh(cyl(0.019,0.021,0.012,24),mJoint);
-p4.add(j4Disc);
-bolts(p4, 4, 0.016, 0.007);
-// EE mounting disc (brand cream)
-const eeDisk=new THREE.Mesh(cyl(0.016,0.016,0.005,24),mEE);
-eeDisk.position.y=0.009;
+// âââ PIVOT 4 â WRIST ROLL (Y axis) + END EFFECTOR âââââââ
+const p4 = new THREE.Group();
+p4.position.y = L.hand;
+p3.add(p4);
+buildJointY(p4, 0.018, 0.016);
+buildBolts(p4, 4, 0.016, 0.010);
+// EE disc + tip (brand cream)
+const eeDisk = new THREE.Mesh(gCyl(0.015, 0.015, 0.006, 20), M.ee);
+eeDisk.position.y = 0.011;
 p4.add(eeDisk);
-const eeMesh=new THREE.Mesh(sph(0.011),mEE);
-eeMesh.position.y=0.016; eeMesh.castShadow=true;
-p4.add(eeMesh);
-// Gripper â parallel jaw
-[[-0.019,0],[0.019,0]].forEach(([ox])=>{
-  // Main finger shaft
-  const fShaft=new THREE.Mesh(cyl(0.0045,0.005,0.044,8),mLink);
-  fShaft.position.set(ox,0.029,0);
-  fShaft.castShadow=true;
-  p4.add(fShaft);
-  // Tip grip pad (cream accent)
-  const fTip=new THREE.Mesh(cyl(0.0040,0.0040,0.007,6),mEE);
-  fTip.position.set(ox,0.054,0);
-  p4.add(fTip);
-  // Inner facing pad
-  const fFace=new THREE.Mesh(cyl(0.004,0.004,0.010,6),mEE);
-  fFace.rotation.z=Math.PI/2;
-  fFace.position.set(ox*0.52,0.029,0);
-  p4.add(fFace);
+const eeTip = new THREE.Mesh(gSph(0.010, 16), M.ee);
+eeTip.position.y = 0.018;
+eeTip.castShadow = true;
+p4.add(eeTip);
+// Gripper â parallel jaws
+[-0.018, 0.018].forEach(ox => {
+  const jaw = new THREE.Mesh(gCyl(0.0042, 0.005, 0.040, 8), M.body);
+  jaw.position.set(ox, 0.030, 0);
+  jaw.castShadow = true;
+  p4.add(jaw);
+  const tip = new THREE.Mesh(gCyl(0.0038, 0.0038, 0.008, 8), M.ee);
+  tip.position.set(ox, 0.052, 0);
+  p4.add(tip);
 });
-// Finger crossbar
-const fConn=new THREE.Mesh(cyl(0.006,0.006,0.042,8),mFlange);
-fConn.rotation.z=Math.PI/2;
-fConn.position.set(0,0.027,0);
-p4.add(fConn);
+const crossbar = new THREE.Mesh(gCyl(0.006, 0.006, 0.040, 8), M.joint);
+crossbar.rotation.z = Math.PI / 2;
+crossbar.position.set(0, 0.025, 0);
+p4.add(crossbar);
 
 // ââ IK TARGET SPHERE âââââââââââââââââââââââââââââââââââââ
-const targetSph = new THREE.Mesh(sph(0.015), mTarget);
+const targetSph = new THREE.Mesh(gSph(0.014, 12), M.tgt);
 targetSph.visible = false;
 scene.add(targetSph);
-
-// IK target axis helper
 const axisHelper = new THREE.AxesHelper(0.04);
 axisHelper.visible = false;
 scene.add(axisHelper);
@@ -458,44 +410,337 @@ function fk(j) {
   const r = x => x * Math.PI / 180;
   const s1=Math.sin(r(j[1])), c1=Math.cos(r(j[1]));
   const a12 = r(j[1])-r(j[2]);
-  const a123 = a12+r(±©lÍt¤ì(½¹ÍÐÉ¥°ô0¹ÕÁÁÈ©ÌÄ¬0¹½ÉÉ´©5Ñ ¹Í¥¸¡ÄÈ¤¬0¹¡¹©5Ñ ¹Í¥¸¡ÄÈÌ¤ì(½¹ÍÐ¡¥¡Ðô0¹Í¬0¹ÕÁÁÈ©Ä¬0¹½ÉÉ´©5Ñ ¹½Ì¡ÄÈ¤¬0¹¡¹©5Ñ ¹½Ì¡ÄÈÌ¤ì(½¹ÍÐÀõ5Ñ ¹½Ì¡È¡©lÁt¤¤°ÌÀõ5Ñ ¹Í¥¸¡È¡©lÁt¤¤ì(ÉÑÕÉ¸ìàèÉ¥°©À°äè¡¥¡Ð°èèÉ¥°©ÌÀôì)ô()Õ¹Ñ¥½¸Ñ]½É±A½Ì ¤ì(ÀÐ¹ÕÁÑ]½É±5ÑÉ¥à¡ÑÉÕ°±Í¤ì(ÉÑÕÉ¸¹ÜQ!I¹YÑ½ÈÌ ¤¹ÍÑÉ½µ5ÑÉ¥áA½Í¥Ñ¥½¸¡ÀÐ¹µÑÉ¥á]½É±¤ì)ô((¼¼RR =I	%P
-=9QI=1LRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )±ÐÑ¡ÑôÀ¸à°Á¡¤ôÀ¸äÔ°É¥ÕÌôÀ¸äÔì)±Ð½Éõí½¸é±Í°±àèÀ°±äèÁôì()Õ¹Ñ¥½¸ÍÑ
-µÉ ¥ì(´¹Á½Í¥Ñ¥½¸¹ÍÐ (É¥ÕÌ©5Ñ ¹Í¥¸¡Á¡¤¤©5Ñ ¹Í¥¸¡Ñ¡Ñ¤°(É¥ÕÌ©5Ñ ¹½Ì¡Á¡¤¤°(É¥ÕÌ©5Ñ ¹Í¥¸¡Á¡¤¤©5Ñ ¹½Ì¡Ñ¡Ñ¤(¤ì(´¹±½½­Ð À°À¸ÈÈ°À¤ì)ô)ÍÑ
-µÉ ¤ì()¹ÙÌ¹Ù¹Ñ1¥ÍÑ¹È µ½ÕÍ½Ý¸°ôùí½É¹½¸õÑÉÕí½É¹±àõ¹±¥¹Ñ`í½É¹±äõ¹±¥¹Ñeô¤ì)Ù¹Ñ1¥ÍÑ¹È µ½ÕÍÕÀ° ¤ôù½É¹½¸õ±Í¤ì)Ù¹Ñ1¥ÍÑ¹È µ½ÕÍµ½Ù°ôùì(¥ ½É¹½¸¥ÉÑÕÉ¸ì(Ñ¡Ñ´ô¡¹±¥¹Ñ`µ½É¹±à¤¨À¸ÀÀÔì(Á¡¤ô5Ñ ¹µà À¸Àà°5Ñ ¹µ¥¸ Ä¸ÔÈ°Á¡¤¬¡¹±¥¹Ñdµ½É¹±ä¤¨À¸ÀÀÔ¤¤ì(½É¹±àõ¹±¥¹Ñ`ì½É¹±äõ¹±¥¹ÑdìÍÑ
-µÉ ¤ì)ô¤ì)¹ÙÌ¹Ù¹Ñ1¥ÍÑ¹È Ý¡°°ôùì(É¥ÕÌô5Ñ ¹µà À¸ÌÔ°5Ñ ¹µ¥¸ È¸È°É¥ÕÌ­¹±Ñd¨À¸ÀÀÀà¤¤ì(ÍÑ
-µÉ ¤ì)ô±íÁÍÍ¥ÙéÑÉÕô¤ì((¼¼Q½Õ ½É¥Ð¬Á¥¹ µé½½´)±Ð±ÍÑA¥¹ ôÀì)¹ÙÌ¹Ù¹Ñ1¥ÍÑ¹È Ñ½Õ¡ÍÑÉÐ°ôùì(¥¡¹Ñ½Õ¡Ì¹±¹Ñ ôôôÄ¥í½É¹½¸õÑÉÕí½É¹±àõ¹Ñ½Õ¡ÍlÁt¹±¥¹Ñ`í½É¹±äõ¹Ñ½Õ¡ÍlÁt¹±¥¹Ñdíô(¥¡¹Ñ½Õ¡Ì¹±¹Ñ ôôôÈ¥í½É¹½¸õ±Íí±ÍÑA¥¹ õ5Ñ ¹¡åÁ½Ð¡¹Ñ½Õ¡ÍlÁt¹±¥¹Ñ`µ¹Ñ½Õ¡ÍlÅt¹±¥¹Ñ`±¹Ñ½Õ¡ÍlÁt¹±¥¹Ñdµ¹Ñ½Õ¡ÍlÅt¹±¥¹Ñd¤íô)ô±íÁÍÍ¥ÙéÑÉÕô¤ì)¹ÙÌ¹Ù¹Ñ1¥ÍÑ¹È Ñ½Õ¡µ½Ù°ôùì(¥¡¹Ñ½Õ¡Ì¹±¹Ñ ôôôÄ½É¹½¸¥ì(Ñ¡Ñ´ô¡¹Ñ½Õ¡ÍlÁt¹±¥¹Ñ`µ½É¹±à¤¨À¸ÀÀØì(Á¡¤ô5Ñ ¹µà À¸Àà°5Ñ ¹µ¥¸ Ä¸ÔÈ°Á¡¤¬¡¹Ñ½Õ¡ÍlÁt¹±¥¹Ñdµ½É¹±ä¤¨À¸ÀÀØ¤¤ì(½É¹±àõ¹Ñ½Õ¡ÍlÁt¹±¥¹Ñ`ì½É¹±äõ¹Ñ½Õ¡ÍlÁt¹±¥¹ÑdìÍÑ
-µÉ ¤ì(ô(¥¡¹Ñ½Õ¡Ì¹±¹Ñ ôôôÈ¥ì(½¹ÍÐõ5Ñ ¹¡åÁ½Ð¡¹Ñ½Õ¡ÍlÁt¹±¥¹Ñ`µ¹Ñ½Õ¡ÍlÅt¹±¥¹Ñ`±¹Ñ½Õ¡ÍlÁt¹±¥¹Ñdµ¹Ñ½Õ¡ÍlÅt¹±¥¹Ñd¤ì(É¥ÕÌõ5Ñ ¹µà À¸ÌÔ±5Ñ ¹µ¥¸ È¸È±É¥ÕÌ´¡µ±ÍÑA¥¹ ¤¨À¸ÀÀÌ¤¤ì(±ÍÑA¥¹ õìÍÑ
-µÉ ¤ì(ô)ô±íÁÍÍ¥ÙéÑÉÕô¤ì)¹ÙÌ¹Ù¹Ñ1¥ÍÑ¹È Ñ½Õ¡¹° ¤ôù½É¹½¸õ±Í¤ì((¼¼RR IM%iRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )½¹ÍÐÉ¼ô¹ÜIÍ¥é=ÍÉÙÈ  ¤ôùì(½¹ÍÐÜõ¹ÙÌ¹±¥¹Ñ]¥Ñ ° õ¹ÙÌ¹±¥¹Ñ!¥¡Ðì(É¹ÉÈ¹ÍÑM¥é¡Ü± ±±Í¤ì(´¹ÍÁÐõÜ½ ì´¹ÕÁÑAÉ½©Ñ¥½¹5ÑÉ¥à ¤ì)ô¤ì)É¼¹½ÍÉÙ¡¹ÙÌ¤ì((¼¼RR I9H1==@RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR (¡Õ¹Ñ¥½¸¹¥µÑ ¥ì(ÉÅÕÍÑ¹¥µÑ¥½¹Éµ¡¹¥µÑ¤ì(½¹ÍÐôÑ]½É±A½Ì ¤ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å% µ±°¤¹ÑáÑ
-½¹Ñ¹Ðô(`èí¹à¹Ñ½¥á Ì¥ôdèí¹ä¹Ñ½¥á Ì¥ôhèí¹è¹Ñ½¥á Ì¥õì(É¹ÉÈ¹É¹È¡Í¹°´¤ì)ô¤ ¤ì((¼¼RR U$!1AILRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )Õ¹Ñ¥½¸ÍÝ¥Ñ¡Q¡¹µ¥ì(l©½¥¹ÑÌ°µµ½Éä°µ½Ñ¥½¸°¹ÕÉ°t¹½É ¡¸ôùì(½Õµ¹Ð¹ÅÕÉåM±Ñ½È¡¹Ñé¹Ñ µ¡¥± íl©½¥¹ÑÌ°µµ½Éä°µ½Ñ¥½¸°¹ÕÉ°t¹¥¹á=¡¸¤¬Åô¥¤¹±ÍÍ1¥ÍÐ¹Ñ½± ½¸±¸ôôõ¹µ¤ì(½¹ÍÐÑô½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ´­¸¤ì(¥¡¸ôôôµ½Ñ¥½¸¥ì(Ñ¹ÍÑå±¹¥ÍÁ±äô¸ôôõ¹µü±àè¹½¹ì(ô±Íì(Ñ¹±ÍÍ1¥ÍÐ¹Ñ½± ½¸°¸ôôõ¹µ¤ì(ô(ô¤ì)ô()Õ¹Ñ¥½¸½¹M±¥È¡¤°Ù°¥ì()m¥tõÙ°ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡Øí¥õ¤¹ÑáÑ
-½¹Ñ¹ÐôÙ°¬
-Àì(ÁÁ±å)½¥¹ÑÌ ¤ì)ô()Õ¹Ñ¥½¸ÉÍÑÉ´ ¥ì(½¹ÍÐõlÀ°ÌÀ°ØÀ°À°Átì(¹½É  ¡Ø±¤¤ôùì()m¥tõØì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡Ìí¥õ¤¹Ù±ÕõØì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡Øí¥õ¤¹ÑáÑ
-½¹Ñ¹ÐõØ¬
-Àì(ô¤ì(ÁÁ±å)½¥¹ÑÌ ¤ì)ô((¼¼RR 55=IdMeMQ4RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )±ÐÍÙômtì()Õ¹Ñ¥½¸ÍÙA½Ì ¥ì(½¹ÍÐ¥àôÍÙ¹±¹Ñ ì(½¹ÍÐ¹µôÁÉ½µÁÐ A½Í¥Ñ¥½¸¹µè°A=Lí¥à¬Åõ¤ñðA=Lí¥à¬Åõì(ÍÙ¹ÁÕÍ ¡ì¹µ°¨él¸¸¹)tô¤ì(É¹É5´ ¤ì(ÍÝ¥Ñ¡Q µµ½Éä¤ì)ô()Õ¹Ñ¥½¸É¹É5´ ¥ì(½¹ÍÐ°ô½Õµ¹Ð¹Ñ±µ¹Ñ	å% µ´µ±¥ÍÐ¤ì(¥ ÍÙ¹±¹Ñ ¥ì(°¹¥¹¹É!Q50ôñ¥Ø±ÍÌôµÁÑäù9<MYA=M%Q%=9LePñÈù)=%9QLHMYA=M%Q%=8ð½¥Øøì(ÉÑÕÉ¸ì(ô(°¹¥¹¹É!Q50ôÍÙ¹µÀ ¡À±¤¤ôù(ñ¥Ø±ÍÌôµ¥Ñ´ø(ñÍÁ¸±ÍÌôµ¹µøíÀ¹¹µôð½ÍÁ¸ø(ñÍÁ¸±ÍÌôµ¹±ÌøíÀ¹¨¹µÀ¡Øôù5Ñ ¹É½Õ¹¡Ø¤¬
-À¤¹©½¥¸ ¥ôð½ÍÁ¸ø(ñÕÑÑ½¸±ÍÌôµÑ¸½¹±¥¬ôÉ±±A½Ì í¥ô¤ù<ð½ÕÑÑ½¸ø(ñÕÑÑ½¸±ÍÌôµÑ¸½¹±¥¬ôQ½MÄ í¥ô¤ø­MDð½ÕÑÑ½¸ø(ñÕÑÑ½¸±ÍÌôµÑ¸½¹±¥¬ô±ÑA½Ì í¥ô¤ûrTð½ÕÑÑ½¸ø(ð½¥Øù¤¹©½¥¸ ¤ì)ô()Õ¹Ñ¥½¸É±±A½Ì¡¤¥ì(¹¥µÑQ¼¡ÍÙm¥t¹¨°ÔÀÀ° ¤ôùíô¤ì(ÍÝ¥Ñ¡Q ©½¥¹ÑÌ¤ì)ô()Õ¹Ñ¥½¸±ÑA½Ì¡¤¥ì(ÍÙ¹ÍÁ±¥¡¤°Ä¤ì(É¹É5´ ¤ì)ô((¼¼RR 5=Q%=8MEU9
-RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )±ÐÍÄõmt°Á±å¥¹õ±Í°±½½Á¥¹õ±Í°Á±å%àôÀ°Á±åQ¥µÈõ¹Õ±°ì()Õ¹Ñ¥½¸Q½MÄ¡¤¥ì(ÍÄ¹ÁÕÍ ¡¤¤ì(É¹ÉMÄ ¤ì(ÍÝ¥Ñ¡Q µ½Ñ¥½¸¤ì)ô()Õ¹Ñ¥½¸É¹ÉMÄ ¥ì(½¹ÍÐ°ô½Õµ¹Ð¹Ñ±µ¹Ñ	å% ÍÄµ±¥ÍÐ¤ì(¥ ÍÄ¹±¹Ñ ¥ì(°¹¥¹¹É!Q50ôñ¥Ø±ÍÌôµÁÑä¥ôÍÄµµÁÑäùA=M%Q%=9LI=455=IdñÈùQ<	U%15=Q%=8MEU9
-ð½¥Øøì(ÉÑÕÉ¸ì(ô(°¹¥¹¹É!Q50ôÍÄ¹µÀ ¡Á½Í%à±Í¤¤ôùì(½¹ÍÐÀôÍÙmÁ½Í%átì(ÉÑÕÉ¸ñ¥Ø±ÍÌôµ¥Ñ´ø(ñÍÁ¸ÍÑå±ô½¹ÐµÍ¥éèÄÁÁàí½±½ÈèÐÐÐíÝ¥Ñ èÄáÁàøíÍ¤¬Åôð½ÍÁ¸ø(ñÍÁ¸±ÍÌôµ¹µøíÀýÀ¹¹µèm±Ñtôð½ÍÁ¸ø(ñÕÑÑ½¸±ÍÌôµÑ¸½¹±¥¬ôÉµ½ÙÉ½µMÄ íÍ¥ô¤ûrTð½ÕÑÑ½¸ø(ð½¥Øùì(ô¤¹©½¥¸ ¤ì)ô()Õ¹Ñ¥½¸Éµ½ÙÉ½µMÄ¡¤¥ìÍÄ¹ÍÁ±¥¡¤°Ä¤ìÉ¹ÉMÄ ¤ìô()Õ¹Ñ¥½¸±ÉMÄ ¥ìÍÄõmtìÍÑ½ÁA±ä ¤ìÉ¹ÉMÄ ¤ìô()Õ¹Ñ¥½¸Ñ½±A±ä ¥ì(¥¡Á±å¥¹¤ÍÑ½ÁA±ä ¤ì(±ÍÍÑÉÑA±ä ¤ì)ô()Õ¹Ñ¥½¸ÍÑÉÑA±ä ¥ì(¥¡ÍÄ¹±¹Ñ ðÄ¤ÉÑÕÉ¸ì(Á±å¥¹õÑÉÕìÁ±å%àôÀì(½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ¸µÁ±ä¤¹ÑáÑ
-½¹Ñ¹ÐôZMQ=@ì(Á±åMÑÀ ¤ì)ô()Õ¹Ñ¥½¸ÍÑ½ÁA±ä ¥ì(Á±å¥¹õ±Íì±ÉQ¥µ½ÕÐ¡Á±åQ¥µÈ¤ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ¸µÁ±ä¤¹ÑáÑ
-½¹Ñ¹ÐôZØA1dì)ô()Õ¹Ñ¥½¸Á±åMÑÀ ¥ì(¥ Á±å¥¹¤ÉÑÕÉ¸ì(¥¡Á±å%àøõÍÄ¹±¹Ñ ¥ì(¥¡±½½Á¥¹¥ìÁ±å%àôÀìô±ÍìÍÑ½ÁA±ä ¤ìÉÑÕÉ¸ìô(ô(½¹ÍÐÀôÍÙmÍÅmÁ±å%áutì(¥¡À¥ì(¹¥µÑQ¼¡À¹¨°ÜÀÀ° ¤ôùìÁ±å%à¬¬ìÁ±åQ¥µÈõÍÑQ¥µ½ÕÐ¡Á±åMÑÀ°ÄÔÀ¤ìô¤ì(ô±ÍìÁ±å%à¬¬ìÁ±åMÑÀ ¤ìô)ô()Õ¹Ñ¥½¸Ñ½±1½½À ¥ì(±½½Á¥¹ô±½½Á¥¹ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ¸µ±½½À¤¹ÑáÑ
-½¹Ñ¹Ðõ~Ì1==@èí±½½Á¥¹ü=8è=õì)ô()Õ¹Ñ¥½¸áÁ½ÉÑMÄ ¥ì(½¹ÍÐÑôìÉ´èe=U	%=9%ÍI½½ÐÉ´M¥µÕ±Ñ½È°ÍÅÕ¹éÍÄ¹µÀ¡¤ôùÍÙm¥t¤ôì(½¹ÍÐô½Õµ¹Ð¹ÉÑ±µ¹Ð ¤ì(¹¡ÉôÑéÁÁ±¥Ñ¥½¸½©Í½¸°¬¹½UI%
-½µÁ½¹¹Ð¡)M=8¹ÍÑÉ¥¹¥ä¡Ñ±¹Õ±°°È¤¤ì(¹½Ý¹±½ôå½Õ¥½¹¥µµ½Ñ¥½¸¹©Í½¸ì¹±¥¬ ¤ì)ô((¼¼RR M5==Q 9%5Q%=8RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )Õ¹Ñ¥½¸¹¥µÑQ¼¡ÑÉÐ°µÌ°¥ì(½¹ÍÐÍÑÉÐõl¸¸¹)t°ÐÀõÁÉ½Éµ¹¹¹½Ü ¤ì(Õ¹Ñ¥½¸ÍÑÀ¡Ð¥ì(±Ðô5Ñ ¹µ¥¸ ¡ÐµÐÀ¤½µÌ°Ä¤ì(ôðÀ¸ÔüÈ©©è´Ä¬ Ð´È©¤©ì¼¼Í%¹=ÕÐ((ôÍÑÉÐ¹µÀ ¡Ì±¤¤ôùÌ¬¡ÑÉÑm¥tµÌ¤©¤ì((¹½É  ¡Ø±¤¤ôùì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡Ìí¥õ¤¹Ù±ÕõØì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡Øí¥õ¤¹ÑáÑ
-½¹Ñ¹Ðõ5Ñ ¹É½Õ¹¡Ø¤¬
-Àì(ô¤ì(ÁÁ±å)½¥¹ÑÌ ¤ì(¥¡ðÄ¤ÉÅÕÍÑ¹¥µÑ¥½¹Éµ¡ÍÑÀ¤ì(±Íì(õl¸¸¹ÑÉÑtì¥¡¤ ¤ìô(ô(ÉÅÕÍÑ¹¥µÑ¥½¹Éµ¡ÍÑÀ¤ì)ô((¼¼RR 9UI09Q]=I,¡Q¹©Ì¤RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )±Ðµ½°õ¹Õ±°°ÑÉ¥¹õ±Íì()½¹ÍÐA=M}M
-1ôÀ¸ØÔì)½¹ÍÐ)Hô1%5%QL¹µÀ ¡m±¼±¡¥t¤ôø¡í±¼°É¹é¡¤µ±½ô¤¤ì()½¹ÍÐ¹½ÉµA½ÌôÀôømÀ¹à½A=M}M
-1°À¹ä½A=M}M
-1°À¹è½A=M}M
-1tì)½¹ÍÐ¹½Éµ(ô¨ôø¨¹µÀ ¡Ø±¤¤ôø ¡Øµ)Im¥t¹±¼¤½)Im¥t¹É¹¤¨È´Ä¤ì)½¹ÍÐ¹½Éµ(ô¸ôø¸¹µÀ ¡Ø±¤¤ôùì(½¹ÍÐõ5Ñ ¹µà ´Ä±5Ñ ¹µ¥¸ Ä±Ø¤¤ì(ÉÑÕÉ¸)Im¥t¹±¼¬ ¡¬Ä¤¼È¤©)Im¥t¹É¹ì)ô¤ì()Õ¹Ñ¥½¸Õ¥±5½° ¥ì(µ½°ôÑ¹ÍÅÕ¹Ñ¥°¡ì±åÉÌél(Ñ¹±åÉÌ¹¹Í¡ì¥¹ÁÕÑM¡ÁélÍt°Õ¹¥ÑÌèÈÔØ°Ñ¥ÙÑ¥½¸èÉ±Ôô¤°(Ñ¹±åÉÌ¹Ñ¡9½Éµ±¥éÑ¥½¸ ¤°(Ñ¹±åÉÌ¹¹Í¡ìÕ¹¥ÑÌèÈÔØ°Ñ¥ÙÑ¥½¸èÉ±Ôô¤°(Ñ¹±åÉÌ¹¹Í¡ìÕ¹¥ÑÌèÄÈà°Ñ¥ÙÑ¥½¸èÉ±Ôô¤°(Ñ¹±åÉÌ¹¹Í¡ìÕ¹¥ÑÌèØÐ°Ñ¥ÙÑ¥½¸èÉ±Ôô¤°(Ñ¹±åÉÌ¹¹Í¡ìÕ¹¥ÑÌèÔ°Ñ¥ÙÑ¥½¸èÑ¹ ô¤(uô¤ì(µ½°¹½µÁ¥±¡ì½ÁÑ¥µ¥éÈéÑ¹ÑÉ¥¸¹´ À¸ÀÀÀà¤°±½ÍÌèµ¹MÅÕÉÉÉ½Èô¤ì)ô()Õ¹Ñ¥½¸¹Ñ¡¸ôÈÀÀÀ¥ì(½¹ÍÐáÌõmt°åÌõmtì(½È¡±Ð¤ôÀí¤ñ¸í¤¬¬¥ì(½¹ÍÐ¨ô1%5%QL¹µÀ ¡m±¼±¡¥t¤ôù±¼­5Ñ ¹É¹½´ ¤¨¡¡¤µ±¼¤¤ì(½¹ÍÐÁ½Ìô¬¡¨¤ì(áÌ¹ÁÕÍ ¡¹½ÉµA½Ì¡Á½Ì¤¤ì(åÌ¹ÁÕÍ ¡¹½Éµ(¡¨¤¤ì(ô(ÉÑÕÉ¸ìáÌéÑ¹Ñ¹Í½ÈÉ¡áÌ¤°åÌéÑ¹Ñ¹Í½ÈÉ¡åÌ¤ôì)ô()Íå¹Õ¹Ñ¥½¸ÑÉ¥¹98 ¥ì(½¹ÍÐÑ¸õ½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ¸µÑÉ¥¸¤ì(½¹ÍÐÍÑÐõ½Õµ¹Ð¹Ñ±µ¹Ñ	å% ¹¸µÍÑÑÕÌ¤ì(½¹ÍÐ¥±°õ½Õµ¹Ð¹Ñ±µ¹Ñ	å% Á¥±°¤ì(½¹ÍÐÍ½±Ù	Ñ¸õ½Õµ¹Ð¹Ñ±µ¹Ñ	å% Ñ¸µÍ½±Ù¤ì(Ñ¸¹¥Í±õÑÉÕì(ÍÑÐ¹ÑáÑ
-½¹Ñ¹Ðô9IQ%9ÈÀÀÀQI%9%9A=ML¸¸¸ì(¥±°¹ÍÑå±¹Ý¥Ñ ôÐì(Ý¥ÐÑ¹¹áÑÉµ ¤ì((Õ¥±5½° ¤ì(½¹ÍÐíáÌ±åÍôô¹Ñ ÈÀÀÀ¤ì((ÍÑÐ¹ÑáÑ
-½¹Ñ¹ÐôQI%9%99UI09Q]=I,¸¸¸ì(½¹ÍÐA=
-!LôÄÈÀì(Ý¥Ðµ½°¹¥Ð¡áÌ±åÌ±ì(Á½¡ÌéA=
-!L°Ñ¡M¥éèØÐ°Í¡Õ±éÑÉÕ°Ù±¥Ñ¥½¹MÁ±¥ÐèÀ¸Ä°(±±­Ìéì(½¹Á½¡¹éÍå¹¡À±±½Ì¤ôùì(¥±°¹ÍÑå±¹Ý¥Ñ õ5Ñ ¹É½Õ¹  ¡À¬Ä¤½A=
-!L¤¨ÄÀÀ¤¬ì(ÍÑÐ¹ÑáÑ
-½¹Ñ¹ÐõA=
- íÀ¬Åô¼íA=
-!Mô
-Ü1=MLí±½Ì¹±½ÍÌ¹Ñ½¥á Ô¥ô
-ÜY0ì¡±½Ì¹Ù±}±½ÍÍñðÀ¤¹Ñ½¥á Ô¥õì(Ý¥ÐÑ¹¹áÑÉµ ¤ì(ô(ô(ô¤ì((áÌ¹¥ÍÁ½Í ¤ìåÌ¹¥ÍÁ½Í ¤ì(ÑÉ¥¹õÑÉÕìÑ¸¹¥Í±õ±ÍìÍ½±Ù	Ñ¸¹¥Í±õ±Íì(¥±°¹ÍÑå±¹Ý¥Ñ ôÄÀÀì(ÍÑÐ¹ÑáÑ
-½¹Ñ¹ÐôrLQI%9PIdQ<M=1Y%9YIM-%95Q%
-Lì)ô()Íå¹Õ¹Ñ¥½¸Í½±Ù%, ¥ì(¥ ÑÉ¥¹ñðµ½°¥ÉÑÕÉ¸ì(½¹ÍÐÑàõÁÉÍ±½Ð¡½Õµ¹Ð¹Ñ±µ¹Ñ	å% ¹¸µà¤¹Ù±Õ¤ì(½¹ÍÐÑäõÁÉÍ±½Ð¡½Õµ¹Ð¹Ñ±µ¹Ñ	å% ¹¸µä¤¹Ù±Õ¤ì(½¹ÍÐÑèõÁÉÍ±½Ð¡½Õµ¹Ð¹Ñ±µ¹Ñ	å% ¹¸µè¤¹Ù±Õ¤ì((½¹ÍÐ¥¹ÀôÑ¹Ñ¹Í½ÈÉ¡m¹½ÉµA½Ì¡íàéÑà±äéÑä±èéÑéô¥t¤ì(½¹ÍÐ½ÕÐôµ½°¹ÁÉ¥Ð¡¥¹À¤ì(½¹ÍÐÉÜô¡Ý¥Ð½ÕÐ¹ÉÉä ¤¥lÁtì(¥¹À¹¥ÍÁ½Í ¤ì½ÕÐ¹¥ÍÁ½Í ¤ì((½¹ÍÐÁÉ¥Ñô¹½Éµ(¡ÉÜ¤¹µÀ ¡Ø±¤¤ôø(5Ñ ¹µà¡1%5%QMm¥ulÁt±5Ñ ¹µ¥¸¡1%5%QMm¥ulÅt±Ø¤¤(¤ì((¼¼M¡½ÜÑÉÐ(ÑÉÑMÁ ¹Á½Í¥Ñ¥½¸¹ÍÐ¡Ñà±Ñä±Ñè¤ì(ÑÉÑMÁ ¹Ù¥Í¥±õÑÉÕì(á¥Í!±ÁÈ¹Á½Í¥Ñ¥½¸¹ÍÐ¡Ñà±Ñä±Ñè¤ì(á¥Í!±ÁÈ¹Ù¥Í¥±õÑÉÕì(½¹ÍÐõ½Õµ¹Ð¹Ñ±µ¹Ñ	å% ÑÉÐµ¤ì(¹ÍÑå±¹¥ÍÁ±äô±½¬ì(¹ÑáÑ
-½¹Ñ¹ÐõQIP`èíÑà¹Ñ½¥á È¥ôdèíÑä¹Ñ½¥á È¥ôhèíÑè¹Ñ½¥á È¥õì((¹¥µÑQ¼¡ÁÉ¥Ñ°äÀÀ° ¤ôùì(½¹ÍÐõÑ]½É±A½Ì ¤ì(½¹ÍÐÉÈõ5Ñ ¹ÍÅÉÐ ¡¹àµÑà¤¨¨È¬¡¹äµÑä¤¨¨È¬¡¹èµÑè¤¨¨È¤¨ÄÀÀÀì(½Õµ¹Ð¹Ñ±µ¹Ñ	å% ¹¸µÍÑÑÕÌ¤¹ÑáÑ
-½¹Ñ¹Ðô(%,M=1Y
-ÜA=M%Q%=8II=HèíÉÈ¹Ñ½¥á Ä¥ôµµì(ô¤ì)ô((¼¼RR %9%PRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR )ÁÁ±å)½¥¹ÑÌ ¤ì(ð½ÍÉ¥ÁÐø(ð½½äø(ð½¡Ñµ°ø
+  const a123 = a12+r(j[3]);
+  const radial  = L.upper*s1 + L.forearm*Math.sin(a12) + L.hand*Math.sin(a123);
+  const height  = L.base + L.upper*c1 + L.forearm*Math.cos(a12) + L.hand*Math.cos(a123);
+  const c0=Math.cos(r(j[0])), s0=Math.sin(r(j[0]));
+  return { x: radial*c0, y: height, z: radial*s0 };
+}
+
+function getEEWorldPos() {
+  p4.updateWorldMatrix(true, false);
+  return new THREE.Vector3().setFromMatrixPosition(p4.matrixWorld);
+}
+
+// ââ ORBIT CONTROLS ââââââââââââââââââââââââââââââââââââââââ
+let theta=0.8, phi=0.95, radius=0.95;
+let orb={on:false, lx:0, ly:0};
+
+function setCamera(){
+  cam.position.set(
+    radius*Math.sin(phi)*Math.sin(theta),
+    radius*Math.cos(phi),
+    radius*Math.sin(phi)*Math.cos(theta)
+  );
+  cam.lookAt(0, 0.22, 0);
+}
+setCamera();
+
+canvas.addEventListener('mousedown', e=>{orb.on=true;orb.lx=e.clientX;orb.ly=e.clientY});
+addEventListener('mouseup',  ()=>orb.on=false);
+addEventListener('mousemove', e=>{
+  if(!orb.on)return;
+  theta -= (e.clientX-orb.lx)*0.005;
+  phi    = Math.max(0.08, Math.min(1.52, phi+(e.clientY-orb.ly)*0.005));
+  orb.lx=e.clientX; orb.ly=e.clientY; setCamera();
+});
+canvas.addEventListener('wheel', e=>{
+  radius = Math.max(0.35, Math.min(2.2, radius+e.deltaY*0.0008));
+  setCamera();
+},{passive:true});
+
+// Touch orbit + pinch-zoom
+let lastPinch=0;
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){orb.on=true;orb.lx=e.touches[0].clientX;orb.ly=e.touches[0].clientY;}
+  if(e.touches.length===2){orb.on=false;lastPinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+},{passive:true});
+canvas.addEventListener('touchmove', e=>{
+  if(e.touches.length===1&&orb.on){
+    theta -= (e.touches[0].clientX-orb.lx)*0.006;
+    phi    = Math.max(0.08, Math.min(1.52, phi+(e.touches[0].clientY-orb.ly)*0.006));
+    orb.lx=e.touches[0].clientX; orb.ly=e.touches[0].clientY; setCamera();
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    radius=Math.max(0.35,Math.min(2.2,radius-(d-lastPinch)*0.003));
+    lastPinch=d; setCamera();
+  }
+},{passive:true});
+canvas.addEventListener('touchend',()=>orb.on=false);
+
+// ââ RESIZE ââââââââââââââââââââââââââââââââââââââââââââââââ
+const ro = new ResizeObserver(()=>{
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  renderer.setSize(w,h,false);
+  cam.aspect=w/h; cam.updateProjectionMatrix();
+});
+ro.observe(canvas);
+
+// ââ RENDER LOOP âââââââââââââââââââââââââââââââââââââââââââ
+(function animate(){
+  requestAnimationFrame(animate);
+  const ee = getEEWorldPos();
+  document.getElementById('ee-label').textContent =
+    `EE  X:${ee.x.toFixed(3)}  Y:${ee.y.toFixed(3)}  Z:${ee.z.toFixed(3)}`;
+  renderer.render(scene, cam);
+})();
+
+// ââ UI HELPERS ââââââââââââââââââââââââââââââââââââââââââââ
+function switchTab(name){
+  ['joints','memory','motion','neural'].forEach(n=>{
+    document.querySelector(`.tab:nth-child(${['joints','memory','motion','neural'].indexOf(n)+1})`).classList.toggle('on',n===name);
+    const tc = document.getElementById('tc-'+n);
+    if(n==='motion'){
+      tc.style.display = n===name ? 'flex' : 'none';
+    } else {
+      tc.classList.toggle('on', n===name);
+    }
+  });
+}
+
+function onSlider(i, val){
+  J[i]=val;
+  document.getElementById(`v${i}`).textContent = val+'Â°';
+  applyJoints();
+}
+
+function resetArm(){
+  const def=[0,30,60,0,0];
+  def.forEach((v,i)=>{
+    J[i]=v;
+    document.getElementById(`s${i}`).value=v;
+    document.getElementById(`v${i}`).textContent=v+'Â°';
+  });
+  applyJoints();
+}
+
+// ââ MEMORY SYSTEM âââââââââââââââââââââââââââââââââââââââââ
+let saved = [];
+
+function savePos(){
+  const idx = saved.length;
+  const name = prompt('Position name:', `POS ${idx+1}`) || `POS ${idx+1}`;
+  saved.push({ name, j:[...J] });
+  renderMem();
+  switchTab('memory');
+}
+
+function renderMem(){
+  const el = document.getElementById('mem-list');
+  if(!saved.length){
+    el.innerHTML='<div class="empty">NO SAVED POSITIONS YET<br>JOINTS â SAVE POSITION</div>';
+    return;
+  }
+  el.innerHTML = saved.map((p,i)=>`
+    <div class="mitem">
+      <span class="mname">${p.name}</span>
+      <span class="mangles">${p.j.map(v=>Math.round(v))+'Â°').join(' ')}</span>
+      <button class="mbtn" onclick="recallPos(${i})">GO</button>
+      <button class="mbtn" onclick="addToSeq(${i})">+SEQ</button>
+      <button class="mbtn" onclick="deletePos(${i})">â</button>
+    </div>`).join('');
+}
+
+function recallPos(i){
+  animateTo(saved[i].j, 500, ()=>{});
+  switchTab('joints');
+}
+
+function deletePos(i){
+  saved.splice(i,1);
+  renderMem();
+}
+
+// ââ MOTION SEQUENCE âââââââââââââââââââââââââââââââââââââââ
+const seq=[], playing=false, looping=false, playIdx=0, playTimer=null;
+
+function addToSeq(i){
+  seq.push(i);
+  renderSeq();
+  switchTab('motion');
+}
+
+function renderSeq(){
+  const el = document.getElementById('seq-list');
+  if(!seq.length){
+    el.innerHTML='<div class="empty" id="seq-empty">ADD POSITIONS FROM MEMORY<br>TO BUILD A MOTION SEQUENCE</div>';
+    return;
+  }
+  el.innerHTML = seq.map((posIdx,si)=>{
+    const p = saved[posIdx];
+    return `<div class="mitem">
+      <span style="font-size:10px;color:#444;width:18px">${si+1}</span>
+      <span class="mname">${p?p.name:'[deleted]'}</span>
+      <button class="mbtn" onclick="removeFromSeq(${si})">â</button>
+    </div>`;
+  }).join('');
+}
+
+function removeFromSeq(i){ seq.splice(i,1); renderSeq(); }
+
+function clearSeq(){ seq=[]; stopPlay(); renderSeq(); }
+
+function togglePlay(){
+  if(playing) stopPlay();
+  else        startPlay();
+}
+
+function startPlay(){
+  if(seq.length<1) return;
+  playing=true; playIdx=0;
+  document.getElementById('btn-play').textContent='â  STOP';
+  playStep();
+}
+
+function stopPlay(){
+  playing=false; clearTimeout(playTimer);
+  document.getElementById('btn-play').textContent='â¶ PLAY';
+}
+
+function playStep(){
+  if(!playing) return;
+  if(playIdx>=seq.length){
+    if(looping){ playIdx=0; } else { stopPlay(); return; }
+  }
+  const p = saved[seq[playIdx]];
+  if(p){
+    animateTo(p.j, 700, ()=>{ playIdx++; playTimer=setTimeout(playStep, 150); });
+  } else { playIdx++; playStep(); }
+}
+
+function toggleLoop(){
+  looping=!looping;
+  document.getElementById('btn-loop').textContent=`â³ LOOP: ${looping?'ON':'OFF'}`;
+}
+
+function exportSeq(){
+  const data = { arm:'YOUBIONIC 3D Robot Arm Simulator', sequence:seq.map(i=>saved[i]) };
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(data,null,2));
+  a.download = 'youbionic-motion.json'; a.click();
+}
+
+// ââ SMOOTH ANIMATION âââââââââââââââââââââââââââââââââââââ
+function animateTo(target, ms, cb){
+  const start=[...J], t0=performance.now();
+  function step(t){
+    let a = Math.min((t-t0)/ms, 1);
+    a = a<0.5 ? 2*a*a : -1+(4-2*a)*a; // easeInOut
+    J = start.map((s,i)=>s+(target[i]-s)*a);
+    J.forEach((v,i)=>{
+      document.getElementById(`s${i}`).value=v;
+      document.getElementById(`v${i}`).textContent=Math.round(v)+'Â°';
+    });
+    applyJoints();
+    if(a<1) requestAnimationFrame(step);
+    else { J=[...target]; if(cb) cb(); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ââ NEURAL NETWORK (TF.js) ââââââââââââââââââââââââââââââââ
+let model=null, trained=false;
+
+const POS_SCALE = 0.65;
+const JR = LIMITS.map(([lo,hi])=>({lo, range:hi-lo}));
+
+const normPos   = p => [p.x/POS_SCALE, p.y/POS_SCALE, p.z/POS_SCALE];
+const normJ     = j => j.map((v,i)=>((v-JR[i].lo)/JR[i].range)*2-1);
+const denormJ   = n => n.map((v,i)=>{
+  const c=Math.max(-1,Math.min(1,v));
+  return JR[i].lo+((c+1)/2)*JR[i].range;
+});
+
+function buildModel(){
+  model = tf.sequential({ layers:[
+    tf.layers.dense({ inputShape:[3], units:256, activation:'relu' }),
+    tf.layers.batchNormalization(),
+    tf.layers.dense({ units:256, activation:'relu' }),
+    tf.layers.dense({ units:128, activation:'relu' }),
+    tf.layers.dense({ units:64,  activation:'relu' }),
+    tf.layers.dense({ units:5,   activation:'tanh' })
+  ]});
+  model.compile({ optimizer:tf.train.adam(0.0008), loss:'meanSquaredError' });
+}
+
+function genData(n=2000){
+  const xs=[], ys=[];
+  for(let i=0;i<n;i++){
+    const j = LIMITS.map(([lo,hi])=>lo+Math.random()*(hi-lo));
+    const pos = fk(j);
+    xs.push(normPos(pos));
+    ys.push(normJ(j));
+  }
+  return { xs:tf.tensor2d(xs), ys:tf.tensor2d(ys) };
+}
+
+async function trainNN(){
+  const btn=document.getElementById('btn-train');
+  const stat=document.getElementById('nn-status');
+  const fill=document.getElementById('pfill');
+  const solveBtn=document.getElementById('btn-solve');
+  btn.disabled=true;
+  stat.textContent='GENERATING 2000 TRAINING POSES...';
+  fill.style.width='4%';
+  await tf.nextFrame();
+
+  buildModel();
+  const {xs,ys} = genData(2000);
+
+  stat.textContent='TRAINING NEURAL NETWORK...';
+  const EPOCHS=120;
+  await model.fit(xs,ys,{
+    epochs:EPOCHS, batchSize:64, shuffle:true, validationSplit:0.1,
+    callbacks:{
+      onEpochEnd:async(ep,logs)=>{
+        fill.style.width=Math.round(((ep+1)/EPOCHS)*100)+'%';
+        stat.textContent=`EPOCH ${ep+1}/${EPOCHS} Â· LOSS ${logs.loss.toFixed(5)} Â· VAL ${(logs.val_loss||0).toFixed(5)}`;
+        await tf.nextFrame();
+      }
+    }
+  });
+
+  xs.dispose(); ys.dispose();
+  trained=true; btn.disabled=false; solveBtn.disabled=false;
+  fill.style.width='100%';
+  stat.textContent='â TRAINED â READY TO SOLVE INVERSE KINEMATICS';
+}
+
+async function solveIK(){
+  if(!trained||!model)return;
+  const tx=parseFloat(document.getElementById('nn-x').value);
+  const ty=parseFloat(document.getElementById('nn-y').value);
+  const tz=parseFloat(document.getElementById('nn-z').value);
+
+  const inp = tf.tensor2d([normPos({x:tx,y:ty,z:tz})]);
+  const out  = model.predict(inp);
+  const raw  = (await out.array())[0];
+  inp.dispose(); out.dispose();
+
+  const predicted = denormJ(raw).map((v,i)=>
+    Math.max(LIMITS[i][0],Math.min(LIMITS[i][1],v))
+  );
+
+  // Show target
+  targetSph.position.set(tx,ty,tz);
+  targetSph.visible=true;
+  axisHelper.position.set(tx,ty,tz);
+  axisHelper.visible=true;
+  const badge=document.getElementById('target-badge');
+  badge.style.display='block';
+  badge.textContent=`TARGET  X:${tx.toFixed(2)} Y:${ty.toFixed(2)} Z:${tz.toFixed(2)}`;
+
+  animateTo(predicted, 900, ()=>{
+    const ee=getEEWorldPos();
+    const err=Math.sqrt((ee.x-tx)**2+(ee.y-ty)**2+(ee.z-tz)**2)*1000;
+    document.getElementById('nn-status').textContent=
+      `IK SOLVED Â· POSITION ERROR: ${err.toFixed(1)} mm`;
+  });
+}
+
+// ââ INIT ââââââââââââââââââââââââââââââââââââââââââââââââââ
+applyJoints();
+</script>
+</body>
+</html>
