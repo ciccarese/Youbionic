@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prosthetic Hand Visualizer — Youbionic</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 14px 20px;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to bottom, rgba(10,10,10,0.98) 60%, transparent);
+    }
+    .logo {
+      font-size: 10px;
+      letter-spacing: 5px;
+      color: #EDEBE7;
+      text-transform: uppercase;
+    }
+    .app-title {
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.9);
+      text-transform: uppercase;
+    }
+    .badge {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(237,235,231,0.4);
+      border: 1px solid rgba(237,235,231,0.2);
+      padding: 2px 8px;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: calc(100% - 200px);
+    }
+    #hint {
+      position: absolute;
+      bottom: 208px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.18);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #ui-panel {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: rgba(8,8,8,0.96);
+      border-top: 1px solid rgba(237,235,231,0.12);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 12px 10px;
+    }
+    .presets {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      justify-content: center;
+    }
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(237,235,231,0.30);
+      color: #EDEBE7;
+      padding: 4px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: rgba(237,235,231,0.08); border-color: rgba(237,235,231,0.6); }
+    .fingers-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .finger-col {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .finger-name {
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: #EDEBE7;
+      text-transform: uppercase;
+      text-align: center;
+      padding-bottom: 2px;
+      border-bottom: 1px solid rgba(237,235,231,0.15);
+    }
+    .joint-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .joint-label {
+      font-size: 7px;
+      color: rgba(237,235,231,0.40);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+    input[type=range] {
+      width: 100%;
+      height: 2px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(237,235,231,0.15);
+      outline: none;
+      cursor: pointer;
+      border-radius: 1px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #EDEBE7;
+      cursor: pointer;
+      border: 1px solid rgba(10,10,10,0.5);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #EDEBE7;
+      cursor: pointer;
+      border: 1px solid rgba(10,10,10,0.5);
+    }
+    @media (max-width: 480px) {
+      .btn { padding: 3px 8px; font-size: 8px; letter-spacing: 1px; }
+      .finger-name { font-size: 7px; letter-spacing: 1px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <span class="logo">Youbionic</span>
+    <span class="app-title">Prosthetic Hand Visualizer</span>
+    <span class="badge">3D</span>
+  </div>
+
+  <div id="canvas-container"></div>
+  <div id="hint">drag to rotate &nbsp;·&nbsp; scroll to zoom</div>
+
+  <div id="ui-panel">
+    <div class="presets">
+      <button class="btn" onclick="setPose('open')">Open</button>
+      <button class="btn" onclick="setPose('fist')">Fist</button>
+      <button class="btn" onclick="setPose('pinch')">Pinch</button>
+      <button class="btn" onclick="setPose('point')">Point</button>
+      <button class="btn" onclick="setPose('peace')">Peace</button>
+    </div>
+    <div class="fingers-grid" id="fingers-grid"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+
+    var FINGERS = [
+      { id: 'thumb',  name: 'Thumb',  joints: ['CMC','MCP','IP'],  maxRad: [0.65, 0.87, 1.22], segs: [{ len: 0.08, r0: 0.026, r1: 0.023 },{ len: 0.09, r0: 0.022, r1: 0.019 },{ len: 0.07, r0: 0.018, r1: 0.014 }] },
+      { id: 'index',  name: 'Index',  joints: ['MCP','PIP','DIP'], maxRad: [1.57, 1.92, 1.22], segs: [{ len: 0.19, r0: 0.022, r1: 0.020 },{ len: 0.13, r0: 0.019, r1: 0.016 },{ len: 0.09, r0: 0.015, r1: 0.011 }] },
+      { id: 'middle', name: 'Middle', joints: ['MCP','PIP','DIP'], maxRad: [1.57, 1.92, 1.22], segs: [{ len: 0.21, r0: 0.024, r1: 0.021 },{ len: 0.14, r0: 0.020, r1: 0.017 },{ len: 0.10, r0: 0.016, r1: 0.012 }] },
+      { id: 'ring',   name: 'Ring',   joints: ['MCP','PIP','DIP'], maxRad: [1.57, 1.92, 1.22], segs: [{ len: 0.19, r0: 0.021, r1: 0.018 },{ len: 0.13, r0: 0.017, r1: 0.015 },{ len: 0.09, r0: 0.013, r1: 0.010 }] },
+      { id: 'pinky',  name: 'Pinky',  joints: ['MCP','PIP','DIP'], maxRad: [1.57, 1.92, 1.22], segs: [{ len: 0.14, r0: 0.018, r1: 0.015 },{ len: 0.09, r0: 0.014, r1: 0.012 },{ len: 0.07, r0: 0.011, r1: 0.008 }] }
+    ];
+
+    var jVals = { thumb:[0,0,0], index:[0,0,0], middle:[0,0,0], ring:[0,0,0], pinky:[0,0,0] };
+    var jGroups = { thumb:[], index:[], middle:[], ring:[], pinky:[] };
+
+    var container = document.getElementById('canvas-container');
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.setClearColor(0x0a0a0a);
+    container.appendChild(renderer.domElement);
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0a0a0a, 2.5, 6);
+    var camera = new THREE.PerspectiveCamera(42, 1, 0.01, 10);
+
+    scene.add(new THREE.AmbientLight(0x282828, 1.2));
+    var keyL = new THREE.DirectionalLight(0xffffff, 2.8);
+    keyL.position.set(1.2, 3.0, 2.0);
+    keyL.castShadow = true;
+    keyL.shadow.mapSize.width = 2048; keyL.shadow.mapSize.height = 2048;
+    keyL.shadow.camera.near = 0.1; keyL.shadow.camera.far = 8;
+    keyL.shadow.camera.left = -0.8; keyL.shadow.camera.right = 0.8;
+    keyL.shadow.camera.top = 1.0; keyL.shadow.camera.bottom = -0.5;
+    keyL.shadow.bias = -0.0005;
+    scene.add(keyL);
+    var fillL = new THREE.DirectionalLight(0x7799cc, 0.7);
+    fillL.position.set(-2, 0.5, 0.5); scene.add(fillL);
+    var rimL = new THREE.DirectionalLight(0xffeecc, 0.45);
+    rimL.position.set(0.2, -1.5, -2); scene.add(rimL);
+
+    var matSeg = new THREE.MeshStandardMaterial({ color: 0xccccca, metalness: 0.88, roughness: 0.18 });
+    var matKnuckle = new THREE.MeshStandardMaterial({ color: 0xe8e6e2, metalness: 0.92, roughness: 0.12 });
+    var matPalm = new THREE.MeshStandardMaterial({ color: 0xb2b0ac, metalness: 0.78, roughness: 0.28 });
+    var matFloor = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95, metalness: 0.05 });
+
+    var floorMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.01, 48), matFloor);
+    floorMesh.position.y = -0.35; floorMesh.receiveShadow = true; scene.add(floorMesh);
+
+    var handGroup = new THREE.Group();
+    scene.add(handGroup);
+    handGroup.rotation.y = 0.25;
+
+    var palmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.062), matPalm);
+    palmMesh.castShadow = true; palmMesh.receiveShadow = true; handGroup.add(palmMesh);
+
+    [-0.115, -0.035, 0.042, 0.115].forEach(function(kx) {
+      var km = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), matKnuckle);
+      km.position.set(kx, 0.135, 0.02); km.castShadow = true; handGroup.add(km);
+    });
+
+    for (var ri = 0; ri < 4; ri++) {
+      var ridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.18, 0.007), matKnuckle);
+      ridgeMesh.position.set(-0.12 + ri * 0.08, -0.02, 0.034); handGroup.add(ridgeMesh);
+    }
+
+    var wristMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.062, 0.14, 14), matPalm);
+    wristMesh.rotation.x = Math.PI / 2; wristMesh.position.set(0, -0.185, -0.004);
+    wristMesh.castShadow = true; handGroup.add(wristMesh);
+
+    var wristRing = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.008, 8, 24), matKnuckle);
+    wristRing.rotation.x = Math.PI / 2; wristRing.position.set(0, -0.258, -0.004); handGroup.add(wristRing);
+
+    var attachPts = [
+      { x: -0.178, y: 0.04,  z: 0.02,  rotZ: -0.95, rotX: -0.15 },
+      { x: -0.114, y: 0.132, z: 0.031, rotZ:  0.04, rotX: 0 },
+      { x: -0.034, y: 0.140, z: 0.031, rotZ:  0.   ,rotX: 0 },
+      { x:  0.043, y: 0.132, z: 0.031, rotZ: -0.04, rotX: 0 },
+      { x:  0.118, y: 0.112, z: 0.031, rotZ: -0.13, rotX: 0 }
+    ];
+
+    FINGERS.forEach(function(fingerDef, fi) {
+      var att = attachPts[fi];
+      var fingerRoot = new THREE.Group();
+      fingerRoot.position.set(att.x, att.y, att.z);
+      fingerRoot.rotation.z = att.rotZ;
+      fingerRoot.rotation.x = att.rotX;
+      handGroup.add(fingerRoot);
+      var parent = fingerRoot;
+      fingerDef.segs.forEach(function(seg, si) {
+        var jg = new THREE.Group();
+        parent.add(jg);
+        jGroups[fingerDef.id].push(jg);
+        var ksph = new THREE.Mesh(new THREE.SphereGeometry(seg.r0 * 1.18, 8, 7), matKnuckle);
+        ksph.castShadow = true; jg.add(ksph);
+        var cyl = new THREE.Mesh(new THREE.CylinderGeometry(seg.r1, seg.r0, seg.len, 9), matSeg);
+        cyl.position.y = seg.len / 2; cyl.castShadow = true; jg.add(cyl);
+        var tip = new THREE.Group();
+        tip.position.y = seg.len; jg.add(tip);
+        if (si === fingerDef.segs.length - 1) {
+          var cap = new THREE.Mesh(new THREE.SphereGeometry(seg.r1 * 1.15, 8, 7), matKnuckle);
+          cap.castShadow = true; tip.add(cap);
+        }
+        parent = tip;
+      });
+    });
+
+    var orbitTarget = new THREE.Vector3(0, 0.10, 0);
+    var sph = { theta: 0.28, phi: 1.15, radius: 0.88 };
+    var isDragging = false;
+    var lastMX = 0, lastMY = 0;
+
+    function applyCamera() {
+      var sinP = Math.sin(sph.phi), cosP = Math.cos(sph.phi);
+      camera.position.x = orbitTarget.x + sph.radius * sinP * Math.sin(sph.theta);
+      camera.position.y = orbitTarget.y + sph.radius * cosP;
+      camera.position.z = orbitTarget.z + sph.radius * sinP * Math.cos(sph.theta);
+      camera.lookAt(orbitTarget);
+    }
+    applyCamera();
+
+    container.addEventListener('mousedown', function(e) { isDragging = true; lastMX = e.clientX; lastMY = e.clientY; });
+    window.addEventListener('mouseup', function() { isDragging = false; });
+    window.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      sph.theta -= (e.clientX - lastMX) * 0.009;
+      sph.phi = Math.max(0.08, Math.min(2.9, sph.phi + (e.clientY - lastMY * 0.009));
+      lastMX = e.clientX; lastMY = e.clientY; applyCamera();
+    });
+    container.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      sph.radius = Math.max(0.35, Math.min(2.6, sph.radius + e.deltaY * 0.0008));
+      applyCamera();
+    }, { passive: false });
+
+    var lastTDist = 0, lastTX = 0, lastTY = 0;
+    container.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      if (e.touches.length === 1) { isDragging = true; lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY; }
+      else if (e.touches.length === 2) { isDragging = false; var dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; lastTDist = Math.sqrt(dx*dx+dy*dy); }
+    }, { passive: false });
+    container.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      if (e.touches.length === 1 && isDragging) {
+        sph.theta -= (e.touches[0].clientX - lastTX) * 0.009;
+        sph.phi = Math.max(0.08, Math.min(2.9, sph.phi + (e.touches[0].clientY - lastTY) * 0.009));
+        lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY; applyCamera();
+      } else if (e.touches.length === 2) {
+        var dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        var dist = Math.sqrt(dx*dx+dy*dy);
+        sph.radius = Math.max(0.35, Math.min(2.6, sph.radius - (dist - lastTDist) * 0.003));
+        lastTDist = dist; applyCamera();
+      }
+    }, { passive: false });
+    container.addEventListener('touchend', function() { isDragging = false; });
+
+    function applyJoint(fingerId, ji) {
+      var fd = null;
+      for (var k = 0; k < FINGERS.length; k++) { if (FINGERS[k].id === fingerId) { fd = FINGERS[k]; break; } }
+      if (!fd) return;
+      var sign = (fingerId === 'thumb') ? 1.0 : -1.0;
+      jGroups[fingerId][ji].rotation.x = sign * jVals[fingerId][ji] * fd.maxRad[ji];
+    }
+
+    var grid = document.getElementById('fingers-grid');
+    FINGERS.forEach(function(f) {
+      var col = document.createElement('div'); col.className = 'finger-col';
+      var nm = document.createElement('div'); nm.className = 'finger-name'; nm.textContent = f.name; col.appendChild(nm);
+      f.joints.forEach(function(jname, ji) {
+        var row = document.createElement('div'); row.className = 'joint-row';
+        var lbl = document.createElement('div'); lbl.className = 'joint-label'; lbl.textContent = jname; row.appendChild(lbl);
+        var sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 100; sl.value = 0;
+        sl.dataset.fid = f.id; sl.dataset.ji = ji;
+        sl.addEventListener('input', function() { jVals[this.dataset.fid][parseInt(this.dataset.ji)] = parseInt(this.value)/100; applyJoint(this.dataset.fid, parseInt(this.dataset.ji)); });
+        row.appendChild(sl); col.appendChild(row);
+      });
+      grid.appendChild(col);
+    });
+
+    var POSES = {
+      open:  { thumb:[0,0,0],      index:[0,0,0],          middle:[0,0,0],       ring:[0,0,0],    pinky:[0,0,0] },
+      fist:  { thumb:[0.7,0.85,0.9], index:[1,1,1],         middle:[1,1,1],       ring:[1,1,1],    pinky:[1,1,1] },
+      pinch: { thumb:[0.55,0.7,0.8], index:[0.25,0.55,0.5], middle:[0.75,0.9,0.8],ring:[0.9,1,0.9],pinky:[1,1,0.9] },
+      point: { thumb:[0.5,0.8,0.7],  index:[0,0,0],         middle:[1,1,1],       ring:[1,1,1],    pinky:[1,1,1] },
+      peace: { thumb:[0.55,0.75,0.7],index:[0,0,0],         middle:[0,0,0],       ring:[1,1,1],    pinky:[1,1,1] }
+    };
+    var poseAnimId = null;
+
+    function setPose(name) {
+      var pose = POSES[name]; if (!pose) return;
+      if (poseAnimId) { cancelAnimationFrame(poseAnimId); poseAnimId = null; }
+      var sv = {}; FINGERS.forEach(function(f) { sv[f.id] = jVals[f.id].slice(); });
+      var t0 = performance.now(), dur = 380;
+      function tick(now) {
+        var t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+        FINGERS.forEach(function(f) { f.joints.forEach(function(_, ji) { jVals[f.id][ji] = sv[f.id][ji] + (pose[f.id][ji] - sv[f.id][ji]) * e; applyJoint(f.id, ji); }); });
+        document.querySelectorAll('input[type=range]').forEach(function(sl) { if (jVals[sl.dataset.fid]) sl.value = Math.round(jVals[sl.dataset.fid][parseInt(sl.dataset.ji)] * 100); });
+        if (t < 1) { poseAnimId = requestAnimationFrame(tick); } else { poseAnimId = null; }
+      }
+      poseAnimId = requestAnimationFrame(tick);
+    }
+
+    function onResize() {
+      var w = container.clientWidth, h = container.clientHeight;
+      camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+    }
+    new ResizeObserver(onResize).observe(container); onResize();
+
+    var autoRotating = true;
+    container.addEventListener('mousedown', function() { autoRotating = false; });
+    container.addEventListener('touchstart', function() { autoRotating = false; });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (autoRotating) { sph.theta += 0.004; applyCamera(); }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+  </script>
+</body>
+</html>
