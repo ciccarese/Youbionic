@@ -306,7 +306,7 @@
     window.addEventListener('mousemove', function(e) {
       if (!isDragging) return;
       sph.theta -= (e.clientX - lastMX) * 0.009;
-      sph.phi = Math.max(0.08, Math.min(2.9, sph.phi + (e.clientY - lastMY * 0.009));
+      sph.phi = Math.max(0.08, Math.min(2.9, sph.phi + (e.clientY - lastMY) * 0.009));
       lastMX = e.clientX; lastMY = e.clientY; applyCamera();
     });
     container.addEventListener('wheel', function(e) {
