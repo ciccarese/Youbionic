@@ -195,7 +195,7 @@ canvas.ch{width:100%;display:block;border:1px solid var(--line);border-radius:7p
 
     <div class="sec" data-g="chr">
       <div class="sh">Torsional windup — 3-region stiffness</div>
-      <canvas class="ch" id="ch1" height="360"></canvas>
+      <canvas class="ch" id="ch1" data-h="360"></canvas>
       <div class="chc">Strain wave gears stiffen under load. Region I (below T1) is the
         compliant zone, region III (above T2) the stiff zone. Windup is the lost motion
         under torque and adds directly to positioning error.</div>
@@ -203,7 +203,7 @@ canvas.ch{width:100%;display:block;border:1px solid var(--line);border-radius:7p
 
     <div class="sec" data-g="chr">
       <div class="sh">Efficiency map</div>
-      <canvas class="ch" id="ch2" height="330"></canvas>
+      <canvas class="ch" id="ch2" data-h="330"></canvas>
       <div class="chc">Efficiency collapses at light load — a common sizing mistake.
         Curves are load ratios T/T<sub>rated</sub>; the marker is your operating point.</div>
     </div>
@@ -239,13 +239,16 @@ canvas.ch{width:100%;display:block;border:1px solid var(--line);border-radius:7p
 /* ============================================================
    1. ENGINEERING MODEL
    ============================================================ */
+// Cup-type strain wave gear reference data, values at ratio 100.
+// K3 is the region-III torsional stiffness in N·m/rad; calibrated so that windup at
+// rated torque lands in the 2–3 arcmin band reported for this class of unit.
 var FRAMES=[
-  {size:14,rated:7.8, peak:18,  mom:39,  maxIn:8500,K3:4.7e3,mass:0.26,od:50},
-  {size:17,rated:12,  peak:30,  mom:61,  maxIn:7300,K3:8.6e3,mass:0.40,od:62},
-  {size:20,rated:24,  peak:47,  mom:113, maxIn:6500,K3:1.4e4,mass:0.66,od:70},
-  {size:25,rated:39,  peak:87,  mom:191, maxIn:5600,K3:2.5e4,mass:1.10,od:85},
-  {size:32,rated:79,  peak:178, mom:382, maxIn:4800,K3:5.7e4,mass:2.20,od:110},
-  {size:40,rated:157, peak:344, mom:745, maxIn:4000,K3:1.1e5,mass:4.00,od:135}
+  {size:14,rated:7.8, peak:18,  mom:39,  maxIn:8500,K3:1.2e4,mass:0.26,od:50},
+  {size:17,rated:12,  peak:30,  mom:61,  maxIn:7300,K3:2.2e4,mass:0.40,od:62},
+  {size:20,rated:24,  peak:47,  mom:113, maxIn:6500,K3:3.5e4,mass:0.66,od:70},
+  {size:25,rated:39,  peak:87,  mom:191, maxIn:5600,K3:6.3e4,mass:1.10,od:85},
+  {size:32,rated:79,  peak:178, mom:382, maxIn:4800,K3:1.4e5,mass:2.20,od:110},
+  {size:40,rated:157, peak:344, mom:745, maxIn:4000,K3:2.7e5,mass:4.00,od:135}
 ];
 var RATIOS=[30,50,80,100,120,160];
 var TF={30:0.42,50:0.62,80:0.88,100:1.00,120:1.05,160:1.12};  // torque factor vs ratio
@@ -565,11 +568,11 @@ function buildWaveGen(pitchF,h,dVis){
     bl.position.set(bx,by,0); gWG.add(bl);
   }
   // input shaft + key
-  var sr=Math.min(Ac,Bc)*0.40;
-  var sha=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,TW*1.1+2.3,36),mShaft);
-  sha.rotation.x=Math.PI/2; sha.position.z=1.05; sha.castShadow=true; gWG.add(sha);
-  var keyw=new THREE.Mesh(new THREE.BoxGeometry(sr*0.42,sr*0.30,0.85),mShaft);
-  keyw.position.set(0,sr*0.96,1.75); gWG.add(keyw);
+  var sr=Math.min(Ac,Bc)*0.28;
+  var sha=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,TW*1.1+1.45,36),mShaft);
+  sha.rotation.x=Math.PI/2; sha.position.z=0.66; sha.castShadow=true; gWG.add(sha);
+  var keyw=new THREE.Mesh(new THREE.BoxGeometry(sr*0.44,sr*0.32,0.62),mShaft);
+  keyw.position.set(0,sr*0.95,1.05); gWG.add(keyw);
   // index mark on the input side
   var im=new THREE.Mesh(new THREE.BoxGeometry(0.05,sr*0.85,0.05),mMark);
   im.position.set(0,sr*0.5,TW*0.62); gWG.add(im);
@@ -625,12 +628,12 @@ function applyView(){
     MATS[i].needsUpdate=true;
   }
   explodeT=(ST.view===2)?1:0;
-  if(ST.view===3){ sph.target.set(RC*0.86,0,0); sph.rad=2.15; sph.th=0.30; sph.ph=1.30; }
-  else if(sph.target.x!==0){ sph.target.set(0,0,0); sph.rad=8.2; }
+  if(ST.view===3){ sph.target.set(RC*0.88,0,0); sph.rad=1.55; sph.th=0.34; sph.ph=1.32; }
+  else if(sph.target.x!==0){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
 }
 
 /* ---------- camera orbit ---------- */
-var sph={th:0.62,ph:1.16,rad:8.2,target:new THREE.Vector3(0,0,0)};
+var sph={th:0.74,ph:1.13,rad:10.6,target:new THREE.Vector3(0,0,-0.25)};
 function updCam(){
   sph.ph=Math.max(0.16,Math.min(Math.PI-0.16,sph.ph));
   sph.rad=Math.max(1.6,Math.min(22,sph.rad));
@@ -706,8 +709,11 @@ function loop(now){
    ============================================================ */
 function chSetup(c){
   var dpr=Math.min(window.devicePixelRatio||1,2);
-  var w=c.clientWidth||320, h=parseInt(c.getAttribute('height'),10);
-  c.width=w*dpr; c.height=h*dpr;
+  // base height is read from data-h and never from the (scaled) canvas attribute,
+  // otherwise the backing store grows by dpr on every redraw until it collapses.
+  var h=parseInt(c.dataset.h,10)||300;
+  var w=c.clientWidth||320;
+  c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
   c.style.height=h+'px';
   var x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
   x.clearRect(0,0,w,h);
@@ -969,8 +975,17 @@ window.addEventListener('resize',function(){syncLayout();render();});
 /* ---------- boot ---------- */
 buildSegs(); clampTrq(); rebuild(); syncLayout(); render(); resize(); updCam();
 requestAnimationFrame(loop);
-setInterval(function(){ if(!ST.paused && !document.querySelector('.sec[data-g="vis"].hid'))
-  el('mgKin').children[0]&&render(); },700);
+
+// live angle read-out — refreshes only the two kinematic cells, never the charts
+setInterval(function(){
+  if(ST.paused)return;
+  var k=el('mgKin'); if(!k||!k.children.length)return;
+  if(k.offsetParent===null)return;
+  k.children[0].querySelector('.v').innerHTML=
+    fmt(((thWg*180/Math.PI)%360+360)%360,1)+'<u>°</u>';
+  k.children[1].querySelector('.v').innerHTML=
+    fmt(((thFs*180/Math.PI)%360+360)%360,2)+'<u>°</u>';
+},250);
 
 window.__hd={ST:ST,spec:spec,solve:solve,GEO:GEO,windupRad:windupRad,efficiency:efficiency};
 </script>
