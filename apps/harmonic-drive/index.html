@@ -635,7 +635,12 @@ function applyView(){
   gHouse.visible=!detail;
   gWG.visible=!detail;
   gOut.visible=!detail;
-  if(detail){ sph.target.set(RC*0.92,0,0); sph.rad=1.55; sph.th=0.10; sph.ph=1.47; }
+  // A wide-FOV close-up viewed along the tooth axis fans the teeth out and is unreadable.
+  // Instead pull the camera far back and narrow the FOV: near-orthographic, so the tooth
+  // profiles read as a rack and the engagement at the major axis is obvious.
+  camera.fov=detail?9:38;
+  camera.updateProjectionMatrix();
+  if(detail){ sph.target.set(RC,0,0); sph.rad=6.2; sph.th=0.02; sph.ph=1.55; }
   else if(sph.target.x!==0){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
 }
 
@@ -994,7 +999,7 @@ setInterval(function(){
 },250);
 
 window.__hd={ST:ST,spec:spec,solve:solve,GEO:GEO,windupRad:windupRad,
-             efficiency:efficiency,sph:sph,render:render,applyView:applyView};
+             efficiency:efficiency,sph:sph,render:render,applyView:applyView,camera:camera};
 </script>
 </body>
 </html>
