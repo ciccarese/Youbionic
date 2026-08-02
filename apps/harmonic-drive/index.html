@@ -628,9 +628,14 @@ function applyView(){
     MATS[i].needsUpdate=true;
   }
   explodeT=(ST.view===2)?1:0;
-  // Tooth-mesh view: look at the major-axis engagement zone from in front of the gear,
-  // so flexspline and circular spline teeth are seen meshing rather than from inside the bore.
-  if(ST.view===3){ sph.target.set(RC*0.92,0,0); sph.rad=2.05; sph.th=0.18; sph.ph=1.40; }
+  // Tooth-mesh view: strip the housing and wave generator away and look at the
+  // major-axis engagement zone almost axially, so the flexspline teeth are seen
+  // dropping into the circular spline teeth instead of from inside the bore.
+  var detail=(ST.view===3);
+  gHouse.visible=!detail;
+  gWG.visible=!detail;
+  gOut.visible=!detail;
+  if(detail){ sph.target.set(RC*0.92,0,0); sph.rad=1.55; sph.th=0.10; sph.ph=1.47; }
   else if(sph.target.x!==0){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
 }
 
@@ -701,7 +706,6 @@ function loop(now){
   gOut.position.z  = -explode*1.35;
   gHouse.position.z= explode*0.05;
   gCirc.position.z = explode*0.05;
-  gHouse.visible   = (ST.view!==1)||true;
   resize(); updCam();
   renderer.render(scene,camera);
 }
