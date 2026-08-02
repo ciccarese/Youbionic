@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Harmonic Drive Designer — Youbionic</title>
+<style>
+:root{
+  --bg:#08090b; --bg2:#0c0e12; --panel:#0b0d10; --line:#1b2029; --line2:#252b36;
+  --txt:#EDEBE7; --dim:#8b93a1; --dim2:#5d6672;
+  --hot:#e0a542; --cool:#57b6c8; --ok:#4fbf7f; --bad:#e05f52;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans)}
+#app{display:flex;height:100%;width:100%}
+
+/* ---------- STAGE ---------- */
+#stage{position:relative;flex:1 1 auto;min-width:0;background:radial-gradient(ellipse at 50% 42%,#141821 0%,#08090b 68%)}
+#gl{display:block;width:100%;height:100%}
+#topbar{position:absolute;top:0;left:0;right:0;padding:16px 20px;display:flex;align-items:baseline;gap:14px;pointer-events:none}
+.brand{font-size:10px;letter-spacing:.34em;color:var(--dim2);font-weight:600}
+.ttl{font-size:12px;letter-spacing:.09em;color:var(--dim);text-transform:uppercase}
+
+#ratioBadge{position:absolute;top:52px;left:20px;pointer-events:none}
+#ratioBadge .rv{font-family:var(--mono);font-size:40px;font-weight:300;line-height:1;letter-spacing:-.02em}
+#ratioBadge .rl{font-size:10px;letter-spacing:.18em;color:var(--dim2);margin-top:6px;text-transform:uppercase}
+#ratioBadge .rt{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px}
+
+#viewbar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:5px;
+  background:rgba(10,12,15,.82);border:1px solid var(--line);border-radius:9px;padding:5px;backdrop-filter:blur(14px)}
+#viewbar button{background:none;border:0;color:var(--dim);font-family:var(--sans);font-size:11px;
+  letter-spacing:.05em;padding:7px 13px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:.16s}
+#viewbar button:hover{color:var(--txt);background:#161a21}
+#viewbar button.on{background:var(--txt);color:#0a0a0a;font-weight:600}
+
+#legend{position:absolute;bottom:16px;right:18px;font-size:10px;color:var(--dim2);
+  display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:none;line-height:1.4}
+#legend .lr{display:flex;align-items:center;gap:7px}
+#legend .sw{width:22px;height:3px;border-radius:2px}
+
+#scaleNote{position:absolute;top:16px;right:20px;font-family:var(--mono);font-size:10px;
+  color:var(--dim2);text-align:right;pointer-events:none;line-height:1.6}
+
+/* ---------- PANEL ---------- */
+#panel{flex:0 0 396px;background:var(--panel);border-left:1px solid var(--line);
+  overflow-y:auto;overscroll-behavior:contain}
+#panel::-webkit-scrollbar{width:8px}
+#panel::-webkit-scrollbar-thumb{background:#1e242e;border-radius:4px}
+.sec{border-bottom:1px solid var(--line);padding:16px 18px}
+.sh{font-size:9px;letter-spacing:.24em;color:var(--dim2);text-transform:uppercase;margin-bottom:13px;font-weight:600}
+
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{flex:1 1 auto;min-width:0;background:#12151b;border:1px solid var(--line);color:var(--dim);
+  font-family:var(--mono);font-size:11px;padding:8px 4px;border-radius:5px;cursor:pointer;transition:.14s}
+.seg button:hover{border-color:var(--line2);color:var(--txt)}
+.seg button.on{background:var(--txt);border-color:var(--txt);color:#0a0a0a;font-weight:600}
+.seglbl{font-size:10px;color:var(--dim2);margin:11px 0 6px;letter-spacing:.05em}
+
+.sl{margin-bottom:15px}
+.sl:last-child{margin-bottom:0}
+.slh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.slh .n{font-size:11px;color:var(--dim);letter-spacing:.04em}
+.slh .v{font-family:var(--mono);font-size:13px;color:var(--txt)}
+.slh .v small{color:var(--dim2);font-size:10px;margin-left:2px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:#1f242d;
+  border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--txt);cursor:pointer;border:3px solid var(--panel);box-shadow:0 0 0 1px #3a424f}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--txt);
+  cursor:pointer;border:3px solid var(--panel);box-shadow:0 0 0 1px #3a424f}
+
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.mc{background:#0e1116;padding:11px 12px}
+.mc .k{font-size:9px;letter-spacing:.11em;color:var(--dim2);text-transform:uppercase;margin-bottom:5px}
+.mc .v{font-family:var(--mono);font-size:17px;font-weight:300;letter-spacing:-.01em}
+.mc .v u{font-size:10px;color:var(--dim);text-decoration:none;margin-left:3px}
+.mc.hi .v{color:var(--hot)}
+.mc.bd .v{color:var(--bad)}
+
+canvas.ch{width:100%;display:block;border:1px solid var(--line);border-radius:7px;background:#0a0c10}
+.chc{font-size:10px;color:var(--dim2);margin-top:7px;line-height:1.5}
+
+.wr{display:flex;gap:9px;padding:10px 11px;border-radius:6px;margin-bottom:7px;
+  font-size:11px;line-height:1.5;border:1px solid}
+.wr:last-child{margin-bottom:0}
+.wr .ic{font-family:var(--mono);font-weight:700;flex:0 0 auto}
+.wr.c{background:rgba(224,95,82,.09);border-color:rgba(224,95,82,.32);color:#f0a49b}
+.wr.w{background:rgba(224,165,66,.08);border-color:rgba(224,165,66,.3);color:#e8c489}
+.wr.g{background:rgba(79,191,127,.07);border-color:rgba(79,191,127,.26);color:#8fd9ae}
+
+.foot{padding:14px 18px 24px;font-size:10px;color:var(--dim2);line-height:1.65}
+.foot b{color:var(--dim);font-weight:600}
+
+#sheetTab{display:none}
+
+/* ---------- MOBILE ---------- */
+@media (max-width:900px){
+  #app{flex-direction:column}
+  #stage{flex:1 1 auto;min-height:0}
+  #panel{flex:0 0 auto;height:47vh;max-height:47vh;border-left:0;border-top:1px solid var(--line)}
+  #ratioBadge{top:44px;left:16px}
+  #ratioBadge .rv{font-size:30px}
+  #viewbar{bottom:10px;padding:4px}
+  #viewbar button{font-size:10px;padding:6px 9px}
+  #legend{display:none}
+  #scaleNote{font-size:9px;top:12px;right:14px}
+  .mg{grid-template-columns:1fr 1fr}
+  #sheetTab{display:block;position:sticky;top:0;z-index:5;background:var(--panel);
+    border-bottom:1px solid var(--line);padding:9px 12px;display:flex;gap:4px;overflow-x:auto}
+  #sheetTab button{flex:0 0 auto;background:#12151b;border:1px solid var(--line);color:var(--dim);
+    font-size:11px;padding:7px 13px;border-radius:5px;cursor:pointer;white-space:nowrap}
+  #sheetTab button.on{background:var(--txt);border-color:var(--txt);color:#0a0a0a;font-weight:600}
+  .sec.hid{display:none}
+}
+@media (max-width:520px){ .mg{grid-template-columns:1fr 1fr} .mc .v{font-size:15px} }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <canvas id="gl"></canvas>
+    <div id="topbar"><span class="brand">YOUBIONIC</span><span class="ttl">Strain Wave Gear Designer</span></div>
+    <div id="ratioBadge">
+      <div class="rv" id="bRatio">100:1</div>
+      <div class="rl">Reduction ratio</div>
+      <div class="rt" id="bTeeth">Zf 200 · Zc 202</div>
+    </div>
+    <div id="scaleNote">
+      <div id="nDefl">radial deflection &times;3.0 (visual)</div>
+      <div id="nSpeed">animation slowed &times;1</div>
+    </div>
+    <div id="viewbar">
+      <button data-v="0" class="on">Assembly</button>
+      <button data-v="1">Cutaway</button>
+      <button data-v="2">Exploded</button>
+      <button data-v="3">Tooth mesh</button>
+      <button id="btnPause">Pause</button>
+    </div>
+    <div id="legend">
+      <div class="lr"><span>tooth fully engaged</span><span class="sw" style="background:#e0a542"></span></div>
+      <div class="lr"><span>disengaged</span><span class="sw" style="background:#707a89"></span></div>
+      <div class="lr" style="margin-top:3px;color:#4a515c">drag to orbit · scroll to zoom</div>
+    </div>
+  </section>
+
+  <aside id="panel">
+    <div id="sheetTab">
+      <button data-t="cfg" class="on">Design</button>
+      <button data-t="res">Results</button>
+      <button data-t="chr">Charts</button>
+      <button data-t="vis">View</button>
+    </div>
+
+    <div class="sec" data-g="cfg">
+      <div class="sh">Unit selection</div>
+      <div class="seglbl">Frame size</div>
+      <div class="seg" id="segFrame"></div>
+      <div class="seglbl">Reduction ratio</div>
+      <div class="seg" id="segRatio"></div>
+    </div>
+
+    <div class="sec" data-g="cfg">
+      <div class="sh">Operating point</div>
+      <div class="sl">
+        <div class="slh"><span class="n">Input speed</span><span class="v" id="vRpm">2000<small>rpm</small></span></div>
+        <input type="range" id="sRpm" min="100" max="8500" step="50" value="2000">
+      </div>
+      <div class="sl">
+        <div class="slh"><span class="n">Output load torque</span><span class="v" id="vTrq">39<small>N·m</small></span></div>
+        <input type="range" id="sTrq" min="1" max="900" step="1" value="39">
+      </div>
+      <div class="sl">
+        <div class="slh"><span class="n">Duty cycle</span><span class="v" id="vDuty">60<small>%</small></span></div>
+        <input type="range" id="sDuty" min="5" max="100" step="5" value="60">
+      </div>
+    </div>
+
+    <div class="sec" data-g="res">
+      <div class="sh">Output</div>
+      <div class="mg" id="mgOut"></div>
+    </div>
+
+    <div class="sec" data-g="res">
+      <div class="sh">Torque capacity check</div>
+      <div class="mg" id="mgCap"></div>
+    </div>
+
+    <div class="sec" data-g="res">
+      <div class="sh">Verification</div>
+      <div id="warns"></div>
+    </div>
+
+    <div class="sec" data-g="chr">
+      <div class="sh">Torsional windup — 3-region stiffness</div>
+      <canvas class="ch" id="ch1" height="360"></canvas>
+      <div class="chc">Strain wave gears stiffen under load. Region I (below T1) is the
+        compliant zone, region III (above T2) the stiff zone. Windup is the lost motion
+        under torque and adds directly to positioning error.</div>
+    </div>
+
+    <div class="sec" data-g="chr">
+      <div class="sh">Efficiency map</div>
+      <canvas class="ch" id="ch2" height="330"></canvas>
+      <div class="chc">Efficiency collapses at light load — a common sizing mistake.
+        Curves are load ratios T/T<sub>rated</sub>; the marker is your operating point.</div>
+    </div>
+
+    <div class="sec" data-g="vis">
+      <div class="sh">Visualisation</div>
+      <div class="sl">
+        <div class="slh"><span class="n">Radial deflection exaggeration</span><span class="v" id="vDef">3.0<small>&times;</small></span></div>
+        <input type="range" id="sDef" min="1" max="6" step="0.5" value="3">
+      </div>
+      <div class="sl">
+        <div class="slh"><span class="n">Animation speed</span><span class="v" id="vSpd">1.1<small>rad/s</small></span></div>
+        <input type="range" id="sSpd" min="0" max="5" step="0.1" value="1.1">
+      </div>
+      <div class="mg" style="margin-top:14px" id="mgKin"></div>
+    </div>
+
+    <div class="foot">
+      <b>Model basis.</b> Kinematics are exact: the flexspline turns at &minus;2/Z<sub>f</sub>
+      of the wave generator, so the 3D reduction equals the selected ratio. Tooth counts are real
+      (Z<sub>f</sub>&nbsp;=&nbsp;2i, Z<sub>c</sub>&nbsp;=&nbsp;Z<sub>f</sub>+2). Radial deflection is
+      geometrically consistent but visually magnified so the wave is perceptible.
+      Torque, stiffness and speed limits follow published cup-type strain wave gear data;
+      efficiency and L10 life use standard empirical models. Verify against the manufacturer
+      datasheet before committing a design.
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   1. ENGINEERING MODEL
+   ============================================================ */
+var FRAMES=[
+  {size:14,rated:7.8, peak:18,  mom:39,  maxIn:8500,K3:4.7e3,mass:0.26,od:50},
+  {size:17,rated:12,  peak:30,  mom:61,  maxIn:7300,K3:8.6e3,mass:0.40,od:62},
+  {size:20,rated:24,  peak:47,  mom:113, maxIn:6500,K3:1.4e4,mass:0.66,od:70},
+  {size:25,rated:39,  peak:87,  mom:191, maxIn:5600,K3:2.5e4,mass:1.10,od:85},
+  {size:32,rated:79,  peak:178, mom:382, maxIn:4800,K3:5.7e4,mass:2.20,od:110},
+  {size:40,rated:157, peak:344, mom:745, maxIn:4000,K3:1.1e5,mass:4.00,od:135}
+];
+var RATIOS=[30,50,80,100,120,160];
+var TF={30:0.42,50:0.62,80:0.88,100:1.00,120:1.05,160:1.12};  // torque factor vs ratio
+var SF={30:0.35,50:0.55,80:0.85,100:1.00,120:1.06,160:1.12};  // stiffness factor
+var EB={30:0.91,50:0.88,80:0.85,100:0.83,120:0.81,160:0.77};  // base efficiency
+
+var ST={frame:3, ratio:100, rpm:2000, trq:39, duty:60, defl:3.0, spd:1.1,
+        view:0, paused:false};
+
+function spec(){
+  var f=FRAMES[ST.frame], r=ST.ratio, tf=TF[r], sf=SF[r];
+  var rated=f.rated*tf, peak=f.peak*tf, mom=f.mom*tf;
+  var K3=f.K3*sf, K2=0.84*K3, K1=0.62*K3;
+  var T1=0.19*peak, T2=0.55*peak;
+  return {f:f,ratio:r,Zf:2*r,Zc:2*r+2,rated:rated,peak:peak,mom:mom,
+          ratchet:1.40*mom,K1:K1,K2:K2,K3:K3,T1:T1,T2:T2,
+          maxIn:f.maxIn,mass:f.mass,od:f.od,etaBase:EB[r]};
+}
+// three-region torsional windup, returns radians
+function windupRad(T,s){
+  var t=Math.abs(T),w;
+  if(t<=s.T1) w=t/s.K1;
+  else if(t<=s.T2) w=s.T1/s.K1+(t-s.T1)/s.K2;
+  else w=s.T1/s.K1+(s.T2-s.T1)/s.K2+(t-s.T2)/s.K3;
+  return w;
+}
+var RAD2AM=180/Math.PI*60;   // radians -> arcminutes
+
+function efficiency(T,rpm,s){
+  var lr=Math.min(T/s.rated,1.6);
+  var fl=(1-Math.exp(-2.6*lr))/(1-Math.exp(-2.6));
+  fl=Math.min(fl,1.06);
+  var g=1-0.14*Math.pow(Math.min(rpm/s.maxIn,1.2),1.4);
+  return Math.max(0.02,Math.min(0.95,s.etaBase*fl*g));
+}
+function solve(){
+  var s=spec(), T=ST.trq, rpm=ST.rpm;
+  var eta=efficiency(T,rpm,s);
+  var outRpm=rpm/s.ratio;
+  var wOut=outRpm*2*Math.PI/60;
+  var pOut=T*wOut;
+  var pIn=pOut/eta;
+  var heat=pIn-pOut;
+  var tIn=T/(s.ratio*eta);
+  var wu=windupRad(T,s), wuAm=wu*RAD2AM;
+  var tAvg=T*Math.pow(ST.duty/100,1/3);          // cubic-mean duty weighting
+  var life=7000*Math.pow(s.rated/Math.max(tAvg,0.01),3)*(2000/Math.max(rpm,1));
+  life=Math.max(10,Math.min(life,500000));
+  return {s:s,eta:eta,outRpm:outRpm,pOut:pOut,pIn:pIn,heat:heat,tIn:tIn,
+          wu:wu,wuAm:wuAm,tAvg:tAvg,life:life,lr:T/s.rated};
+}
+
+/* ============================================================
+   2. THREE.JS SCENE
+   ============================================================ */
+var RC=2.0, TW=0.50, CUPL=1.65;
+var cv=document.getElementById('gl');
+var renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.06;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled=true;
+
+var scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x08090b,13,30);
+var camera=new THREE.PerspectiveCamera(38,1,0.1,120);
+
+// ---- studio environment map (procedural) ----
+var envMap=(function(){
+  var c=document.createElement('canvas'); c.width=512; c.height=256;
+  var x=c.getContext('2d');
+  var g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#c9d2de'); g.addColorStop(.42,'#5b6472');
+  g.addColorStop(.55,'#20252d'); g.addColorStop(1,'#0a0c10');
+  x.fillStyle=g; x.fillRect(0,0,512,256);
+  function blob(cx,cy,r,a){
+    var rg=x.createRadialGradient(cx,cy,0,cx,cy,r);
+    rg.addColorStop(0,'rgba(255,255,255,'+a+')'); rg.addColorStop(1,'rgba(255,255,255,0)');
+    x.fillStyle=rg; x.fillRect(cx-r,cy-r,r*2,r*2);
+  }
+  blob(120,58,86,.95); blob(390,44,70,.72); blob(255,120,120,.20); blob(470,150,60,.30);
+  var t=new THREE.CanvasTexture(c);
+  t.mapping=THREE.EquirectangularReflectionMapping;
+  var p=new THREE.PMREMGenerator(renderer); p.compileEquirectangularShader();
+  var m=p.fromEquirectangular(t).texture; p.dispose(); t.dispose();
+  return m;
+})();
+scene.environment=envMap;
+
+// ---- materials ----
+var CLIP=[new THREE.Plane(new THREE.Vector3(0,-1,0),0.02)];
+var MATS=[];
+function mk(o){
+  var m=new THREE.MeshStandardMaterial(Object.assign(
+    {envMap:envMap,envMapIntensity:1.25},o));
+  MATS.push(m); return m;
+}
+var mFlex   = mk({color:0xd8dde5,metalness:0.94,roughness:0.20,side:THREE.DoubleSide,vertexColors:true});
+var mFlexCup= mk({color:0xc2c8d2,metalness:0.93,roughness:0.24,side:THREE.DoubleSide});
+var mCirc   = mk({color:0x79818f,metalness:0.92,roughness:0.30,side:THREE.DoubleSide});
+var mHouse  = mk({color:0x2a2f3a,metalness:0.72,roughness:0.44});
+var mCam    = mk({color:0xb5892f,metalness:0.95,roughness:0.19});
+var mBall   = mk({color:0xeef2f7,metalness:0.99,roughness:0.045});
+var mShaft  = mk({color:0x9aa3b1,metalness:0.96,roughness:0.15});
+var mOut    = mk({color:0x39414f,metalness:0.85,roughness:0.34});
+var mBolt   = mk({color:0x161a20,metalness:0.88,roughness:0.38});
+var mMark   = mk({color:0xe0a542,metalness:0.35,roughness:0.42,
+                  emissive:0x6b4a12,emissiveIntensity:1.0});
+
+// ---- lighting ----
+scene.add(new THREE.AmbientLight(0x5a6373,0.52));
+var key=new THREE.DirectionalLight(0xffffff,2.05);
+key.position.set(5.5,7.5,6.5); key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near=1; key.shadow.camera.far=32;
+key.shadow.camera.left=-7; key.shadow.camera.right=7;
+key.shadow.camera.top=7; key.shadow.camera.bottom=-7;
+key.shadow.bias=-0.0011; key.shadow.radius=2.4;
+scene.add(key);
+var fill=new THREE.DirectionalLight(0x8fb4d8,0.62); fill.position.set(-6,2.5,4); scene.add(fill);
+var rim =new THREE.DirectionalLight(0xffd9a0,0.85); rim.position.set(-2.5,-4,-6.5); scene.add(rim);
+
+// ---- ground ----
+var gGrp=new THREE.Group(); gGrp.position.y=-3.05; scene.add(gGrp);
+var shadowPlane=new THREE.Mesh(new THREE.PlaneGeometry(40,40),
+  new THREE.ShadowMaterial({opacity:0.42}));
+shadowPlane.rotation.x=-Math.PI/2; shadowPlane.receiveShadow=true; gGrp.add(shadowPlane);
+(function(){
+  var c=document.createElement('canvas'); c.width=c.height=256;
+  var x=c.getContext('2d');
+  var g=x.createRadialGradient(128,128,0,128,128,128);
+  g.addColorStop(0,'rgba(120,150,190,.30)'); g.addColorStop(.45,'rgba(90,115,150,.10)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g; x.fillRect(0,0,256,256);
+  var m=new THREE.Mesh(new THREE.PlaneGeometry(16,16),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+  m.rotation.x=-Math.PI/2; m.position.y=0.012; gGrp.add(m);
+})();
+
+/* ---------- assembly groups ---------- */
+var root=new THREE.Group(); scene.add(root);
+var gFlex=new THREE.Group(), gCirc=new THREE.Group(), gWG=new THREE.Group(),
+    gOut=new THREE.Group(), gHouse=new THREE.Group();
+root.add(gFlex,gCirc,gWG,gOut,gHouse);
+
+/* ---------- geometry helpers ---------- */
+// Build indexed triangles between R rings of N points each.
+function ringIndices(R,N,closed){
+  var idx=[], lim=closed?R:R-1;
+  for(var k=0;k<lim;k++){
+    var k2=(k+1)%R;
+    for(var i=0;i<N;i++){
+      var i2=(i+1)%N;
+      var a=k*N+i, b=k*N+i2, c=k2*N+i2, d=k2*N+i;
+      idx.push(a,b,c, a,c,d);
+    }
+  }
+  return idx;
+}
+// Tooth profile: 3 samples per tooth -> closed loop of 3*Z points.
+// sign=+1 external teeth (tips outward), -1 internal teeth (tips inward)
+function toothLoop(Z,h,sign){
+  var ang=[], dr=[], p=2*Math.PI/Z;
+  for(var i=0;i<Z;i++){
+    var a=i*p;
+    ang.push(a-0.50*p); dr.push(-sign*h/2);   // root
+    ang.push(a-0.20*p); dr.push( sign*h/2);   // tip
+    ang.push(a+0.20*p); dr.push( sign*h/2);   // tip
+  }
+  return {ang:ang,dr:dr,n:ang.length};
+}
+
+/* ---------- deformable flexspline ---------- */
+var FX={rim:null,cup:null,geoRim:null,geoCup:null,
+        aRim:null,dRim:null,zRim:null,ampRim:null,
+        aCup:null,dCup:null,zCup:null,ampCup:null,
+        pitchF:0,dVis:0,h:0};
+
+function buildFlexspline(Zf,h,pitchF,dVis){
+  var lp=toothLoop(Zf,h,+1), N=lp.n, wall=Math.max(h*0.55,0.035);
+  // ---- rim: closed tube, 4 rings (outerFront, outerBack, innerBack, innerFront)
+  var rings=[
+    {dr:null,z:+TW/2,amp:1}, {dr:null,z:-TW/2,amp:1},
+    {dr:-h/2-wall,z:-TW/2,amp:1}, {dr:-h/2-wall,z:+TW/2,amp:1}
+  ];
+  var n=N*rings.length;
+  var aR=new Float32Array(n), dR=new Float32Array(n), zR=new Float32Array(n), pR=new Float32Array(n);
+  var k=0;
+  for(var r=0;r<rings.length;r++)for(var i=0;i<N;i++,k++){
+    aR[k]=lp.ang[i];
+    dR[k]=rings[r].dr===null?lp.dr[i]:rings[r].dr;
+    zR[k]=rings[r].z; pR[k]=rings[r].amp;
+  }
+  var gR=new THREE.BufferGeometry();
+  gR.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  gR.setAttribute('color',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  gR.setIndex(ringIndices(rings.length,N,true));
+
+  // ---- cup: open tube, 4 rings, deflection tapers to zero at diaphragm
+  var cr=[{z:-TW/2,amp:1.0},{z:-TW/2-0.35*CUPL,amp:0.62},
+          {z:-TW/2-0.70*CUPL,amp:0.28},{z:-TW/2-CUPL,amp:0.0}];
+  var m=N*cr.length;
+  var aC=new Float32Array(m), dC=new Float32Array(m), zC=new Float32Array(m), pC=new Float32Array(m);
+  k=0;
+  for(var r2=0;r2<cr.length;r2++)for(var i2=0;i2<N;i2++,k++){
+    aC[k]=lp.ang[i2]; dC[k]=-h/2-wall; zC[k]=cr[r2].z; pC[k]=cr[r2].amp;
+  }
+  var gC=new THREE.BufferGeometry();
+  gC.setAttribute('position',new THREE.BufferAttribute(new Float32Array(m*3),3));
+  gC.setIndex(ringIndices(cr.length,N,false));
+
+  if(FX.rim){gFlex.remove(FX.rim);FX.geoRim.dispose();}
+  if(FX.cup){gFlex.remove(FX.cup);FX.geoCup.dispose();}
+  FX.rim=new THREE.Mesh(gR,mFlex); FX.rim.castShadow=true; FX.rim.receiveShadow=true;
+  FX.cup=new THREE.Mesh(gC,mFlexCup); FX.cup.castShadow=true; FX.cup.receiveShadow=true;
+  gFlex.add(FX.rim,FX.cup);
+  Object.assign(FX,{geoRim:gR,geoCup:gC,aRim:aR,dRim:dR,zRim:zR,ampRim:pR,
+    aCup:aC,dCup:dC,zCup:zC,ampCup:pC,pitchF:pitchF,dVis:dVis,h:h});
+}
+
+var COLD=new THREE.Color(0x707a89), HOTC=new THREE.Color(0xe0a542);
+var _c=new THREE.Color();
+function updateFlexspline(thFs,thWg){
+  var pos=FX.geoRim.attributes.position.array, col=FX.geoRim.attributes.color.array;
+  var a=FX.aRim,d=FX.dRim,z=FX.zRim,p=FX.ampRim,n=a.length;
+  var pf=FX.pitchF, dv=FX.dVis, i,wa,w,R;
+  for(i=0;i<n;i++){
+    wa=a[i]+thFs; w=Math.cos(2*(wa-thWg));
+    R=pf+p[i]*dv*w+d[i];
+    pos[i*3]=R*Math.cos(wa); pos[i*3+1]=R*Math.sin(wa); pos[i*3+2]=z[i];
+    var e=Math.max(0,w); e=e*e*e;
+    _c.copy(COLD).lerp(HOTC,e);
+    col[i*3]=_c.r; col[i*3+1]=_c.g; col[i*3+2]=_c.b;
+  }
+  FX.geoRim.attributes.position.needsUpdate=true;
+  FX.geoRim.attributes.color.needsUpdate=true;
+  FX.geoRim.computeVertexNormals();
+
+  pos=FX.geoCup.attributes.position.array;
+  a=FX.aCup;d=FX.dCup;z=FX.zCup;p=FX.ampCup;n=a.length;
+  for(i=0;i<n;i++){
+    wa=a[i]+thFs; w=Math.cos(2*(wa-thWg));
+    R=pf+p[i]*dv*w+d[i];
+    pos[i*3]=R*Math.cos(wa); pos[i*3+1]=R*Math.sin(wa); pos[i*3+2]=z[i];
+  }
+  FX.geoCup.attributes.position.needsUpdate=true;
+  FX.geoCup.computeVertexNormals();
+}
+
+/* ---------- static circular spline + housing ---------- */
+function buildCircular(Zc,h){
+  while(gCirc.children.length){var o=gCirc.children.pop();o.geometry.dispose();}
+  while(gHouse.children.length){var o2=gHouse.children.pop();o2.geometry.dispose();}
+  var lp=toothLoop(Zc,h,-1), N=lp.n, W=TW*0.78, outR=RC+h/2+0.46;
+  var rings=[
+    {r:null,z:+W},{r:null,z:-W},{r:outR,z:-W},{r:outR,z:+W}
+  ];
+  var n=N*rings.length, pos=new Float32Array(n*3), k=0;
+  for(var r=0;r<rings.length;r++)for(var i=0;i<N;i++,k++){
+    var R=rings[r].r===null?(RC+lp.dr[i]):rings[r].r, a=lp.ang[i];
+    pos[k*3]=R*Math.cos(a); pos[k*3+1]=R*Math.sin(a); pos[k*3+2]=rings[r].z;
+  }
+  var g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setIndex(ringIndices(rings.length,N,true));
+  g.computeVertexNormals();
+  var m=new THREE.Mesh(g,mCirc); m.castShadow=true; m.receiveShadow=true; gCirc.add(m);
+
+  // housing barrel + mounting flange + bolts
+  var hb=new THREE.Mesh(new THREE.CylinderGeometry(outR+0.10,outR+0.10,W*2.5,72,1,true),mHouse);
+  hb.rotation.x=Math.PI/2; hb.castShadow=true; hb.receiveShadow=true; gHouse.add(hb);
+  var fl=new THREE.Mesh(new THREE.TorusGeometry(outR+0.05,0.075,10,72),mHouse);
+  fl.position.z=W*1.25; gHouse.add(fl);
+  var fl2=fl.clone(); fl2.position.z=-W*1.25; gHouse.add(fl2);
+  for(var b=0;b<8;b++){
+    var ba=b*Math.PI/4+Math.PI/8;
+    var bo=new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.062,W*2.7,10),mBolt);
+    bo.rotation.x=Math.PI/2;
+    bo.position.set((outR+0.02)*Math.cos(ba),(outR+0.02)*Math.sin(ba),0);
+    gHouse.add(bo);
+  }
+}
+
+/* ---------- wave generator (elliptical cam + ball bearing) ---------- */
+function buildWaveGen(pitchF,h,dVis){
+  while(gWG.children.length){var o=gWG.children.pop(); if(o.geometry)o.geometry.dispose();}
+  var wall=Math.max(h*0.55,0.035);
+  var A=pitchF-h/2-wall+dVis;      // ellipse semi-major (contact at major axis)
+  var B=pitchF-h/2-wall-dVis;      // semi-minor
+  var rb=Math.max(0.055,Math.min(0.10,(A-B)*0.9+0.05));   // ball radius
+  var Ac=A-2*rb, Bc=B-2*rb;
+
+  // elliptical cam with central bore
+  var sh=new THREE.Shape();
+  for(var i=0;i<=128;i++){
+    var t=i/128*Math.PI*2, x=Ac*Math.cos(t), y=Bc*Math.sin(t);
+    if(i===0)sh.moveTo(x,y); else sh.lineTo(x,y);
+  }
+  var bore=new THREE.Path();
+  bore.absarc(0,0,Math.min(Ac,Bc)*0.42,0,Math.PI*2,true);
+  sh.holes.push(bore);
+  var cg=new THREE.ExtrudeGeometry(sh,{depth:TW*1.15,bevelEnabled:true,
+    bevelThickness:0.022,bevelSize:0.018,bevelSegments:2,curveSegments:96});
+  cg.translate(0,0,-TW*0.575);
+  var cam=new THREE.Mesh(cg,mCam); cam.castShadow=true; cam.receiveShadow=true; gWG.add(cam);
+
+  // ball complement riding the ellipse
+  var NB=22, bg=new THREE.SphereGeometry(rb,14,10);
+  for(var j=0;j<NB;j++){
+    var t2=j/NB*Math.PI*2;
+    var bx=(A-rb)*Math.cos(t2), by=(B-rb)*Math.sin(t2);
+    var bl=new THREE.Mesh(bg,mBall); bl.castShadow=true;
+    bl.position.set(bx,by,0); gWG.add(bl);
+  }
+  // input shaft + key
+  var sr=Math.min(Ac,Bc)*0.40;
+  var sha=new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,TW*1.1+2.3,36),mShaft);
+  sha.rotation.x=Math.PI/2; sha.position.z=1.05; sha.castShadow=true; gWG.add(sha);
+  var keyw=new THREE.Mesh(new THREE.BoxGeometry(sr*0.42,sr*0.30,0.85),mShaft);
+  keyw.position.set(0,sr*0.96,1.75); gWG.add(keyw);
+  // index mark on the input side
+  var im=new THREE.Mesh(new THREE.BoxGeometry(0.05,sr*0.85,0.05),mMark);
+  im.position.set(0,sr*0.5,TW*0.62); gWG.add(im);
+}
+
+/* ---------- output flange (rotates with flexspline) ---------- */
+function buildOutput(pitchF,h){
+  while(gOut.children.length){var o=gOut.children.pop(); if(o.geometry)o.geometry.dispose();}
+  var wall=Math.max(h*0.55,0.035);
+  var dr=pitchF-h/2-wall, z0=-TW/2-CUPL;
+  var dia=new THREE.Mesh(new THREE.CylinderGeometry(dr,dr,0.13,72),mOut);
+  dia.rotation.x=Math.PI/2; dia.position.z=z0-0.065;
+  dia.castShadow=true; dia.receiveShadow=true; gOut.add(dia);
+  var hub=new THREE.Mesh(new THREE.CylinderGeometry(dr*0.46,dr*0.46,0.42,48),mOut);
+  hub.rotation.x=Math.PI/2; hub.position.z=z0-0.30; hub.castShadow=true; gOut.add(hub);
+  var bc=dr*0.70;
+  for(var i=0;i<6;i++){
+    var a=i*Math.PI/3;
+    var bo=new THREE.Mesh(new THREE.CylinderGeometry(0.058,0.058,0.20,12),mBolt);
+    bo.rotation.x=Math.PI/2;
+    bo.position.set(bc*Math.cos(a),bc*Math.sin(a),z0-0.075);
+    gOut.add(bo);
+  }
+  // output index mark — shows the slow accumulated rotation
+  var mk2=new THREE.Mesh(new THREE.BoxGeometry(0.055,dr*0.55,0.055),mMark);
+  mk2.position.set(0,dr*0.66,z0-0.145); gOut.add(mk2);
+}
+
+/* ---------- rebuild everything on config change ---------- */
+var GEO={Zf:0,Zc:0,h:0,pitchF:0,dVis:0};
+function rebuild(){
+  var s=spec(), Zf=s.Zf, Zc=s.Zc;
+  var dTrue=2*RC/Zc;
+  var dVis=ST.defl*dTrue;
+  var pitchF=RC-dVis;
+  var pitchArc=2*Math.PI*RC/Zf;
+  var h=Math.min(1.45*dVis,0.90*pitchArc);
+  GEO={Zf:Zf,Zc:Zc,h:h,pitchF:pitchF,dVis:dVis};
+  buildFlexspline(Zf,h,pitchF,dVis);
+  buildCircular(Zc,h);
+  buildWaveGen(pitchF,h,dVis);
+  buildOutput(pitchF,h);
+  applyView();
+}
+
+/* ---------- views ---------- */
+var explode=0, explodeT=0;
+function applyView(){
+  var cut=(ST.view===1);
+  for(var i=0;i<MATS.length;i++){
+    MATS[i].clippingPlanes=cut?CLIP:null;
+    MATS[i].clipShadows=cut;
+    MATS[i].needsUpdate=true;
+  }
+  explodeT=(ST.view===2)?1:0;
+  if(ST.view===3){ sph.target.set(RC*0.86,0,0); sph.rad=2.15; sph.th=0.30; sph.ph=1.30; }
+  else if(sph.target.x!==0){ sph.target.set(0,0,0); sph.rad=8.2; }
+}
+
+/* ---------- camera orbit ---------- */
+var sph={th:0.62,ph:1.16,rad:8.2,target:new THREE.Vector3(0,0,0)};
+function updCam(){
+  sph.ph=Math.max(0.16,Math.min(Math.PI-0.16,sph.ph));
+  sph.rad=Math.max(1.6,Math.min(22,sph.rad));
+  camera.position.set(
+    sph.target.x+sph.rad*Math.sin(sph.ph)*Math.sin(sph.th),
+    sph.target.y+sph.rad*Math.cos(sph.ph),
+    sph.target.z+sph.rad*Math.sin(sph.ph)*Math.cos(sph.th));
+  camera.lookAt(sph.target);
+}
+(function(){
+  var down=false,px=0,py=0,pd=0;
+  function xy(e){var t=e.touches?e.touches[0]:e;return[t.clientX,t.clientY];}
+  cv.addEventListener('mousedown',function(e){down=true;var p=xy(e);px=p[0];py=p[1];});
+  window.addEventListener('mouseup',function(){down=false;});
+  window.addEventListener('mousemove',function(e){
+    if(!down)return; var p=xy(e);
+    sph.th-=(p[0]-px)*0.0068; sph.ph-=(p[1]-py)*0.0068; px=p[0];py=p[1];
+  });
+  cv.addEventListener('wheel',function(e){e.preventDefault();sph.rad*=(1+e.deltaY*0.0012);},{passive:false});
+  cv.addEventListener('touchstart',function(e){
+    if(e.touches.length===1){down=true;var p=xy(e);px=p[0];py=p[1];}
+    else if(e.touches.length===2){down=false;
+      pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                    e.touches[0].clientY-e.touches[1].clientY);}
+  },{passive:true});
+  cv.addEventListener('touchmove',function(e){
+    if(e.touches.length===1&&down){e.preventDefault();var p=xy(e);
+      sph.th-=(p[0]-px)*0.0075; sph.ph-=(p[1]-py)*0.0075; px=p[0];py=p[1];}
+    else if(e.touches.length===2){e.preventDefault();
+      var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+      if(pd)sph.rad*=pd/d; pd=d;}
+  },{passive:false});
+  cv.addEventListener('touchend',function(){down=false;pd=0;},{passive:true});
+})();
+
+/* ---------- resize ---------- */
+function resize(){
+  var w=cv.clientWidth||1,h=cv.clientHeight||1;
+  if(cv.width!==w||cv.height!==h){
+    renderer.setSize(w,h,false);
+    camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(cv);
+window.addEventListener('resize',resize);
+
+/* ---------- animation ---------- */
+var thWg=0, thFs=0, last=performance.now(), outAccum=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  var dt=Math.min((now-last)/1000,0.05); last=now;
+  if(!ST.paused){
+    thWg+=dt*ST.spd;
+    thFs=-thWg*2/GEO.Zf;
+    outAccum=thFs;
+  }
+  updateFlexspline(thFs,thWg);
+  gWG.rotation.z=thWg;
+  gOut.rotation.z=thFs;
+  explode+=(explodeT-explode)*Math.min(1,dt*5);
+  gWG.position.z   = explode*1.55;
+  gOut.position.z  = -explode*1.35;
+  gHouse.position.z= explode*0.05;
+  gCirc.position.z = explode*0.05;
+  gHouse.visible   = (ST.view!==1)||true;
+  resize(); updCam();
+  renderer.render(scene,camera);
+}
+
+/* ============================================================
+   3. CHARTS
+   ============================================================ */
+function chSetup(c){
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  var w=c.clientWidth||320, h=parseInt(c.getAttribute('height'),10);
+  c.width=w*dpr; c.height=h*dpr;
+  c.style.height=h+'px';
+  var x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+  x.clearRect(0,0,w,h);
+  return {x:x,w:w,h:h};
+}
+function axes(x,L,R,T,B,w,h,xl,yl){
+  x.strokeStyle='#1e242e'; x.lineWidth=1;
+  x.beginPath(); x.moveTo(L,T); x.lineTo(L,h-B); x.lineTo(w-R,h-B); x.stroke();
+  x.fillStyle='#5d6672'; x.font='9px ui-monospace,monospace';
+  x.textAlign='center'; x.fillText(xl,(L+w-R)/2,h-6);
+  x.save(); x.translate(11,(T+h-B)/2); x.rotate(-Math.PI/2);
+  x.textAlign='center'; x.fillText(yl,0,0); x.restore();
+}
+function grid(x,L,R,T,B,w,h,nx,ny){
+  x.strokeStyle='#13181f'; x.lineWidth=1;
+  for(var i=1;i<=nx;i++){var px=L+(w-R-L)*i/nx;
+    x.beginPath();x.moveTo(px,T);x.lineTo(px,h-B);x.stroke();}
+  for(var j=1;j<=ny;j++){var py=(h-B)-((h-B-T))*j/ny;
+    x.beginPath();x.moveTo(L,py);x.lineTo(w-R,py);x.stroke();}
+}
+
+function drawWindup(r){
+  var c=document.getElementById('ch1'), S=chSetup(c), x=S.x, w=S.w, h=S.h;
+  var L=42,R=14,T=16,B=30, s=r.s;
+  var xmax=s.mom*1.08, ymax=windupRad(xmax,s)*RAD2AM;
+  function X(v){return L+(w-R-L)*v/xmax;}
+  function Y(v){return (h-B)-(h-B-T)*v/ymax;}
+  grid(x,L,R,T,B,w,h,5,4);
+  // region shading
+  var regs=[[0,s.T1,'rgba(87,182,200,.09)'],[s.T1,s.T2,'rgba(87,182,200,.05)'],
+            [s.T2,xmax,'rgba(87,182,200,.02)']];
+  for(var i=0;i<3;i++){x.fillStyle=regs[i][2];
+    x.fillRect(X(regs[i][0]),T,X(regs[i][1])-X(regs[i][0]),h-B-T);}
+  // rated / peak / momentary markers
+  var mks=[[s.rated,'rated','#4fbf7f'],[s.peak,'peak','#e0a542'],[s.mom,'momentary','#e05f52']];
+  x.setLineDash([3,3]); x.font='8px ui-monospace,monospace';
+  for(i=0;i<3;i++){ if(mks[i][0]>xmax)continue;
+    x.strokeStyle=mks[i][2]+'66'; x.lineWidth=1;
+    x.beginPath();x.moveTo(X(mks[i][0]),T);x.lineTo(X(mks[i][0]),h-B);x.stroke();
+    x.fillStyle=mks[i][2]+'cc'; x.textAlign='left';
+    x.fillText(mks[i][1],X(mks[i][0])+3,T+9);
+  }
+  x.setLineDash([]);
+  // curve
+  x.strokeStyle='#57b6c8'; x.lineWidth=2; x.beginPath();
+  for(i=0;i<=140;i++){var t=xmax*i/140, y=windupRad(t,s)*RAD2AM;
+    if(i===0)x.moveTo(X(t),Y(y)); else x.lineTo(X(t),Y(y));}
+  x.stroke();
+  // operating point
+  var opx=X(Math.min(ST.trq,xmax)), opy=Y(Math.min(r.wuAm,ymax));
+  x.strokeStyle='#EDEBE7'; x.lineWidth=1; x.setLineDash([2,3]);
+  x.beginPath();x.moveTo(L,opy);x.lineTo(opx,opy);x.lineTo(opx,h-B);x.stroke();
+  x.setLineDash([]);
+  x.fillStyle='#EDEBE7'; x.beginPath();x.arc(opx,opy,4.2,0,6.284);x.fill();
+  x.fillStyle='#0a0a0a'; x.beginPath();x.arc(opx,opy,1.7,0,6.284);x.fill();
+  // labels
+  x.fillStyle='#8b93a1'; x.font='9px ui-monospace,monospace'; x.textAlign='right';
+  x.fillText(ymax.toFixed(1),L-5,T+4); x.fillText('0',L-5,h-B+3);
+  x.textAlign='center';
+  x.fillText('0',L,h-B+12); x.fillText(xmax.toFixed(0),w-R,h-B+12);
+  x.fillStyle='#EDEBE7'; x.textAlign='left'; x.font='10px ui-monospace,monospace';
+  x.fillText(r.wuAm.toFixed(2)+"' @ "+ST.trq+' N·m',L+6,T+11);
+  axes(x,L,R,T,B,w,h,'output torque  N·m','windup  arcmin');
+}
+
+function drawEff(r){
+  var c=document.getElementById('ch2'), S=chSetup(c), x=S.x, w=S.w, h=S.h;
+  var L=42,R=14,T=16,B=30, s=r.s;
+  var xmax=s.maxIn, ymax=95;
+  function X(v){return L+(w-R-L)*v/xmax;}
+  function Y(v){return (h-B)-(h-B-T)*v/ymax;}
+  grid(x,L,R,T,B,w,h,5,4);
+  var lrs=[[0.15,'#2f4a52'],[0.35,'#3d6d78'],[0.70,'#4d94a2'],[1.00,'#57b6c8'],[1.50,'#7fd4e2']];
+  x.lineWidth=1.6; x.font='8px ui-monospace,monospace';
+  for(var k=0;k<lrs.length;k++){
+    var lr=lrs[k][0], T_=lr*s.rated;
+    x.strokeStyle=lrs[k][1]; x.beginPath();
+    for(var i=0;i<=100;i++){
+      var rpm=Math.max(50,xmax*i/100), e=efficiency(T_,rpm,s)*100;
+      if(i===0)x.moveTo(X(rpm),Y(e)); else x.lineTo(X(rpm),Y(e));
+    }
+    x.stroke();
+    var ey=efficiency(T_,xmax,s)*100;
+    x.fillStyle=lrs[k][1]; x.textAlign='right';
+    x.fillText(lr.toFixed(2)+'×',w-R-2,Y(ey)-3);
+  }
+  // operating point
+  var opx=X(Math.min(ST.rpm,xmax)), opy=Y(r.eta*100);
+  x.strokeStyle='#EDEBE7'; x.lineWidth=1; x.setLineDash([2,3]);
+  x.beginPath();x.moveTo(L,opy);x.lineTo(opx,opy);x.lineTo(opx,h-B);x.stroke();
+  x.setLineDash([]);
+  x.fillStyle='#EDEBE7'; x.beginPath();x.arc(opx,opy,4.2,0,6.284);x.fill();
+  x.fillStyle='#0a0a0a'; x.beginPath();x.arc(opx,opy,1.7,0,6.284);x.fill();
+  x.fillStyle='#8b93a1'; x.font='9px ui-monospace,monospace'; x.textAlign='right';
+  x.fillText('95',L-5,T+4); x.fillText('0',L-5,h-B+3);
+  x.textAlign='center'; x.fillText('0',L,h-B+12); x.fillText(xmax.toFixed(0),w-R,h-B+12);
+  x.fillStyle='#EDEBE7'; x.textAlign='left'; x.font='10px ui-monospace,monospace';
+  x.fillText((r.eta*100).toFixed(1)+'% @ '+ST.rpm+' rpm',L+6,T+11);
+  axes(x,L,R,T,B,w,h,'input speed  rpm','efficiency  %');
+}
+
+/* ============================================================
+   4. UI
+   ============================================================ */
+function el(id){return document.getElementById(id);}
+function cell(k,v,u,cls){
+  return '<div class="mc'+(cls?' '+cls:'')+'"><div class="k">'+k+
+         '</div><div class="v">'+v+(u?'<u>'+u+'</u>':'')+'</div></div>';
+}
+function fmt(v,d){return v.toFixed(d===undefined?1:d);}
+function fmtBig(v){
+  if(v>=1e5)return (v/1e3).toFixed(0)+'k';
+  if(v>=1e4)return (v/1e3).toFixed(1)+'k';
+  return v.toFixed(0);
+}
+
+function buildSegs(){
+  var a='';
+  for(var i=0;i<FRAMES.length;i++)
+    a+='<button data-f="'+i+'"'+(i===ST.frame?' class="on"':'')+'>'+FRAMES[i].size+'</button>';
+  el('segFrame').innerHTML=a;
+  var b='';
+  for(var j=0;j<RATIOS.length;j++)
+    b+='<button data-r="'+RATIOS[j]+'"'+(RATIOS[j]===ST.ratio?' class="on"':'')+'>'+RATIOS[j]+':1</button>';
+  el('segRatio').innerHTML=b;
+}
+
+function render(){
+  var r=solve(), s=r.s;
+
+  // badge
+  el('bRatio').textContent=s.ratio+':1';
+  el('bTeeth').textContent='Zf '+s.Zf+' · Zc '+s.Zc+' · size '+s.f.size;
+  el('nDefl').textContent='radial deflection ×'+ST.defl.toFixed(1)+' (visual)';
+  var realRad=ST.rpm*2*Math.PI/60;
+  el('nSpeed').textContent=ST.spd>0.01
+    ? 'animation slowed ×'+fmtBig(realRad/ST.spd)
+    : 'animation paused';
+
+  // slider read-outs
+  el('vRpm').innerHTML=ST.rpm+'<small>rpm</small>';
+  el('vTrq').innerHTML=ST.trq+'<small>N·m</small>';
+  el('vDuty').innerHTML=ST.duty+'<small>%</small>';
+  el('vDef').innerHTML=ST.defl.toFixed(1)+'<small>×</small>';
+  el('vSpd').innerHTML=ST.spd.toFixed(1)+'<small>rad/s</small>';
+
+  // output metrics
+  el('mgOut').innerHTML=
+    cell('Output speed',fmt(r.outRpm,2),'rpm')+
+    cell('Required input torque',fmt(r.tIn,2),'N·m')+
+    cell('Efficiency',fmt(r.eta*100,1),'%',r.eta<0.45?'bd':'')+
+    cell('Torsional windup',fmt(r.wuAm,2),'arcmin')+
+    cell('Output power',fmt(r.pOut,0),'W')+
+    cell('Heat to dissipate',fmt(r.heat,0),'W',r.heat>0.35*r.pIn?'hi':'')+
+    cell('L10 bearing life',fmtBig(r.life),'h',r.life<3000?'hi':'')+
+    cell('Unit mass',fmt(s.mass,2),'kg');
+
+  // capacity
+  var pct=function(v){return fmt(ST.trq/v*100,0);};
+  el('mgCap').innerHTML=
+    cell('Rated torque',fmt(s.rated,1),'N·m')+
+    cell('of rated',pct(s.rated),'%',ST.trq>s.rated?'hi':'')+
+    cell('Repeated peak',fmt(s.peak,1),'N·m')+
+    cell('of peak',pct(s.peak),'%',ST.trq>s.peak?'bd':'')+
+    cell('Momentary peak',fmt(s.mom,1),'N·m')+
+    cell('Ratcheting limit',fmt(s.ratchet,1),'N·m',ST.trq>s.mom?'bd':'');
+
+  // kinematics panel
+  el('mgKin').innerHTML=
+    cell('Wave gen. angle',fmt(thWg*180/Math.PI%360,1),'°')+
+    cell('Output angle',fmt(thFs*180/Math.PI%360,2),'°')+
+    cell('Visual teeth',s.Zf+' / '+s.Zc,'')+
+    cell('True deflection',fmt(2*RC/s.Zc/RC*100,2),'% r');
+
+  // warnings
+  var W=[];
+  if(ST.rpm>s.maxIn) W.push(['c','!','Input speed '+ST.rpm+' rpm exceeds the '+s.maxIn+
+    ' rpm limit for frame size '+s.f.size+'. Wave generator bearing life collapses above this.']);
+  if(ST.trq>s.ratchet) W.push(['c','!','Load '+ST.trq+' N·m is beyond the ratcheting limit ('+
+    fmt(s.ratchet,0)+' N·m). Teeth will skip and the unit is destroyed — select a larger frame.']);
+  else if(ST.trq>s.mom) W.push(['c','!','Load exceeds momentary peak torque ('+fmt(s.mom,0)+
+    ' N·m). Permissible only for emergency stops, never in the duty cycle.']);
+  else if(ST.trq>s.peak) W.push(['w','△','Load exceeds repeated peak torque ('+fmt(s.peak,0)+
+    ' N·m). Acceptable only for acceleration transients.']);
+  else if(ST.trq>s.rated) W.push(['w','△','Load is above rated continuous torque ('+fmt(s.rated,0)+
+    ' N·m). Check that the cubic-mean duty torque ('+fmt(r.tAvg,1)+' N·m) stays below rated.']);
+  if(r.eta<0.45) W.push(['w','△','Efficiency '+fmt(r.eta*100,0)+
+    '% — the unit is heavily oversized for this load. A smaller frame would run cooler and cost less.']);
+  if(r.life<3000) W.push(['w','△','L10 life '+fmtBig(r.life)+
+    ' h is short for an industrial duty cycle. Reduce load, speed, or step up a frame size.']);
+  if(r.wuAm>3) W.push(['w','△','Windup '+fmt(r.wuAm,1)+
+    " arcmin under load. On a 500 mm arm that is "+fmt(r.wuAm/RAD2AM*500,2)+
+    ' mm of deflection at the tool.']);
+  if(!W.length) W.push(['g','✓','Operating point is within all catalogue limits. '+
+    'Windup '+fmt(r.wuAm,2)+" arcmin, efficiency "+fmt(r.eta*100,0)+'%, L10 '+fmtBig(r.life)+' h.']);
+  el('warns').innerHTML=W.map(function(x){
+    return '<div class="wr '+x[0]+'"><span class="ic">'+x[1]+'</span><span>'+x[2]+'</span></div>';
+  }).join('');
+
+  drawWindup(r); drawEff(r);
+}
+
+/* ---------- events ---------- */
+el('segFrame').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b)return;
+  ST.frame=+b.dataset.f; buildSegs(); clampTrq(); render();
+});
+el('segRatio').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b)return;
+  ST.ratio=+b.dataset.r; buildSegs(); clampTrq(); rebuild(); render();
+});
+function clampTrq(){
+  var s=spec();
+  var mx=Math.ceil(s.ratchet*1.15);
+  var sl=el('sTrq'); sl.max=mx;
+  if(ST.trq>mx){ST.trq=mx;}
+  sl.value=ST.trq;
+  var rl=el('sRpm'); rl.max=Math.ceil(s.maxIn*1.15);
+  if(ST.rpm>rl.max){ST.rpm=+rl.max;}
+  rl.value=ST.rpm;
+}
+el('sRpm') .addEventListener('input',function(e){ST.rpm=+e.target.value;render();});
+el('sTrq') .addEventListener('input',function(e){ST.trq=+e.target.value;render();});
+el('sDuty').addEventListener('input',function(e){ST.duty=+e.target.value;render();});
+el('sDef') .addEventListener('input',function(e){ST.defl=+e.target.value;rebuild();render();});
+el('sSpd') .addEventListener('input',function(e){ST.spd=+e.target.value;render();});
+
+document.querySelectorAll('#viewbar button[data-v]').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#viewbar button[data-v]').forEach(function(o){o.classList.remove('on');});
+    b.classList.add('on'); ST.view=+b.dataset.v; applyView();
+  });
+});
+el('btnPause').addEventListener('click',function(){
+  ST.paused=!ST.paused;
+  el('btnPause').textContent=ST.paused?'Play':'Pause';
+  el('btnPause').classList.toggle('on',ST.paused);
+});
+
+// mobile section tabs
+var TABS={cfg:1,res:1,chr:1,vis:1};
+function setTab(t){
+  document.querySelectorAll('#sheetTab button').forEach(function(b){
+    b.classList.toggle('on',b.dataset.t===t);});
+  document.querySelectorAll('.sec[data-g]').forEach(function(s){
+    s.classList.toggle('hid',s.dataset.g!==t);});
+  el('panel').scrollTop=0;
+  requestAnimationFrame(function(){render();});
+}
+document.querySelectorAll('#sheetTab button').forEach(function(b){
+  b.addEventListener('click',function(){setTab(b.dataset.t);});
+});
+function syncLayout(){
+  if(window.innerWidth<=900){ if(!document.querySelector('.sec.hid'))setTab('cfg'); }
+  else document.querySelectorAll('.sec[data-g]').forEach(function(s){s.classList.remove('hid');});
+}
+window.addEventListener('resize',function(){syncLayout();render();});
+
+/* ---------- boot ---------- */
+buildSegs(); clampTrq(); rebuild(); syncLayout(); render(); resize(); updCam();
+requestAnimationFrame(loop);
+setInterval(function(){ if(!ST.paused && !document.querySelector('.sec[data-g="vis"].hid'))
+  el('mgKin').children[0]&&render(); },700);
+
+window.__hd={ST:ST,spec:spec,solve:solve,GEO:GEO,windupRad:windupRad,efficiency:efficiency};
+</script>
+</body>
+</html>
