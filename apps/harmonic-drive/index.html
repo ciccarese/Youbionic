@@ -630,7 +630,7 @@ function applyView(){
   explodeT=(ST.view===2)?1:0;
   // Tooth-mesh view: look at the major-axis engagement zone from in front of the gear,
   // so flexspline and circular spline teeth are seen meshing rather than from inside the bore.
-  if(ST.view===3){ sph.target.set(RC*0.94,0,0.05); sph.rad=1.62; sph.th=0.40; sph.ph=1.38; }
+  if(ST.view===3){ sph.target.set(RC*0.92,0,0); sph.rad=2.05; sph.th=0.18; sph.ph=1.40; }
   else if(sph.target.x!==0){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
 }
 
@@ -989,7 +989,8 @@ setInterval(function(){
     fmt(((thFs*180/Math.PI)%360+360)%360,2)+'<u>°</u>';
 },250);
 
-window.__hd={ST:ST,spec:spec,solve:solve,GEO:GEO,windupRad:windupRad,efficiency:efficiency};
+window.__hd={ST:ST,spec:spec,solve:solve,GEO:GEO,windupRad:windupRad,
+             efficiency:efficiency,sph:sph,render:render,applyView:applyView};
 </script>
 </body>
 </html>
