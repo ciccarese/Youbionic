@@ -136,7 +136,7 @@ canvas.ch{width:100%;display:block;border:1px solid var(--line);border-radius:7p
       <button data-v="0" class="on">Assembly</button>
       <button data-v="1">Cutaway</button>
       <button data-v="2">Exploded</button>
-      <button data-v="3">Tooth mesh</button>
+      <button data-v="3">Mesh map</button>
       <button id="btnPause">Pause</button>
     </div>
     <div id="legend">
@@ -619,7 +619,7 @@ function rebuild(){
 }
 
 /* ---------- views ---------- */
-var explode=0, explodeT=0;
+var explode=0, explodeT=0, prevDetail=false;
 function applyView(){
   var cut=(ST.view===1);
   for(var i=0;i<MATS.length;i++){
@@ -635,13 +635,15 @@ function applyView(){
   gHouse.visible=!detail;
   gWG.visible=!detail;
   gOut.visible=!detail;
-  // A wide-FOV close-up viewed along the tooth axis fans the teeth out and is unreadable.
-  // Instead pull the camera far back and narrow the FOV: near-orthographic, so the tooth
-  // profiles read as a rack and the engagement at the major axis is obvious.
-  camera.fov=detail?9:38;
+  // Mesh map: straight axial view with the housing and wave generator stripped away.
+  // A tooth-level close-up is unreadable — the camera has to sit inside the ring and the
+  // teeth fan out. Face-on, the two engagement bands at the ends of the wave generator's
+  // major axis stand out in amber and sweep round as it turns, which is the whole point.
+  camera.fov=detail?34:38;
   camera.updateProjectionMatrix();
-  if(detail){ sph.target.set(RC,0,0); sph.rad=6.2; sph.th=0.02; sph.ph=1.55; }
-  else if(sph.target.x!==0){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
+  if(detail){ sph.target.set(0,0,0); sph.rad=9.3; sph.th=0; sph.ph=Math.PI/2; }
+  else if(prevDetail){ sph.target.set(0,0,-0.25); sph.rad=10.6; sph.th=0.74; sph.ph=1.13; }
+  prevDetail=detail;
 }
 
 /* ---------- camera orbit ---------- */
