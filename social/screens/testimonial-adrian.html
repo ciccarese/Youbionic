@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1920px; overflow: hidden; background: #12181F; font-family: 'Georgia', serif; }
+  .card {
+    width: 1080px; height: 1920px;
+    background: linear-gradient(160deg, #1a2330 0%, #0e141b 55%, #111820 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px 100px;
+    position: relative;
+  }
+  /* subtle grid lines */
+  .card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(237,235,231,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(237,235,231,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+  /* top accent line */
+  .card::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, #EDEBE7 30%, #EDEBE7 70%, transparent);
+  }
+  .badge {
+    letter-spacing: 0.25em; font-size: 22px; font-family: 'Arial', sans-serif;
+    font-weight: 700; color: #EDEBE7; text-transform: uppercase;
+    border: 1.5px solid rgba(237,235,231,0.5);
+    padding: 10px 28px; border-radius: 30px;
+    margin-bottom: 80px;
+    position: relative; z-index: 1;
+  }
+  .quote-mark {
+    font-size: 220px; line-height: 0.6; color: #EDEBE7;
+    opacity: 0.15; align-self: flex-start;
+    margin-bottom: 20px;
+    font-family: 'Georgia', serif;
+    position: relative; z-index: 1;
+  }
+  .quote-text {
+    font-size: 52px; line-height: 1.5; color: #EDEBE7;
+    font-style: italic; text-align: center;
+    margin-bottom: 70px;
+    position: relative; z-index: 1;
+    max-width: 880px;
+  }
+  .divider {
+    width: 60px; height: 2px; background: rgba(237,235,231,0.3);
+    margin-bottom: 50px;
+    position: relative; z-index: 1;
+  }
+  .attribution {
+    font-size: 32px; color: rgba(237,235,231,0.65);
+    font-style: italic; text-align: center;
+    margin-bottom: 36px;
+    font-family: 'Arial', sans-serif;
+    position: relative; z-index: 1;
+  }
+  .stars {
+    font-size: 44px; letter-spacing: 8px;
+    position: relative; z-index: 1;
+    color: #f5c518;
+  }
+  .brand {
+    position: absolute; bottom: 60px;
+    font-size: 26px; letter-spacing: 0.18em; color: rgba(237,235,231,0.35);
+    font-family: 'Arial', sans-serif; font-weight: 700; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">Maker Story</div>
+  <div class="quote-mark">&ldquo;</div>
+  <div class="quote-text">
+    &ldquo;Honestly, I wasn&rsquo;t sure what to expect. But watching a real robot arm take shape from my own prints was something else. YOUBIONIC made that happen without any prior experience.&rdquo;
+  </div>
+  <div class="divider"></div>
+  <div class="attribution">&mdash; Adrian Fechete, maker &middot; Germany</div>
+  <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  <div class="brand">YOUBIONIC</div>
+</div>
+</body>
+</html>
