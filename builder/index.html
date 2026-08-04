@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modular Robot Builder — YOUBIONIC</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0a;font-family:'Courier New',monospace;color:#fff}
+#cv{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
+#panel{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(8,8,8,.93);
+  border-top:1px solid #2a2a2a;
+  padding:10px 14px 10px;
+  z-index:10;
+  display:flex;flex-direction:column;gap:7px;
+  backdrop-filter:blur(10px);
+  max-height:260px;
+}
+#mods{display:flex;flex-wrap:wrap;gap:5px}
+.mbtn{
+  padding:4px 9px;border:1px solid #333;background:#111;
+  color:#666;font:10px 'Courier New',monospace;cursor:pointer;
+  border-radius:2px;transition:all .15s;white-space:nowrap;
+}
+.mbtn.on{border-color:#EDEBE7;color:#EDEBE7;background:#161616}
+.mbtn:hover{border-color:#555;color:#aaa}
+#stats{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.stat{font-size:10px;color:#555;white-space:nowrap}
+.stat b{color:#EDEBE7;font-size:12px}
+#charts{display:flex;gap:10px;height:70px}
+.cw{flex:1;position:relative}
+.cw em{font-size:8px;color:#444;font-style:normal;position:absolute;top:0;left:0;letter-spacing:.06em}
+.cw canvas{position:absolute;top:10px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 10px)}
+#logo{position:fixed;top:12px;left:14px;font-size:10px;color:#333;letter-spacing:.18em;z-index:11;pointer-events:none}
+#hint{position:fixed;top:12px;right:14px;font-size:9px;color:#2a2a2a;z-index:11;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="logo">YOUBIONIC — MODULAR ROBOT BUILDER</div>
+<div id="hint">drag · scroll · pinch</div>
+<div id="panel">
+  <div id="mods"></div>
+  <div id="stats">
+    <div class="stat">Print time <b id="s-time">—</b></div>
+    <div class="stat">Filament <b id="s-fil">—</b></div>
+    <div class="stat">Electronics <b id="s-elec">—</b></div>
+    <div class="stat">Misc <b id="s-misc">—</b></div>
+    <div class="stat" style="color:#EDEBE7">Total <b id="s-tot">—</b></div>
+    <div class="stat">Printed parts <b id="s-parts">—</b></div>
+  </div>
+  <div id="charts">
+    <div class="cw"><em>COST BREAKDOWN $</em><canvas id="ch-cost" data-h="58"></canvas></div>
+    <div class="cw"><em>PRINT HOURS PER MODULE</em><canvas id="ch-time" data-h="58"></canvas></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── MODULE DATA ─────────────────────────────────────────────────────────────
+const MODS = {
+  base:  {label:'Chassis Base',  printH:4.2,filG:185,elec:38,misc:8, parts:12},
+  torso: {label:'Torso Frame',   printH:3.1,filG:122,elec:14,misc:5, parts:8 },
+  armL:  {label:'Left Arm',      printH:4.8,filG:196,elec:32,misc:6, parts:11},
+  armR:  {label:'Right Arm',     printH:4.8,filG:196,elec:32,misc:6, parts:11},
+  head:  {label:'Robot Head',    printH:2.3,filG: 72,elec:18,misc:4, parts:6 },
+  gripL: {label:'Left Gripper',  printH:2.9,filG: 88,elec:14,misc:3, parts:9 },
+  gripR: {label:'Right Gripper', printH:2.9,filG: 88,elec:14,misc:3, parts:9 },
+  cam:   {label:'Camera Module', printH:0.3,filG:  8,elec:12,misc:2, parts:3 },
+  sonar: {label:'Sonar Sensor',  printH:0.2,filG:  4,elec: 4,misc:1, parts:2 },
+};
+const PRICE_PER_G = 0.025;
+const active = {base:true,torso:true,armL:true,armR:false,head:false,gripL:false,gripR:false,cam:false,sonar:false};
+
+// ─── RENDERER ────────────────────────────────────────────────────────────────
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.Fog(0x0a0a0a, 18, 30);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 80);
+let phi = 1.08, theta = 0.38, radius = 10;
+const TARGET = new THREE.Vector3(0, 1.5, 0);
+
+function updateCamera() {
+  camera.position.set(
+    TARGET.x + radius * Math.sin(phi) * Math.sin(theta),
+    TARGET.y + radius * Math.cos(phi),
+    TARGET.z + radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(TARGET);
+}
+updateCamera();
+
+// ─── ENV MAP (studio procedural) ─────────────────────────────────────────────
+function makeEnv() {
+  var sz = 256;
+  var c = document.createElement('canvas');
+  c.width = c.height = sz;
+  var x = c.getContext('2d');
+  var g = x.createLinearGradient(0, 0, 0, sz);
+  g.addColorStop(0,   '#8898a0');
+  g.addColorStop(0.4, '#4a5a68');
+  g.addColorStop(1,   '#101820');
+  x.fillStyle = g; x.fillRect(0, 0, sz, sz);
+  // key light
+  var kg = x.createRadialGradient(sz*.28, sz*.15, 0, sz*.28, sz*.15, sz*.3);
+  kg.addColorStop(0, 'rgba(255,245,215,.55)');
+  kg.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = kg; x.fillRect(0, 0, sz, sz);
+  // fill light
+  var fg = x.createRadialGradient(sz*.8, sz*.65, 0, sz*.8, sz*.65, sz*.22);
+  fg.addColorStop(0, 'rgba(140,180,220,.2)');
+  fg.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = fg; x.fillRect(0, 0, sz, sz);
+
+  var tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  var pm = new THREE.PMREMGenerator(renderer);
+  pm.compileEquirectangularShader();
+  var env = pm.fromEquirectangular(tex).texture;
+  pm.dispose(); tex.dispose();
+  return env;
+}
+var ENV = makeEnv();
+scene.environment = ENV;
+
+// ─── LIGHTS ──────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 0.28));
+var key = new THREE.DirectionalLight(0xfff6d0, 1.5);
+key.position.set(6, 9, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+key.shadow.camera.left = key.shadow.camera.bottom = -6;
+key.shadow.camera.right = key.shadow.camera.top = 6;
+scene.add(key);
+var fill = new THREE.DirectionalLight(0x8ab4d0, 0.5);
+fill.position.set(-5, 4, -4); scene.add(fill);
+var back = new THREE.DirectionalLight(0xffffff, 0.2);
+back.position.set(0, 2, -6); scene.add(back);
+
+// ─── FLOOR ───────────────────────────────────────────────────────────────────
+var floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({opacity:.32}));
+floorMesh.rotation.x = -Math.PI/2; floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+// Subtle grid glow rings
+for (var ri = 0; ri < 3; ri++) {
+  var rg = new THREE.Mesh(
+    new THREE.RingGeometry(1.5 + ri*1.6, 1.52 + ri*1.6, 48),
+    new THREE.MeshBasicMaterial({color: 0x222222, transparent:true, opacity:.5})
+  );
+  rg.rotation.x = -Math.PI/2; rg.position.y = 0.002; scene.add(rg);
+}
+
+// ─── MATERIAL HELPERS ────────────────────────────────────────────────────────
+function mStd(col, metal, rough) {
+  return new THREE.MeshStandardMaterial({color:col, metalness:metal, roughness:rough, envMap:ENV, envMapIntensity:0.95});
+}
+var M = {
+  chassis: mStd(0xb2b2b2, .78, .32),
+  frame:   mStd(0x9a9a9a, .82, .28),
+  joint:   mStd(0xcccccc, .92, .16),
+  servo:   mStd(0x7a7a7a, .62, .48),
+  grip:    mStd(0xd2d2d2, .72, .26),
+  head:    mStd(0xaaaaaa, .68, .36),
+  sensor:  mStd(0xe0e0e0, .28, .58),
+  lens:    mStd(0x1a2a3a, .08, .04),
+  pcb:     mStd(0x1a3820, .08, .82),
+  dark:    mStd(0x404040, .88, .24),
+  accent:  mStd(0xEDEBE7, .62, .32),
+};
+
+// ─── GEOMETRY HELPERS ────────────────────────────────────────────────────────
+function cyl(rt, rb, h, seg, mat) {
+  var m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.castShadow = true; return m;
+}
+function bx(w, h, d, mat) {
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = true; return m;
+}
+function sph(r, seg, mat) {
+  var m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), mat);
+  m.castShadow = true; return m;
+}
+function tor(r, tube, rseg, tseg, mat) {
+  var m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, rseg, tseg), mat);
+  m.castShadow = true; return m;
+}
+
+// ─── MODULE GEOMETRY ─────────────────────────────────────────────────────────
+
+function makeBase() {
+  var g = new THREE.Group();
+
+  // Platform — extruded rounded rectangle
+  var sh = new THREE.Shape();
+  var W=1.35, D=0.95, ch=0.09;
+  sh.moveTo(-W+ch,-D); sh.lineTo(W-ch,-D);
+  sh.quadraticCurveTo(W,-D,W,-D+ch);
+  sh.lineTo(W,D-ch); sh.quadraticCurveTo(W,D,W-ch,D);
+  sh.lineTo(-W+ch,D); sh.quadraticCurveTo(-W,D,-W,D-ch);
+  sh.lineTo(-W,-D+ch); sh.quadraticCurveTo(-W,-D,-W+ch,-D);
+  var ext = new THREE.ExtrudeGeometry(sh, {depth:.16,bevelEnabled:true,bevelSize:.035,bevelThickness:.035,bevelSegments:2});
+  var plate = new THREE.Mesh(ext, M.chassis);
+  plate.rotation.x = -Math.PI/2; plate.position.y = 0.32;
+  plate.castShadow = true; plate.receiveShadow = true;
+  g.add(plate);
+
+  // Longitudinal ribs
+  [-0.55, 0, 0.55].forEach(function(xr) {
+    var rib = bx(0.055, 0.10, 1.9, M.dark);
+    rib.position.set(xr, 0.22, 0); g.add(rib);
+  });
+
+  // 4 wheel assemblies
+  [[-1.02,0,-0.98],[1.02,0,-0.98],[-1.02,0,0.98],[1.02,0,0.98]].forEach(function(wp) {
+    var wx=wp[0], wy=wp[1], wz=wp[2];
+    // Tire (torus)
+    var tire = tor(0.37, 0.125, 8, 20, M.dark);
+    tire.position.set(wx, 0.37, wz); tire.rotation.y = Math.PI/2; g.add(tire);
+    // Tread detail rings
+    for (var tr=0; tr<5; tr++) {
+      var tang = tr * Math.PI*2/5;
+      var trd = tor(0.37, 0.025, 5, 8, M.chassis);
+      trd.position.set(wx, 0.37 + Math.sin(tang)*0.1, wz + Math.cos(tang)*0.1);
+      trd.rotation.y = Math.PI/2; g.add(trd);
+    }
+    // Wheel hub
+    var hub = cyl(0.21, 0.21, 0.055, 10, M.chassis);
+    hub.rotation.z = Math.PI/2; hub.position.set(wx, 0.37, wz); g.add(hub);
+    // Hub bolts
+    for (var b=0; b<4; b++) {
+      var ba = b * Math.PI/2 + Math.PI/4;
+      var bolt = cyl(0.022, 0.022, 0.075, 6, M.joint);
+      bolt.rotation.z = Math.PI/2;
+      bolt.position.set(wx + (wx>0 ? 0.035 : -0.035), 0.37 + Math.sin(ba)*0.11, wz + Math.cos(ba)*0.11);
+      g.add(bolt);
+    }
+    // Axle + motor housing
+    var axle = cyl(0.038, 0.038, 0.3, 8, M.dark);
+    axle.rotation.z = Math.PI/2; axle.position.set(wx*0.6, 0.37, wz); g.add(axle);
+    var mh = cyl(0.13, 0.13, 0.22, 8, M.servo);
+    mh.rotation.z = Math.PI/2; mh.position.set(wx*0.32, 0.37, wz); g.add(mh);
+    // Motor end cap
+    var cap = cyl(0.10, 0.10, 0.04, 8, M.dark);
+    cap.rotation.z = Math.PI/2; cap.position.set(wx*0.22, 0.37, wz); g.add(cap);
+  });
+
+  // Electronics board on platform
+  var board = bx(0.52, 0.038, 0.36, M.pcb);
+  board.position.set(0, 0.53, 0); g.add(board);
+  // Board header connectors
+  [-0.18, 0.18].forEach(function(px) {
+    var hdr = bx(0.04, 0.05, 0.28, M.dark);
+    hdr.position.set(px, 0.57, 0); g.add(hdr);
+  });
+
+  return g;
+}
+
+function makeTorso() {
+  var g = new THREE.Group();
+  var upH = 1.8, upR = 0.058;
+  var corners = [[-0.58,-0.52],[0.58,-0.52],[-0.58,0.52],[0.58,0.52]];
+
+  // Corner uprights
+  corners.forEach(function(c) {
+    var up = cyl(upR, upR, upH, 8, M.frame);
+    up.position.set(c[0], upH/2 + 0.1, c[1]); g.add(up);
+  });
+
+  // Cross members at 3 heights
+  [0.12, 0.95, upH+0.1].forEach(function(cy) {
+    [-0.52, 0.52].forEach(function(cz) {
+      var b = bx(1.22, 0.038, 0.038, M.frame);
+      b.position.set(0, cy, cz); g.add(b);
+    });
+    [-0.58, 0.58].forEach(function(cx) {
+      var b = bx(0.038, 0.038, 1.10, M.frame);
+      b.position.set(cx, cy, 0); g.add(b);
+    });
+  });
+
+  // Mid diagonal braces (X pattern on sides)
+  [[-0.58,0],[0.58,0]].forEach(function(sx) {
+    var br = bx(0.028, 0.9, 0.028, M.dark);
+    br.position.set(sx[0], 0.55, 0); br.rotation.z = 0.4; g.add(br);
+    var br2 = bx(0.028, 0.9, 0.028, M.dark);
+    br2.position.set(sx[0], 0.55, 0); br2.rotation.z = -0.4; g.add(br2);
+  });
+
+  // Central servo block
+  var sb = bx(0.52, 0.38, 0.42, M.servo);
+  sb.position.set(0, 0.82, 0); g.add(sb);
+  // Servo slots
+  [-0.18, 0.18].forEach(function(sx) {
+    var sl = bx(0.038, 0.22, 0.44, M.dark);
+    sl.position.set(sx, 0.82, 0); g.add(sl);
+  });
+  // Servo screw detail
+  [[-.18,-.16],[-.18,.16],[.18,-.16],[.18,.16]].forEach(function(p) {
+    var sc = cyl(0.025, 0.025, 0.045, 6, M.joint);
+    sc.rotation.z = Math.PI/2; sc.position.set(p[0], 0.75, p[1]); g.add(sc);
+  });
+
+  // Shoulder joints (where arms attach) — world y = 0.42 + 1.5 = 1.92
+  [-0.62, 0.62].forEach(function(sx) {
+    var sj = sph(0.13, 12, M.joint);
+    sj.position.set(sx, 1.5, 0); g.add(sj);
+    var ring = tor(0.16, 0.028, 6, 16, M.dark);
+    ring.position.set(sx, 1.5, 0); ring.rotation.z = Math.PI/2; g.add(ring);
+    // Shoulder brace
+    var br = bx(0.055, 0.055, 0.55, M.frame);
+    br.position.set(sx, 1.5, 0); g.add(br);
+  });
+
+  // Neck stub
+  var neck = cyl(0.155, 0.155, 0.18, 10, M.frame);
+  neck.position.set(0, upH + 0.19, 0); g.add(neck);
+  var nkf = cyl(0.21, 0.21, 0.038, 10, M.joint);
+  nkf.position.set(0, upH + 0.30, 0); g.add(nkf);
+
+  g.position.y = 0.42;
+  return g;
+}
+
+function makeArm(side) {
+  var g = new THREE.Group();
+
+  // Upper arm cylinder with detail rings
+  var ua = cyl(0.095, 0.085, 0.7, 10, M.chassis);
+  ua.position.set(0, -0.35, 0); g.add(ua);
+  [-0.22, 0, 0.22].forEach(function(ry) {
+    var ring = tor(0.10, 0.014, 6, 16, M.dark);
+    ring.position.set(0, ry, 0); ring.rotation.x = Math.PI/2; g.add(ring);
+  });
+  // Cable conduit alongside
+  var cable = cyl(0.018, 0.018, 0.62, 6, M.dark);
+  cable.position.set(side*0.07, -0.35, 0.05); g.add(cable);
+
+  // Elbow joint
+  var elbow = sph(0.125, 10, M.joint);
+  elbow.position.set(0, -0.72, 0); g.add(elbow);
+  var eh = cyl(0.14, 0.14, 0.09, 8, M.servo);
+  eh.rotation.z = Math.PI/2; eh.position.set(0, -0.72, 0); g.add(eh);
+
+  // Forearm
+  var fa = cyl(0.075, 0.068, 0.58, 10, M.chassis);
+  fa.position.set(side*0.055, -1.10, 0.055); fa.rotation.z = side*0.09;
+  g.add(fa);
+  [-0.14, 0.10].forEach(function(ry) {
+    var ring = tor(0.082, 0.012, 6, 16, M.dark);
+    ring.position.set(side*0.055, -1.10+ry, 0.055); ring.rotation.x = Math.PI/2; g.add(ring);
+  });
+
+  // Wrist disc
+  var wr = cyl(0.115, 0.115, 0.055, 10, M.joint);
+  wr.position.set(side*0.11, -1.43, 0.11); g.add(wr);
+  // Wrist bolt detail
+  for (var wb=0; wb<4; wb++) {
+    var wba = wb * Math.PI/2;
+    var wbolt = cyl(0.02, 0.02, 0.06, 6, M.dark);
+    wbolt.position.set(side*0.11 + Math.sin(wba)*0.08, -1.43, 0.11 + Math.cos(wba)*0.08); g.add(wbolt);
+  }
+
+  g.position.set(side*1.02, 1.92, 0);
+  g.rotation.z = side * 0.12;
+  return g;
+}
+
+function makeGripper(side) {
+  var g = new THREE.Group();
+
+  // Palm plate (with inlay detail)
+  var palm = bx(0.24, 0.075, 0.19, M.grip);
+  g.add(palm);
+  var inlay = bx(0.14, 0.038, 0.11, M.dark);
+  inlay.position.y = 0.057; g.add(inlay);
+  // Servo embedded in palm
+  var sv = cyl(0.05, 0.05, 0.16, 8, M.servo);
+  sv.rotation.z = Math.PI/2; sv.position.set(0, 0, 0); g.add(sv);
+
+  // 3 fingers
+  [-0.078, 0, 0.078].forEach(function(xf, fi) {
+    var pLen = fi===1 ? 0.22 : 0.18;
+    var dLen = fi===1 ? 0.16 : 0.13;
+    // Proximal segment
+    var ph1 = cyl(0.024, 0.020, pLen, 8, M.grip);
+    ph1.position.set(xf, 0.038+pLen/2, 0.04); g.add(ph1);
+    // Knuckle joint
+    var kn = sph(0.028, 8, M.joint);
+    kn.position.set(xf, 0.038+pLen+0.01, 0.04); g.add(kn);
+    // Distal segment
+    var ph2 = cyl(0.020, 0.016, dLen, 8, M.grip);
+    ph2.position.set(xf, 0.038+pLen+dLen/2+0.02, 0.04); ph2.rotation.x = -0.12; g.add(ph2);
+    // Fingertip pad
+    var tip = sph(0.024, 8, M.sensor);
+    tip.position.set(xf, 0.038+pLen+dLen+0.03, 0.04); g.add(tip);
+  });
+
+  // Wrist connector stub
+  var ws = cyl(0.10, 0.10, 0.06, 10, M.dark);
+  ws.position.set(0, -0.06, 0); g.add(ws);
+
+  g.position.set(side*1.14, 0.38, 0.11);
+  return g;
+}
+
+function makeHead() {
+  var g = new THREE.Group();
+
+  // Neck connector
+  var nc = cyl(0.148, 0.148, 0.10, 10, M.frame);
+  nc.position.set(0, 0.05, 0); g.add(nc);
+
+  // Main dome (slightly oblate)
+  var dome = sph(0.52, 16, M.head);
+  dome.scale.y = 0.88; dome.position.set(0, 0.62, 0); g.add(dome);
+
+  // Brow / forehead panel
+  var brow = bx(0.6, 0.08, 0.22, M.dark);
+  brow.position.set(0, 0.86, 0.32); brow.rotation.x = -0.3; g.add(brow);
+
+  // Eye visor band
+  var visor = tor(0.36, 0.038, 6, 24, M.dark);
+  visor.position.set(0, 0.62, 0.08); visor.rotation.x = Math.PI/2; g.add(visor);
+
+  // Eyes
+  [-0.175, 0.175].forEach(function(ex) {
+    var eye = cyl(0.068, 0.068, 0.045, 16, M.lens);
+    eye.rotation.x = Math.PI/2; eye.position.set(ex, 0.67, 0.50); g.add(eye);
+    var ering = tor(0.088, 0.018, 6, 16, M.joint);
+    ering.rotation.x = Math.PI/2; ering.position.set(ex, 0.67, 0.488); g.add(ering);
+    // Iris glint
+    var iris = cyl(0.032, 0.032, 0.018, 12, mStd(0x667788, .08, .05));
+    iris.rotation.x = Math.PI/2; iris.position.set(ex-0.015, 0.685, 0.525); g.add(iris);
+  });
+
+  // Side ear/vent modules
+  [-0.555, 0.555].forEach(function(ex) {
+    var vent = bx(0.055, 0.25, 0.20, M.dark);
+    vent.position.set(ex, 0.58, 0); g.add(vent);
+    [-0.07, 0, 0.07].forEach(function(sy) {
+      var sl = bx(0.038, 0.028, 0.16, M.chassis);
+      sl.position.set(ex, 0.58+sy, 0); g.add(sl);
+    });
+  });
+
+  // Antenna nubs
+  [-0.15, 0.15].forEach(function(ax) {
+    var ant = cyl(0.014, 0.008, 0.15, 6, M.dark);
+    ant.position.set(ax, 1.16, 0.02); g.add(ant);
+    var tip = sph(0.02, 6, M.accent);
+    tip.position.set(ax, 1.24, 0.02); g.add(tip);
+  });
+
+  g.position.set(0, 2.42, 0);
+  return g;
+}
+
+function makeCamera() {
+  var g = new THREE.Group();
+  var pcb = bx(0.19, 0.044, 0.15, M.pcb);
+  g.add(pcb);
+  var barrel = cyl(0.065, 0.058, 0.11, 12, M.dark);
+  barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.028, 0.095); g.add(barrel);
+  var lens = cyl(0.048, 0.048, 0.018, 12, M.lens);
+  lens.rotation.x = Math.PI/2; lens.position.set(0, 0.028, 0.158); g.add(lens);
+  var flens = cyl(0.022, 0.022, 0.01, 12, mStd(0x889aaa, .08, .04));
+  flens.rotation.x = Math.PI/2; flens.position.set(0, 0.028, 0.168); g.add(flens);
+  var conn = bx(0.038, 0.044, 0.038, M.chassis);
+  conn.position.set(0.065, 0, -0.062); g.add(conn);
+  var mount = bx(0.06, 0.09, 0.06, M.dark);
+  mount.position.set(0, -0.06, 0); g.add(mount);
+  g.position.set(0.32, 3.72, 0.28);
+  g.rotation.y = -0.28;
+  return g;
+}
+
+function makeSonar() {
+  var g = new THREE.Group();
+  var pcb = bx(0.27, 0.028, 0.11, M.pcb);
+  g.add(pcb);
+  // 2 transducer cans
+  [-0.068, 0.068].forEach(function(tx) {
+    var td = cyl(0.038, 0.038, 0.055, 12, M.chassis);
+    td.rotation.x = Math.PI/2; td.position.set(tx, 0.018, 0.055); g.add(td);
+    var face = cyl(0.032, 0.032, 0.018, 12, M.accent);
+    face.rotation.x = Math.PI/2; face.position.set(tx, 0.018, 0.092); g.add(face);
+    // Band ring
+    var band = tor(0.038, 0.008, 6, 12, M.dark);
+    band.rotation.x = Math.PI/2; band.position.set(tx, 0.018, 0.072); g.add(band);
+  });
+  // HC-SR04 label bar (visual)
+  var lb = bx(0.16, 0.018, 0.042, M.sensor);
+  lb.position.set(0, 0.018, 0.022); g.add(lb);
+  var mount = bx(0.038, 0.075, 0.038, M.dark);
+  mount.position.set(0, -0.04, -0.04); g.add(mount);
+  g.position.set(0, 1.52, 0.60);
+  return g;
+}
+
+// ─── BUILD SCENE ─────────────────────────────────────────────────────────────
+var BUILDERS = {
+  base:makeBase, torso:makeTorso,
+  armL: function(){return makeArm(-1);},
+  armR: function(){return makeArm(1);},
+  head:makeHead,
+  gripL: function(){return makeGripper(-1);},
+  gripR: function(){return makeGripper(1);},
+  cam:makeCamera, sonar:makeSonar
+};
+
+var groups = {};
+Object.keys(MODS).forEach(function(k) {
+  var grp = BUILDERS[k]();
+  grp.visible = active[k];
+  grp.traverse(function(o) { if(o.isMesh) { o.castShadow=true; o.receiveShadow=true; } });
+  scene.add(grp);
+  groups[k] = grp;
+});
+
+// ─── INTRO ANIMATIONS ────────────────────────────────────────────────────────
+var introAnim = {};
+
+// ─── BUTTONS ─────────────────────────────────────────────────────────────────
+var modsDiv = document.getElementById('mods');
+Object.entries(MODS).forEach(function(entry) {
+  var k = entry[0], d = entry[1];
+  var btn = document.createElement('button');
+  btn.className = 'mbtn' + (active[k] ? ' on' : '');
+  btn.textContent = d.label;
+  btn.onclick = function() {
+    active[k] = !active[k];
+    btn.classList.toggle('on', active[k]);
+    groups[k].visible = active[k];
+    if (active[k]) {
+      introAnim[k] = {start: performance.now(), origY: groups[k].position.y};
+      groups[k].position.y -= 0.32;
+    }
+    updateStats();
+    drawCharts();
+  };
+  modsDiv.appendChild(btn);
+});
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  var time=0, fil=0, elec=0, misc=0, parts=0;
+  Object.keys(MODS).forEach(function(k) {
+    if (!active[k]) return;
+    var d = MODS[k];
+    time += d.printH; fil += d.filG; elec += d.elec; misc += d.misc; parts += d.parts;
+  });
+  var tot = fil * PRICE_PER_G + elec + misc;
+  document.getElementById('s-time').textContent  = time.toFixed(1) + 'h';
+  document.getElementById('s-fil').textContent   = fil + 'g';
+  document.getElementById('s-elec').textContent  = '$' + elec;
+  document.getElementById('s-misc').textContent  = '$' + misc;
+  document.getElementById('s-tot').textContent   = '$' + Math.round(tot);
+  document.getElementById('s-parts').textContent = parts + ' pcs';
+}
+updateStats();
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+function chSetup(id) {
+  var el = document.getElementById(id);
+  var wrap = el.parentElement;
+  var dpr = window.devicePixelRatio || 1;
+  var h = parseInt(el.getAttribute('data-h'), 10); // ALWAYS from data-h, never from el.height
+  var w = wrap.clientWidth || 180;
+  el.width  = Math.round(w * dpr);
+  el.height = Math.round(h * dpr);
+  el.style.width  = w + 'px';
+  el.style.height = h + 'px';
+  var ctx = el.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  return {ctx:ctx, w:w, h:h};
+}
+
+function drawCharts() {
+  // Chart 1: Cost breakdown horizontal bars
+  (function() {
+    var r = chSetup('ch-cost');
+    var ctx = r.ctx, w = r.w, h = r.h;
+    var fil=0, elec=0, misc=0;
+    Object.keys(MODS).forEach(function(k) {
+      if (!active[k]) return;
+      fil  += MODS[k].filG * PRICE_PER_G;
+      elec += MODS[k].elec;
+      misc += MODS[k].misc;
+    });
+    var total = fil + elec + misc || 1;
+    var rows = [
+      {label:'Print',val:fil, color:'#EDEBE7'},
+      {label:'Elec', val:elec,color:'#7a9ab0'},
+      {label:'Misc', val:misc,color:'#4a5a68'},
+    ];
+    var rowH = h / 3;
+    var labelW = 24, barW = w - labelW - 30;
+    ctx.font = '8px Courier New';
+    rows.forEach(function(row, i) {
+      var y = i * rowH + 1;
+      var bw = (row.val / total) * barW;
+      ctx.fillStyle = '#161616';
+      ctx.fillRect(labelW, y, barW, rowH - 2);
+      ctx.fillStyle = row.color;
+      ctx.fillRect(labelW, y, bw, rowH - 2);
+      ctx.fillStyle = '#555';
+      ctx.fillText(row.label, 0, y + rowH - 4);
+      ctx.fillStyle = '#EDEBE7';
+      ctx.fillText('$' + row.val.toFixed(0), labelW + bw + 2, y + rowH - 4);
+    });
+  })();
+
+  // Chart 2: Print hours vertical bars
+  (function() {
+    var r = chSetup('ch-time');
+    var ctx = r.ctx, w = r.w, h = r.h;
+    var activeMods = Object.keys(MODS).filter(function(k){ return active[k]; });
+    var n = activeMods.length || 1;
+    var maxVal = 0;
+    activeMods.forEach(function(k){ if(MODS[k].printH > maxVal) maxVal = MODS[k].printH; });
+    if (maxVal === 0) maxVal = 1;
+    var barW = Math.max(4, Math.floor((w - 16) / n) - 2);
+    var chartH = h - 14;
+    ctx.font = '8px Courier New';
+    activeMods.forEach(function(k, i) {
+      var d = MODS[k];
+      var bh = (d.printH / maxVal) * chartH;
+      var x = 8 + i * (barW + 2);
+      ctx.fillStyle = '#181818';
+      ctx.fillRect(x, 0, barW, chartH);
+      ctx.fillStyle = '#EDEBE7';
+      ctx.fillRect(x, chartH - bh, barW, bh);
+      // Label
+      ctx.fillStyle = '#444';
+      var lbl = d.label.split(' ')[0].substring(0, 4);
+      ctx.fillText(lbl, x, h - 1);
+    });
+    // Max value label
+    ctx.fillStyle = '#333';
+    ctx.fillText(maxVal.toFixed(1) + 'h', 0, 10);
+  })();
+}
+drawCharts();
+
+// ─── ORBIT CONTROLS ──────────────────────────────────────────────────────────
+var isDrag = false, px0 = 0, py0 = 0, autoRot = true;
+
+cv.addEventListener('mousedown', function(e) {
+  isDrag = true; px0 = e.clientX; py0 = e.clientY; autoRot = false;
+});
+window.addEventListener('mouseup', function() { isDrag = false; });
+window.addEventListener('mousemove', function(e) {
+  if (!isDrag) return;
+  theta -= (e.clientX - px0) * 0.006;
+  phi = Math.max(0.18, Math.min(1.52, phi + (e.clientY - py0) * 0.006));
+  px0 = e.clientX; py0 = e.clientY;
+  updateCamera();
+});
+cv.addEventListener('wheel', function(e) {
+  radius = Math.max(4.5, Math.min(18, radius + e.deltaY * 0.012));
+  updateCamera();
+}, {passive:true});
+
+// Touch
+var touch1 = null, pinchDist0 = 0, pinchR0 = 0;
+cv.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    touch1 = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    autoRot = false;
+  }
+  if (e.touches.length === 2) {
+    var dx = e.touches[0].clientX - e.touches[1].clientX;
+    var dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchDist0 = Math.sqrt(dx*dx + dy*dy);
+    pinchR0 = radius;
+  }
+}, {passive:true});
+cv.addEventListener('touchmove', function(e) {
+  if (e.touches.length === 1 && touch1) {
+    theta -= (e.touches[0].clientX - touch1.x) * 0.006;
+    phi = Math.max(0.18, Math.min(1.52, phi + (e.touches[0].clientY - touch1.y) * 0.006));
+    touch1 = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    updateCamera();
+  }
+  if (e.touches.length === 2) {
+    var dx = e.touches[0].clientX - e.touches[1].clientX;
+    var dy = e.touches[0].clientY - e.touches[1].clientY;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    radius = Math.max(4.5, Math.min(18, pinchR0 * (pinchDist0 / dist)));
+    updateCamera();
+  }
+}, {passive:true});
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────────
+function onResize() {
+  var W = window.innerWidth, H = window.innerHeight;
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+  drawCharts();
+}
+new ResizeObserver(onResize).observe(document.documentElement);
+onResize();
+
+// ─── RENDER LOOP ─────────────────────────────────────────────────────────────
+var lastTs = 0;
+function animate(ts) {
+  requestAnimationFrame(animate);
+  var dt = Math.min((ts - lastTs) / 1000, 0.05);
+  lastTs = ts;
+
+  if (autoRot) {
+    theta += dt * 0.16;
+    updateCamera();
+  }
+
+  // Module entrance animations
+  Object.keys(introAnim).forEach(function(k) {
+    var ia = introAnim[k];
+    var t = Math.min((ts - ia.start) / 480, 1);
+    var ease = 1 - (1 - t) * (1 - t);
+    if (t >= 1) {
+      groups[k].position.y = ia.origY;
+      delete introAnim[k];
+    } else {
+      groups[k].position.y = ia.origY - 0.32 * (1 - ease);
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+animate(0);
+</script>
+</body>
+</html>
