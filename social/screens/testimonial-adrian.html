@@ -2,75 +2,76 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=540">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { width: 1080px; height: 1920px; overflow: hidden; background: #12181F; font-family: 'Georgia', serif; }
+  html, body { width: 540px; background: #0e141b; }
   .card {
-    width: 1080px; height: 1920px;
+    width: 540px;
+    min-height: 960px;
     background: linear-gradient(160deg, #1a2330 0%, #0e141b 55%, #111820 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 80px 100px;
+    padding: 40px 50px;
     position: relative;
   }
-  /* subtle grid lines */
   .card::before {
     content: '';
     position: absolute; inset: 0;
     background-image:
-      linear-gradient(rgba(237,235,231,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(237,235,231,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
+      linear-gradient(rgba(237,235,231,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(237,235,231,0.04) 1px, transparent 1px);
+    background-size: 30px 30px;
     pointer-events: none;
   }
-  /* top accent line */
   .card::after {
     content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, transparent, #EDEBE7 30%, #EDEBE7 70%, transparent);
   }
   .badge {
-    letter-spacing: 0.25em; font-size: 22px; font-family: 'Arial', sans-serif;
+    letter-spacing: 0.25em; font-size: 11px; font-family: 'Arial', sans-serif;
     font-weight: 700; color: #EDEBE7; text-transform: uppercase;
-    border: 1.5px solid rgba(237,235,231,0.5);
-    padding: 10px 28px; border-radius: 30px;
-    margin-bottom: 80px;
+    border: 1px solid rgba(237,235,231,0.5);
+    padding: 6px 16px; border-radius: 20px;
+    margin-bottom: 40px;
     position: relative; z-index: 1;
   }
   .quote-mark {
-    font-size: 220px; line-height: 0.6; color: #EDEBE7;
-    opacity: 0.15; align-self: flex-start;
-    margin-bottom: 20px;
+    font-size: 100px; line-height: 0.6; color: rgba(237,235,231,0.15);
+    align-self: flex-start;
+    margin-bottom: 10px;
     font-family: 'Georgia', serif;
     position: relative; z-index: 1;
   }
   .quote-text {
-    font-size: 52px; line-height: 1.5; color: #EDEBE7;
+    font-size: 26px; line-height: 1.55; color: #EDEBE7;
     font-style: italic; text-align: center;
-    margin-bottom: 70px;
+    margin-bottom: 36px;
     position: relative; z-index: 1;
-    max-width: 880px;
+    font-family: 'Georgia', serif;
   }
   .divider {
-    width: 60px; height: 2px; background: rgba(237,235,231,0.3);
-    margin-bottom: 50px;
+    width: 30px; height: 1px; background: rgba(237,235,231,0.3);
+    margin-bottom: 26px;
     position: relative; z-index: 1;
   }
   .attribution {
-    font-size: 32px; color: rgba(237,235,231,0.65);
+    font-size: 16px; color: rgba(237,235,231,0.65);
     font-style: italic; text-align: center;
-    margin-bottom: 36px;
+    margin-bottom: 18px;
     font-family: 'Arial', sans-serif;
     position: relative; z-index: 1;
   }
   .stars {
-    font-size: 44px; letter-spacing: 8px;
+    font-size: 22px; letter-spacing: 4px;
     position: relative; z-index: 1;
     color: #f5c518;
+    margin-bottom: 50px;
   }
   .brand {
-    position: absolute; bottom: 60px;
-    font-size: 26px; letter-spacing: 0.18em; color: rgba(237,235,231,0.35);
+    font-size: 13px; letter-spacing: 0.18em; color: rgba(237,235,231,0.3);
     font-family: 'Arial', sans-serif; font-weight: 700; text-transform: uppercase;
+    position: relative; z-index: 1;
   }
 </style>
 </head>
