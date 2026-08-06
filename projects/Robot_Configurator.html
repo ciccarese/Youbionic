@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ROBOT·CONFIGURATOR — Arm Design Studio</title>
+<style>
+:root {
+  --bg: #0a0e0f;
+  --bg2: #0f1618;
+  --panel: #111a1c;
+  --line: #1e2c2f;
+  --amber: #ffb000;
+  --teal: #19e6d2;
+  --red: #ff4d4d;
+  --dim: #5a6e72;
+  --txt: #c9dde0;
+  --mono: 'SF Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.logo{color:var(--amber);font-weight:700;font-size:11px;letter-spacing:2px;text-transform:uppercase;}
+.brand{color:var(--dim);font-size:9px;letter-spacing:1.5px;}
+.stat-live{color:var(--teal);font-size:10px;letter-spacing:1px;}
+main{display:flex;flex:1;overflow:hidden;}
+#viewport{flex:1;position:relative;min-width:0;}
+canvas#three{width:100%!important;height:100%!important;display:block;}
+#overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;padding:10px;}
+.hud-row{display:flex;gap:8px;flex-wrap:wrap;}
+.hud-chip{background:rgba(10,14,15,0.85);border:1px solid var(--line);border-radius:3px;padding:3px 8px;font-size:9px;color:var(--dim);}
+.hud-chip span{color:var(--teal);font-weight:700;}
+.hud-chip.warn span{color:var(--amber);}
+#side{width:180px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;flex-shrink:0;}
+.sect{border-bottom:1px solid var(--line);padding:10px 12px;}
+.sect h3{color:var(--amber);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.sect h3::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);flex-shrink:0;}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.lbl{color:var(--dim);font-size:9px;letter-spacing:0.5px;}
+.val{color:var(--teal);font-weight:700;font-size:10px;}
+.val.amber{color:var(--amber);}
+label{display:block;color:var(--dim);font-size:9px;margin-bottom:3px;margin-top:6px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--line);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);cursor:pointer;}
+select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:9px;padding:4px 6px;border-radius:2px;outline:none;}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+.chip{padding:3px 8px;border:1px solid var(--line);border-radius:2px;font-size:9px;color:var(--dim);cursor:pointer;transition:all .2s;}
+.chip.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.08);}
+.metric{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:6px 8px;margin-bottom:4px;}
+.metric .k{color:var(--dim);font-size:8px;letter-spacing:1px;text-transform:uppercase;}
+.metric .v{color:var(--teal);font-size:14px;font-weight:700;line-height:1.2;}
+.metric .v.amber{color:var(--amber);}
+.mlp-bar{height:4px;background:var(--line);border-radius:2px;margin-top:4px;overflow:hidden;}
+.mlp-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--amber));border-radius:2px;transition:width .4s;}
+button.primary{width:100%;padding:7px;background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;}
+button.primary:hover{background:rgba(255,176,0,.1);}
+#side::-webkit-scrollbar{width:3px;}
+#side::-webkit-scrollbar-track{background:var(--bg);}
+#side::-webkit-scrollbar-thumb{background:var(--line);}
+
+@media(max-width:740px){
+  main{flex-direction:column;}
+  #side{width:100%;border-left:none;border-top:1px solid var(--line);height:45dvh;overflow-y:auto;}
+  #viewport{height:55dvh;}
+  header{padding:6px 10px;}
+  .logo{font-size:10px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">ROBOT·CONFIGURATOR</div>
+    <div class="brand">CICCARESE AI · ARM DESIGN STUDIO · v1.0</div>
+  </div>
+  <div class="stat-live" id="hdr-stat">● LIVE</div>
+</header>
+
+<main>
+  <div id="viewport">
+    <canvas id="three"></canvas>
+    <div id="overlay">
+      <div class="hud-row" id="hud"></div>
+    </div>
+  </div>
+  <div id="side">
+
+    <div class="sect">
+      <h3>Architecture</h3>
+      <label>Degrees of Freedom</label>
+      <input type="range" id="dof" min="3" max="7" value="6" step="1">
+      <div class="row"><span class="lbl">DOF</span><span class="val" id="dof-val">6</span></div>
+
+      <label>Link Length (mm)</label>
+      <input type="range" id="link" min="80" max="250" value="150" step="5">
+      <div class="row"><span class="lbl">Avg Link</span><span class="val" id="link-val">150mm</span></div>
+
+      <label>Base Diameter (mm)</label>
+      <input type="range" id="base" min="50" max="120" value="80" step="5">
+      <div class="row"><span class="lbl">Base ∅</span><span class="val" id="base-val">80mm</span></div>
+    </div>
+
+    <div class="sect">
+      <h3>Actuation</h3>
+      <label>Servo Class</label>
+      <select id="servo">
+        <option value="mg996">MG996R — Budget</option>
+        <option value="ds3218" selected>DS3218 — Standard</option>
+        <option value="b2122">B2122 — High Torque</option>
+        <option value="herkulex">Herkulex 101 — Smart</option>
+      </select>
+      <div class="row" style="margin-top:6px"><span class="lbl">Torque/servo</span><span class="val" id="servo-torque">15 Nm</span></div>
+
+      <label>Grip Type</label>
+      <div class="chips">
+        <div class="chip on" data-g="claw" onclick="setGrip(this)">Claw</div>
+        <div class="chip" data-g="parallel" onclick="setGrip(this)">Parallel</div>
+        <div class="chip" data-g="hand" onclick="setGrip(this)">Hand 5F</div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Load</h3>
+      <label>Payload (g)</label>
+      <input type="range" id="payload" min="50" max="1000" value="300" step="50">
+      <div class="row"><span class="lbl">Payload</span><span class="val" id="payload-val">300g</span></div>
+
+      <label>Reach Factor</label>
+      <input type="range" id="reach" min="60" max="100" value="80" step="5">
+      <div class="row"><span class="lbl">Extension</span><span class="val" id="reach-val">80%</span></div>
+    </div>
+
+    <div class="sect">
+      <h3>AI Estimation</h3>
+      <div class="metric">
+        <div class="k">Max Reach</div>
+        <div class="v" id="m-reach">—</div>
+      </div>
+      <div class="metric">
+        <div class="k">Est. Print Weight</div>
+        <div class="v amber" id="m-weight">—</div>
+      </div>
+      <div class="metric">
+        <div class="k">Build Complexity</div>
+        <div class="v" id="m-complexity">—</div>
+        <div class="mlp-bar"><div class="mlp-fill" id="m-cbar" style="width:0%"></div></div>
+      </div>
+      <div class="metric">
+        <div class="k">Payload Capacity</div>
+        <div class="v" id="m-payload-score">—</div>
+        <div class="mlp-bar"><div class="mlp-fill" id="m-pbar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>MLP Surrogate</h3>
+      <div class="row"><span class="lbl">Network</span><span class="val amber">4·8·6·2</span></div>
+      <div class="row"><span class="lbl">Inputs</span><span class="val">DOF, Link, Payload, Servo</span></div>
+      <div class="row"><span class="lbl">Outputs</span><span class="val">Complexity, Score</span></div>
+    </div>
+
+    <div class="sect">
+      <button class="primary" onclick="randomize()">⟳ RANDOMIZE CONFIG</button>
+    </div>
+
+    <div class="sect" style="border-bottom:none">
+      <p style="color:var(--dim);font-size:8px;line-height:1.5;letter-spacing:0.3px;">
+        Estimates are surrogate neural approximations. Final performance depends on print quality, materials, and assembly. Visit youbionic.com for hardware kits.
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── THREE.JS SCENE ───────────────────────────────────────────────────────────
+const canvas = document.getElementById('three');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x0a0e0f, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0e0f, 0.018);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+camera.position.set(4, 4, 6);
+camera.lookAt(0, 2, 0);
+
+// Lights
+const amb = new THREE.AmbientLight(0x1a2a2e, 3);
+scene.add(amb);
+const spot = new THREE.SpotLight(0xffb000, 2.5, 30, Math.PI/6, 0.4);
+spot.position.set(5, 10, 5);
+spot.castShadow = true;
+scene.add(spot);
+const tealLight = new THREE.PointLight(0x19e6d2, 1.5, 15);
+tealLight.position.set(-3, 4, -2);
+scene.add(tealLight);
+
+// Grid
+const grid = new THREE.GridHelper(20, 40, 0x1e2c2f, 0x111a1c);
+grid.position.y = -0.01;
+scene.add(grid);
+
+// Orbit controls (manual)
+let isDragging = false, lastX, lastY;
+let theta = 0.5, phi = 0.7, radius = 8;
+const target = new THREE.Vector3(0, 2, 0);
+
+function updateCamera() {
+  camera.position.set(
+    target.x + radius * Math.sin(phi) * Math.sin(theta),
+    target.y + radius * Math.cos(phi),
+    target.z + radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(target);
+}
+
+canvas.addEventListener('mousedown', e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
+canvas.addEventListener('touchstart', e => { isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }, {passive:true});
+window.addEventListener('mouseup', () => isDragging=false);
+window.addEventListener('touchend', () => isDragging=false);
+
+window.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  theta -= (e.clientX - lastX) * 0.008;
+  phi = Math.max(0.2, Math.min(Math.PI*0.45, phi + (e.clientY - lastY) * 0.006));
+  lastX=e.clientX; lastY=e.clientY;
+  updateCamera();
+});
+window.addEventListener('touchmove', e => {
+  if(!isDragging) return;
+  theta -= (e.touches[0].clientX - lastX) * 0.01;
+  phi = Math.max(0.2, Math.min(Math.PI*0.45, phi + (e.touches[0].clientY - lastY) * 0.008));
+  lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  updateCamera();
+}, {passive:true});
+canvas.addEventListener('wheel', e => {
+  radius = Math.max(3, Math.min(18, radius + e.deltaY * 0.01));
+  updateCamera();
+}, {passive:true});
+
+updateCamera();
+
+// ─── ARM BUILD ────────────────────────────────────────────────────────────────
+const AMBER_MAT = new THREE.MeshStandardMaterial({color:0xffb000, roughness:0.25, metalness:0.7, emissive:0xffb000, emissiveIntensity:0.08});
+const TEAL_MAT  = new THREE.MeshStandardMaterial({color:0x19e6d2, roughness:0.2, metalness:0.8, emissive:0x19e6d2, emissiveIntensity:0.12});
+const DARK_MAT  = new THREE.MeshStandardMaterial({color:0x1e3035, roughness:0.4, metalness:0.6});
+const BASE_MAT  = new THREE.MeshStandardMaterial({color:0x0f2830, roughness:0.5, metalness:0.5, emissive:0x19e6d2, emissiveIntensity:0.03});
+
+let armGroup = null;
+let jointAngles = [];
+let gripGroup = null;
+let targetAngles = [];
+let t_anim = 0;
+
+function buildArm() {
+  if(armGroup) scene.remove(armGroup);
+  const dof = parseInt(document.getElementById('dof').value);
+  const linkL = parseInt(document.getElementById('link').value) / 1000 * 5; // scale to scene
+  const baseDiam = parseInt(document.getElementById('base').value) / 1000 * 5;
+
+  armGroup = new THREE.Group();
+  scene.add(armGroup);
+
+  jointAngles = Array(dof).fill(0);
+  targetAngles = Array(dof).fill(0).map((_,i) => (Math.random()-0.5)*1.2 * (i<2?0.5:1));
+
+  // Base cylinder
+  const baseGeo = new THREE.CylinderGeometry(baseDiam*0.6, baseDiam*0.7, 0.3, 32);
+  const baseMesh = new THREE.Mesh(baseGeo, BASE_MAT);
+  baseMesh.castShadow = true;
+  armGroup.add(baseMesh);
+
+  // Build links
+  const joints = [];
+  let parent = armGroup;
+  let posY = 0.15;
+
+  for(let i=0; i<dof; i++) {
+    const jGroup = new THREE.Group();
+    jGroup.position.y = (i === 0) ? posY : linkL;
+    parent.add(jGroup);
+    joints.push(jGroup);
+
+    // Joint sphere
+    const jGeo = new THREE.SphereGeometry(baseDiam * (0.35 - i*0.02), 16, 12);
+    const jMesh = new THREE.Mesh(jGeo, i%2===0 ? TEAL_MAT : AMBER_MAT);
+    jMesh.castShadow = true;
+    jGroup.add(jMesh);
+
+    // Link cylinder
+    if(i < dof-1) {
+      const lGeo = new THREE.CylinderGeometry(
+        baseDiam * (0.15 - i*0.01),
+        baseDiam * (0.18 - i*0.01),
+        linkL * 0.9, 10
+      );
+      const lMesh = new THREE.Mesh(lGeo, DARK_MAT);
+      lMesh.position.y = linkL * 0.45;
+      lMesh.castShadow = true;
+      jGroup.add(lMesh);
+
+      // Decoration ring
+      const rGeo = new THREE.TorusGeometry(baseDiam * (0.19 - i*0.015), 0.015, 8, 24);
+      const rMesh = new THREE.Mesh(rGeo, i%2===0 ? AMBER_MAT : TEAL_MAT);
+      rMesh.rotation.x = Math.PI/2;
+      rMesh.position.y = linkL * 0.45;
+      jGroup.add(rMesh);
+    }
+
+    parent = jGroup;
+  }
+
+  // Gripper
+  buildGripper(joints[dof-1], baseDiam);
+  armGroup.joints = joints;
+
+  // Glow point at end effector
+  const eefLight = new THREE.PointLight(0xffb000, 0.8, 2);
+  joints[dof-1].add(eefLight);
+}
+
+function buildGripper(parent, baseDiam) {
+  if(gripGroup) parent.remove(gripGroup);
+  gripGroup = new THREE.Group();
+  gripGroup.position.y = 0.3;
+  parent.add(gripGroup);
+
+  const grip = document.querySelector('.chip.on[data-g]')?.dataset.g || 'claw';
+
+  if(grip === 'claw') {
+    for(let s of [-1,1]) {
+      const f = new THREE.Group();
+      f.position.x = s * 0.12;
+      f.position.y = 0.1;
+      const fGeo = new THREE.CylinderGeometry(0.025, 0.015, 0.28, 8);
+      const fMesh = new THREE.Mesh(fGeo, AMBER_MAT);
+      fMesh.position.y = 0.14;
+      fMesh.rotation.z = s * 0.3;
+      f.add(fMesh);
+      gripGroup.add(f);
+    }
+  } else if(grip === 'parallel') {
+    for(let s of [-1,1]) {
+      const pGeo = new THREE.BoxGeometry(0.08, 0.22, 0.05);
+      const pMesh = new THREE.Mesh(pGeo, TEAL_MAT);
+      pMesh.position.set(s*0.15, 0.11, 0);
+      gripGroup.add(pMesh);
+    }
+    const palmGeo = new THREE.BoxGeometry(0.35, 0.04, 0.07);
+    const palmMesh = new THREE.Mesh(palmGeo, DARK_MAT);
+    gripGroup.add(palmMesh);
+  } else {
+    // Hand 5F — simplified
+    for(let i=0; i<5; i++) {
+      const fGeo = new THREE.CylinderGeometry(0.014, 0.01, 0.2-(i===0?0.06:0), 6);
+      const fMesh = new THREE.Mesh(fGeo, i%2===0?AMBER_MAT:TEAL_MAT);
+      fMesh.position.set((i-2)*0.07, 0.12, i===0?0.06:0);
+      fMesh.rotation.z = (i-2)*0.06;
+      gripGroup.add(fMesh);
+    }
+    const palmGeo = new THREE.BoxGeometry(0.36, 0.05, 0.08);
+    const palmMesh = new THREE.Mesh(palmGeo, DARK_MAT);
+    gripGroup.add(palmMesh);
+  }
+}
+
+// ─── MLP SURROGATE ────────────────────────────────────────────────────────────
+const SERVO_DATA = {
+  mg996:  {torque:1.0, cost:1},
+  ds3218: {torque:1.8, cost:2.5},
+  b2122:  {torque:2.8, cost:4},
+  herkulex:{torque:2.0, cost:8}
+};
+
+function sigmoid(x){return 1/(1+Math.exp(-x));}
+function relu(x){return Math.max(0,x);}
+
+// Mini MLP 4→8→6→2
+const W1=[[0.8,-0.5,0.6,-0.3,0.9,0.2,-0.7,0.4],[-0.4,0.9,-0.2,0.7,0.3,-0.6,0.5,-0.8],[0.5,0.3,0.9,-0.4,0.6,0.8,-0.3,0.2],[0.2,-0.7,0.4,0.9,-0.5,0.3,0.8,-0.6]];
+const b1=[-0.1,0.05,-0.1,0.15,-0.05,0.1,-0.05,0.08];
+const W2=[[0.6,0.2,-0.5,0.8,-0.3,0.7],[0.3,-0.8,0.6,0.1,0.9,-0.2],[-0.4,0.5,0.2,-0.7,0.3,0.8],[0.7,0.3,-0.6,0.4,0.2,-0.5],[-0.2,0.9,0.1,-0.3,0.7,0.4],[0.5,-0.1,0.8,-0.5,0.4,-0.7],[0.3,0.6,-0.2,0.9,-0.4,0.1],[-0.6,0.4,0.5,-0.1,0.8,-0.3]];
+const b2=[0.1,-0.05,0.12,-0.08,0.06,-0.1];
+const W3=[[0.9,-0.6],[0.3,0.8],[0.7,-0.2],[-0.4,0.9],[0.5,0.3],[-0.8,0.5]];
+const b3=[0.0,0.05];
+
+function mlpForward(inputs) {
+  // layer 1
+  let h1 = b1.map((b,j)=>{
+    let s=b; inputs.forEach((x,i)=>s+=x*W1[i][j]); return relu(s);
+  });
+  // layer 2
+  let h2 = b2.map((b,j)=>{
+    let s=b; h1.forEach((x,i)=>s+=x*W2[i][j]); return relu(s);
+  });
+  // layer 3
+  let out = b3.map((b,j)=>{
+    let s=b; h2.forEach((x,i)=>s+=x*W3[i][j]); return sigmoid(s);
+  });
+  return out;
+}
+
+function computeMetrics() {
+  const dof = parseInt(document.getElementById('dof').value);
+  const linkL = parseInt(document.getElementById('link').value);
+  const baseD = parseInt(document.getElementById('base').value);
+  const payload = parseInt(document.getElementById('payload').value);
+  const reach = parseInt(document.getElementById('reach').value);
+  const servoKey = document.getElementById('servo').value;
+  const servo = SERVO_DATA[servoKey];
+
+  // Physics-informed estimates
+  const maxReach = Math.round(linkL * (dof-1) * (reach/100) * 0.95);
+  const weight = Math.round((dof * linkL * 0.25 + baseD * 3) * 0.8);
+  const servoTorquesNeeded = payload * (maxReach/1000) * 9.81 / 1000;
+
+  // MLP inputs [dof_n, link_n, payload_n, servo_n] all normalized 0-1
+  const inp = [
+    (dof-3)/4,
+    (linkL-80)/170,
+    (payload-50)/950,
+    servo.cost/8
+  ];
+  const [complexity, payloadScore] = mlpForward(inp);
+
+  // Update UI
+  document.getElementById('m-reach').textContent = maxReach + ' mm';
+  document.getElementById('m-weight').textContent = weight + ' g';
+
+  const cx = Math.round(complexity*100);
+  document.getElementById('m-complexity').textContent = cx+'%';
+  document.getElementById('m-cbar').style.width = cx+'%';
+
+  const ps = Math.round(payloadScore*100);
+  document.getElementById('m-payload-score').textContent = ps+'%';
+  document.getElementById('m-pbar').style.width = ps+'%';
+
+  // Servo display
+  const torqueNm = [1.3, 1.8, 2.8, 2.0][['mg996','ds3218','b2122','herkulex'].indexOf(servoKey)];
+  document.getElementById('servo-torque').textContent = torqueNm + ' Nm';
+
+  // HUD
+  document.getElementById('hud').innerHTML = `
+    <div class="hud-chip">DOF <span>${dof}</span></div>
+    <div class="hud-chip">Reach <span>${maxReach}mm</span></div>
+    <div class="hud-chip">Weight <span>${weight}g</span></div>
+    <div class="hud-chip ${cx>70?'warn':''}">Complexity <span>${cx}%</span></div>
+  `;
+}
+
+// ─── ANIMATION LOOP ───────────────────────────────────────────────────────────
+let animTime = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  animTime += 0.012;
+
+  // Animate joint angles toward targets
+  if(armGroup && armGroup.joints) {
+    const dof = armGroup.joints.length;
+    for(let i=0; i<dof; i++) {
+      jointAngles[i] += (targetAngles[i] - jointAngles[i]) * 0.03;
+      armGroup.joints[i].rotation.z = jointAngles[i] * Math.sin(animTime*0.15 + i);
+      armGroup.joints[i].rotation.x = jointAngles[i] * 0.5 * Math.cos(animTime*0.1 + i*0.7);
+    }
+    // Periodically change targets
+    if(Math.random() < 0.004) {
+      const dofV = parseInt(document.getElementById('dof').value);
+      targetAngles = Array(dofV).fill(0).map((_,i)=>(Math.random()-0.5)*1.5*(i<2?0.4:1));
+    }
+  }
+
+  // Rotate teal light
+  tealLight.position.x = -3 * Math.cos(animTime*0.3);
+  tealLight.position.z = 3 * Math.sin(animTime*0.3);
+
+  const vp = document.getElementById('viewport');
+  renderer.setSize(vp.clientWidth, vp.clientHeight, false);
+  camera.aspect = vp.clientWidth / vp.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+}
+
+// ─── CONTROLS ─────────────────────────────────────────────────────────────────
+function update() { buildArm(); computeMetrics(); }
+function setGrip(el) {
+  document.querySelectorAll('.chip[data-g]').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  update();
+}
+
+['dof','link','base','payload','reach'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', ()=>{
+    document.getElementById(id+'-val').textContent =
+      id==='link' ? el.value+'mm' :
+      id==='base' ? el.value+'mm' :
+      id==='reach' ? el.value+'%' : el.value;
+    update();
+  });
+});
+document.getElementById('servo').addEventListener('change', update);
+
+function randomize() {
+  document.getElementById('dof').value = Math.floor(Math.random()*5)+3;
+  document.getElementById('link').value = Math.floor(Math.random()*35)*5+80;
+  document.getElementById('base').value = Math.floor(Math.random()*15)*5+50;
+  document.getElementById('payload').value = Math.floor(Math.random()*20)*50+50;
+  document.getElementById('reach').value = Math.floor(Math.random()*9)*5+60;
+  ['dof','link','base','payload','reach'].forEach(id=>{
+    const el=document.getElementById(id);
+    const d=document.getElementById(id+'-val');
+    d.textContent = id==='link'?el.value+'mm':id==='base'?el.value+'mm':id==='reach'?el.value+'%':el.value;
+  });
+  const servos=['mg996','ds3218','b2122','herkulex'];
+  document.getElementById('servo').value=servos[Math.floor(Math.random()*servos.length)];
+  update();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+['dof','link','base','payload','reach'].forEach(id=>{
+  const el=document.getElementById(id);
+  const d=document.getElementById(id+'-val');
+  d.textContent = id==='link'?el.value+'mm':id==='base'?el.value+'mm':id==='reach'?el.value+'%':el.value;
+});
+update();
+animate();
+</script>
+</body>
+</html>

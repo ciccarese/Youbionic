@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PRINT·TIME·CALC — 3D Robot Parts Estimator</title>
+<style>
+:root{
+  --bg:#0a0e0f;--bg2:#0f1618;--panel:#111a1c;--line:#1e2c2f;
+  --amber:#ffb000;--teal:#19e6d2;--red:#ff4d4d;--dim:#5a6e72;--txt:#c9dde0;
+  --mono:'SF Mono',ui-monospace,'Cascadia Mono','Roboto Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.logo{color:var(--amber);font-weight:700;font-size:11px;letter-spacing:2px;text-transform:uppercase;}
+.brand{color:var(--dim);font-size:9px;letter-spacing:1.5px;}
+main{display:flex;flex:1;overflow:hidden;}
+#left{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#canvas-area{flex:1;position:relative;background:var(--bg2);}
+canvas#gc{width:100%!important;height:100%!important;display:block;}
+#timeline{height:80px;background:var(--panel);border-top:1px solid var(--line);padding:8px 12px;overflow:hidden;}
+.tl-label{color:var(--dim);font-size:8px;letter-spacing:1px;margin-bottom:4px;text-transform:uppercase;}
+.tl-bar-wrap{display:flex;gap:2px;align-items:flex-end;height:42px;}
+.tl-bar{flex:1;background:var(--line);border-radius:1px 1px 0 0;position:relative;transition:height .5s;}
+.tl-bar .fill{position:absolute;bottom:0;left:0;right:0;border-radius:1px 1px 0 0;transition:height .5s ease;}
+.tl-bar .fill.infill{background:var(--teal);}
+.tl-bar .fill.perimeter{background:var(--amber);}
+.tl-bar .fill.travel{background:rgba(255,176,0,.2);}
+#side{width:180px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;flex-shrink:0;}
+.sect{border-bottom:1px solid var(--line);padding:10px 12px;}
+.sect h3{color:var(--amber);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.sect h3::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);flex-shrink:0;}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.lbl{color:var(--dim);font-size:9px;letter-spacing:0.5px;}
+.val{color:var(--teal);font-weight:700;font-size:10px;}
+label{display:block;color:var(--dim);font-size:9px;margin-bottom:3px;margin-top:6px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--line);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);cursor:pointer;}
+select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);font-family:var(--mono);font-size:9px;padding:4px 6px;border-radius:2px;outline:none;}
+.metric{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:6px 8px;margin-bottom:4px;}
+.metric .k{color:var(--dim);font-size:8px;letter-spacing:1px;text-transform:uppercase;}
+.metric .v{font-size:18px;font-weight:700;line-height:1.2;}
+.metric .v.teal{color:var(--teal);}
+.metric .v.amber{color:var(--amber);}
+.mlp-bar{height:4px;background:var(--line);border-radius:2px;margin-top:4px;overflow:hidden;}
+.mlp-fill{height:100%;border-radius:2px;transition:width .4s;}
+.big-time{background:var(--bg2);border:1px solid var(--amber);border-radius:3px;padding:10px 12px;margin-bottom:6px;text-align:center;}
+.big-time .v{color:var(--amber);font-size:28px;font-weight:700;}
+.big-time .u{color:var(--dim);font-size:9px;letter-spacing:1px;}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+.chip{padding:3px 8px;border:1px solid var(--line);border-radius:2px;font-size:9px;color:var(--dim);cursor:pointer;transition:all .2s;}
+.chip.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.08);}
+button.primary{width:100%;padding:7px;background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;margin-top:6px;}
+button.primary:hover{background:rgba(255,176,0,.1);}
+#side::-webkit-scrollbar{width:3px;}
+#side::-webkit-scrollbar-track{background:var(--bg);}
+#side::-webkit-scrollbar-thumb{background:var(--line);}
+@media(max-width:740px){
+  main{flex-direction:column;}
+  #side{width:100%;border-left:none;border-top:1px solid var(--line);height:46dvh;overflow-y:auto;}
+  #left{height:54dvh;}
+  #timeline{height:70px;}
+  header{padding:6px 10px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">PRINT·TIME·CALC</div>
+    <div class="brand">CICCARESE AI · 3D ROBOT PARTS ESTIMATOR · v1.0</div>
+  </div>
+  <div style="color:var(--teal);font-size:10px;letter-spacing:1px;" id="hdr-live">● COMPUTING</div>
+</header>
+<main>
+  <div id="left">
+    <div id="canvas-area"><canvas id="gc"></canvas></div>
+    <div id="timeline">
+      <div class="tl-label">Print Phase Breakdown</div>
+      <div class="tl-bar-wrap" id="tl-bars"></div>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="sect">
+      <h3>Part</h3>
+      <label>Part Type</label>
+      <select id="part">
+        <option value="arm_link">Arm Link</option>
+        <option value="joint">Servo Joint</option>
+        <option value="base">Base Mount</option>
+        <option value="hand">Hand Segment</option>
+        <option value="torso">Torso Panel</option>
+        <option value="custom">Custom Part</option>
+      </select>
+
+      <label>Volume (cm³)</label>
+      <input type="range" id="vol" min="5" max="300" value="65" step="5">
+      <div class="row"><span class="lbl">Volume</span><span class="val" id="vol-val">65 cm³</span></div>
+
+      <label>Wall Thickness (mm)</label>
+      <input type="range" id="wall" min="0.8" max="4" value="2.0" step="0.2">
+      <div class="row"><span class="lbl">Walls</span><span class="val" id="wall-val">2.0mm</span></div>
+    </div>
+
+    <div class="sect">
+      <h3>Slicer</h3>
+      <label>Infill (%)</label>
+      <input type="range" id="infill" min="5" max="100" value="25" step="5">
+      <div class="row"><span class="lbl">Infill</span><span class="val" id="infill-val">25%</span></div>
+
+      <label>Layer Height (mm)</label>
+      <select id="layer">
+        <option value="0.1">0.10mm — Fine</option>
+        <option value="0.15">0.15mm — Detail</option>
+        <option value="0.2" selected>0.20mm — Standard</option>
+        <option value="0.28">0.28mm — Draft</option>
+        <option value="0.35">0.35mm — Fast</option>
+      </select>
+
+      <label>Print Speed (mm/s)</label>
+      <input type="range" id="speed" min="30" max="150" value="60" step="10">
+      <div class="row"><span class="lbl">Speed</span><span class="val" id="speed-val">60 mm/s</span></div>
+
+      <label>Material</label>
+      <div class="chips">
+        <div class="chip on" data-m="pla" onclick="setMat(this)">PLA</div>
+        <div class="chip" data-m="petg" onclick="setMat(this)">PETG</div>
+        <div class="chip" data-m="abs" onclick="setMat(this)">ABS</div>
+        <div class="chip" data-m="tpu" onclick="setMat(this)">TPU</div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Estimate</h3>
+      <div class="big-time">
+        <div class="v" id="total-time">0h 00m</div>
+        <div class="u">TOTAL PRINT TIME</div>
+      </div>
+
+      <div class="metric">
+        <div class="k">Filament Used</div>
+        <div class="v teal" id="m-fil">—</div>
+      </div>
+      <div class="metric">
+        <div class="k">Material Cost</div>
+        <div class="v amber" id="m-cost">—</div>
+      </div>
+      <div class="metric">
+        <div class="k">Reliability Score</div>
+        <div class="v teal" id="m-rel">—</div>
+        <div class="mlp-bar"><div class="mlp-fill" style="background:var(--teal);width:0%" id="m-rbar"></div></div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>MLP Surrogate</h3>
+      <div class="row"><span class="lbl">Network</span><span class="val amber">5·8·6·2</span></div>
+      <div class="row"><span class="lbl">Inputs</span><span class="val">Vol, Infill, Layer, Speed, Mat</span></div>
+      <div class="row"><span class="lbl">Outputs</span><span class="val">Time adj, Reliability</span></div>
+    </div>
+
+    <div class="sect">
+      <button class="primary" onclick="randomConfig()">⟳ RANDOM CONFIG</button>
+    </div>
+
+    <div class="sect" style="border-bottom:none">
+      <p style="color:var(--dim);font-size:8px;line-height:1.5;">
+        Estimates based on physics model + neural surrogate. Actual times vary by printer, calibration, and environment. Optimized for Youbionic robot part profiles.
+      </p>
+    </div>
+  </div>
+</main>
+
+<script>
+const PART_VOLUMES = {arm_link:65,joint:30,base:90,hand:20,torso:180,custom:65};
+const MAT_PROPS = {
+  pla:  {density:1.24, cost_per_kg:20, speed_mult:1.0, name:'PLA'},
+  petg: {density:1.27, cost_per_kg:24, speed_mult:0.9, name:'PETG'},
+  abs:  {density:1.10, cost_per_kg:22, speed_mult:0.85, name:'ABS'},
+  tpu:  {density:1.20, cost_per_kg:35, speed_mult:0.55, name:'TPU'}
+};
+
+// Canvas setup
+const cv = document.getElementById('gc');
+const ctx = cv.getContext('2d');
+let animT = 0;
+let layers = [];
+let printProgress = 0;
+let targetProgress = 0;
+
+function resize() {
+  const area = document.getElementById('canvas-area');
+  cv.width = area.clientWidth;
+  cv.height = area.clientHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// MLP 5→8→6→2
+const W1=[[0.7,-0.4,0.6,-0.3,0.5,0.8,-0.6,0.2],[-0.3,0.8,-0.5,0.7,0.4,-0.2,0.6,-0.7],[0.5,-0.6,0.3,0.8,-0.4,0.1,0.7,-0.5],[0.4,0.2,-0.7,0.3,0.9,-0.5,0.2,0.6],[-0.6,0.5,0.4,-0.8,0.2,0.7,-0.3,0.4]];
+const b1=[-0.1,0.05,0.1,-0.08,0.03,0.12,-0.06,0.07];
+const W2=[[0.6,0.3,-0.4,0.8,-0.2,0.7],[0.2,-0.7,0.5,0.1,0.9,-0.3],[-0.5,0.4,0.3,-0.6,0.2,0.8],[0.7,0.2,-0.5,0.3,0.1,-0.4],[-0.3,0.8,0.1,-0.2,0.7,0.4],[0.5,-0.2,0.6,-0.4,0.3,-0.7],[0.4,0.6,-0.1,0.9,-0.5,0.2],[-0.7,0.3,0.4,-0.1,0.6,-0.3]];
+const b2=[0.05,-0.08,0.1,-0.04,0.09,-0.07];
+const W3=[[0.8,-0.5],[0.3,0.7],[0.6,-0.2],[-0.4,0.8],[0.5,0.4],[-0.7,0.3]];
+const b3=[0.02,0.05];
+function sigmoid(x){return 1/(1+Math.exp(-x));}
+function relu(x){return Math.max(0,x);}
+function mlp(inp) {
+  let h1=b1.map((b,j)=>{let s=b;inp.forEach((x,i)=>s+=x*W1[i][j]);return relu(s);});
+  let h2=b2.map((b,j)=>{let s=b;h1.forEach((x,i)=>s+=x*W2[i][j]);return relu(s);});
+  return b3.map((b,j)=>{let s=b;h2.forEach((x,i)=>s+=x*W3[i][j]);return sigmoid(s);});
+}
+
+let currentResult = {mins:120, filament:30, cost:0.6, reliability:80, infillPct:25, perimPct:35, travelPct:15, skinPct:15};
+
+function compute() {
+  const vol    = parseFloat(document.getElementById('vol').value);
+  const infill = parseFloat(document.getElementById('infill').value);
+  const layer  = parseFloat(document.getElementById('layer').value);
+  const speed  = parseFloat(document.getElementById('speed').value);
+  const matKey = document.querySelector('.chip.on[data-m]')?.dataset.m || 'pla';
+  const mat = MAT_PROPS[matKey];
+
+  // Physics model
+  const infillFrac = infill / 100;
+  const wallFrac = 0.4; // approximate wall volume fraction
+  const effectiveDensity = wallFrac + (1 - wallFrac) * infillFrac;
+  const solidVol = vol * effectiveDensity; // cm³
+  const filamentMass = solidVol * mat.density; // g
+  const filamentLen = filamentMass / (1.75 * 1.75 * Math.PI / 4 * 0.1) * 10; // mm, 1.75mm dia
+
+  // Base time (minutes): filament / (speed * layer * nozzle_width) / 60
+  const nozzle = 0.4; // mm
+  const layerArea = layer * nozzle; // mm²
+  const speedMult = mat.speed_mult;
+  const baseMinutes = (filamentLen / (speed * speedMult * 60)) * (1 / layerArea) * 80;
+
+  // MLP adjustment
+  const inp = [(vol-5)/295, infillFrac, (layer-0.1)/0.25, (speed-30)/120, [1,0.8,0.85,0.55].indexOf(mat.speed_mult)/3];
+  const [timeAdj, reliability] = mlp([(vol-5)/295, infillFrac, (layer-0.1)/0.25, (speed-30)/120, matKey==='pla'?0:matKey==='petg'?0.33:matKey==='abs'?0.66:1]);
+
+  const totalMins = Math.round(baseMinutes * (0.7 + timeAdj * 0.8));
+  const costVal = (filamentMass / 1000) * mat.cost_per_kg;
+  const relScore = Math.round(reliability * 100);
+
+  // Phase breakdown
+  const infillPct = Math.round(infillFrac * 45 + 10);
+  const perimPct  = Math.round(25 + layer * 20);
+  const travelPct = Math.round(10 + (1-speedMult)*15);
+  const skinPct   = 100 - infillPct - perimPct - travelPct;
+
+  currentResult = {totalMins, filamentMass: Math.round(filamentMass), costVal, relScore, infillPct, perimPct, travelPct, skinPct: Math.max(5, skinPct)};
+
+  // Update UI
+  const h = Math.floor(totalMins/60);
+  const m = totalMins % 60;
+  document.getElementById('total-time').textContent = h+'h '+(m<10?'0':'')+m+'m';
+  document.getElementById('m-fil').textContent = Math.round(filamentMass)+'g  /  '+Math.round(filamentLen/1000*10)/10+'m';
+  document.getElementById('m-cost').textContent = '$'+costVal.toFixed(2);
+  document.getElementById('m-rel').textContent = relScore+'%';
+  document.getElementById('m-rbar').style.width = relScore+'%';
+
+  // Timeline bars
+  buildTimeline(totalMins, infillPct, perimPct, travelPct, skinPct);
+
+  targetProgress = Math.min(1, totalMins / 1440);
+  document.getElementById('hdr-live').textContent = '● '+h+'h '+m+'m';
+
+  // Rebuild layer viz
+  buildLayers();
+}
+
+function buildTimeline(total, infill, perim, travel, skin) {
+  const bars = document.getElementById('tl-bars');
+  bars.innerHTML = '';
+  const phases = [
+    {n:'Infill', pct:infill, cls:'infill'},
+    {n:'Perimeter', pct:perim, cls:'perimeter'},
+    {n:'Travel', pct:travel, cls:'travel'},
+    {n:'Skin', pct:100-infill-perim-travel, cls:'perimeter'}
+  ];
+  // Show 16 bars alternating phases
+  for(let i=0;i<16;i++) {
+    const p = phases[i % phases.length];
+    const h = 10 + Math.sin(i * 0.8) * 15 + p.pct * 0.3;
+    const d = document.createElement('div');
+    d.className = 'tl-bar';
+    d.innerHTML = `<div class="fill ${p.cls}" style="height:${Math.min(100,h)}%"></div>`;
+    bars.appendChild(d);
+  }
+}
+
+function buildLayers() {
+  layers = [];
+  const vol = parseFloat(document.getElementById('vol').value);
+  const infill = parseFloat(document.getElementById('infill').value)/100;
+  const n = Math.min(40, Math.round(vol / 3));
+  for(let i=0;i<n;i++) {
+    layers.push({
+      y: i/(n-1),
+      infill: infill + Math.sin(i*0.4)*0.05,
+      complete: false,
+      progress: 0
+    });
+  }
+}
+
+// Canvas render — layer-by-layer viz
+function draw() {
+  requestAnimationFrame(draw);
+  animT += 0.02;
+
+  const W = cv.width, H = cv.height;
+  ctx.fillStyle = '#0a0e0f';
+  ctx.fillRect(0, 0, W, H);
+
+  if(layers.length === 0) return;
+
+  // Smooth progress
+  printProgress += (targetProgress - printProgress) * 0.02;
+
+  const partType = document.getElementById('part').value;
+  const cx = W/2, cy = H/2;
+  const scale = Math.min(W, H) * 0.28;
+
+  // Draw part silhouette based on type
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Background glow
+  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, scale * 1.2);
+  grad.addColorStop(0, 'rgba(25,230,210,0.04)');
+  grad.addColorStop(1, 'rgba(25,230,210,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-W/2, -H/2, W, H);
+
+  const nLayers = layers.length;
+  const activeLayer = Math.floor(printProgress * nLayers);
+
+  for(let i=0;i<nLayers;i++) {
+    const l = layers[i];
+    const layerY = cy - i * (H * 0.6 / nLayers) + H * 0.2;
+    const isActive = i === activeLayer;
+    const isDone = i < activeLayer;
+    const frac = l.infill;
+
+    if(!isDone && !isActive) {
+      // Draw outline only (not yet printed)
+      ctx.strokeStyle = 'rgba(30,44,47,0.5)';
+      ctx.lineWidth = 1;
+      drawLayerShape(ctx, partType, 0, layerY - cy, scale * (0.5 + i/nLayers * 0.3) * (1 - i/nLayers * 0.4), false);
+    } else if(isDone) {
+      // Printed layer
+      ctx.fillStyle = `rgba(${i%2===0?'25,230,210':'255,176,0'},${0.06+frac*0.1})`;
+      ctx.strokeStyle = i%2===0 ? 'rgba(25,230,210,0.4)' : 'rgba(255,176,0,0.3)';
+      ctx.lineWidth = 0.8;
+      drawLayerShape(ctx, partType, 0, layerY - cy, scale * (0.5 + i/nLayers * 0.3) * (1 - i/nLayers * 0.4), true);
+    } else {
+      // Active layer — animated
+      const p = (animT * 2) % 1;
+      ctx.fillStyle = `rgba(255,176,0,${0.2+Math.sin(animT*4)*0.1})`;
+      ctx.strokeStyle = `rgba(255,176,0,${0.8+Math.sin(animT*6)*0.2})`;
+      ctx.lineWidth = 1.5;
+      drawLayerShape(ctx, partType, 0, layerY - cy, scale * (0.5 + i/nLayers * 0.3) * (1 - i/nLayers * 0.4), true);
+
+      // Nozzle dot
+      ctx.beginPath();
+      ctx.arc(Math.cos(animT*3)*scale*0.3, layerY - cy, 4, 0, Math.PI*2);
+      ctx.fillStyle = '#ffb000';
+      ctx.fill();
+      ctx.shadowColor = '#ffb000';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+  ctx.restore();
+
+  // Progress bar
+  ctx.fillStyle = 'rgba(15,22,24,0.8)';
+  ctx.fillRect(20, H-24, W-40, 8);
+  ctx.fillStyle = `rgba(25,230,210,${0.6+Math.sin(animT*2)*0.2})`;
+  ctx.fillRect(20, H-24, (W-40)*printProgress, 8);
+  ctx.strokeStyle = '#1e2c2f';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(20, H-24, W-40, 8);
+
+  // Progress text
+  ctx.fillStyle = '#5a6e72';
+  ctx.font = `9px ${getComputedStyle(document.body).getPropertyValue('--mono').split(',')[0]}`;
+  ctx.fillText(`LAYER ${Math.min(layers.length, Math.floor(printProgress*layers.length)+1)} / ${layers.length}`, 20, H-30);
+  ctx.fillText(`${Math.round(printProgress*100)}%`, W-40, H-30);
+}
+
+function drawLayerShape(ctx, type, x, y, r, filled) {
+  ctx.beginPath();
+  if(type === 'arm_link') {
+    ctx.ellipse(x, y, r*0.25, r*0.7, 0, 0, Math.PI*2);
+  } else if(type === 'joint') {
+    ctx.arc(x, y, r*0.4, 0, Math.PI*2);
+  } else if(type === 'base') {
+    ctx.rect(x-r*0.5, y-r*0.5, r, r);
+  } else if(type === 'hand') {
+    ctx.ellipse(x, y, r*0.4, r*0.6, 0.3, 0, Math.PI*2);
+  } else if(type === 'torso') {
+    ctx.rect(x-r*0.6, y-r*0.4, r*1.2, r*0.8);
+  } else {
+    ctx.arc(x, y, r*0.4, 0, Math.PI*2);
+  }
+  if(filled) { ctx.fill(); }
+  ctx.stroke();
+}
+
+// Sync part selector
+document.getElementById('part').addEventListener('change', e=>{
+  const v = PART_VOLUMES[e.target.value];
+  document.getElementById('vol').value = v;
+  document.getElementById('vol-val').textContent = v+' cm³';
+  compute();
+});
+
+['vol','infill','speed'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    const el=document.getElementById(id);
+    document.getElementById(id+'-val').textContent = id==='vol'?el.value+' cm³':id==='speed'?el.value+' mm/s':el.value+'%';
+    compute();
+  });
+});
+document.getElementById('layer').addEventListener('change', compute);
+document.getElementById('wall').addEventListener('input', e=>{
+  document.getElementById('wall-val').textContent = parseFloat(e.target.value).toFixed(1)+'mm';
+  compute();
+});
+
+function setMat(el) {
+  document.querySelectorAll('.chip[data-m]').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); compute();
+}
+
+function randomConfig() {
+  const parts=['arm_link','joint','base','hand','torso','custom'];
+  const mats=['pla','petg','abs','tpu'];
+  document.getElementById('part').value=parts[Math.floor(Math.random()*parts.length)];
+  document.getElementById('vol').value=Math.floor(Math.random()*60)*5+5;
+  document.getElementById('infill').value=Math.floor(Math.random()*20)*5+5;
+  document.getElementById('speed').value=Math.floor(Math.random()*13)*10+30;
+  document.getElementById('layer').value=['0.1','0.15','0.2','0.28','0.35'][Math.floor(Math.random()*5)];
+  const m=mats[Math.floor(Math.random()*mats.length)];
+  document.querySelectorAll('.chip[data-m]').forEach(c=>{c.classList.remove('on');if(c.dataset.m===m)c.classList.add('on');});
+  ['vol','infill','speed'].forEach(id=>{
+    const el=document.getElementById(id);
+    document.getElementById(id+'-val').textContent=id==='vol'?el.value+' cm³':id==='speed'?el.value+' mm/s':el.value+'%';
+  });
+  compute();
+}
+
+compute();
+draw();
+</script>
+</body>
+</html>
